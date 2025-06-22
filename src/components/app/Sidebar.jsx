@@ -1,19 +1,12 @@
-import {
-    BarChart2Icon,
-    HelpCircleIcon,
-    HospitalIcon,
-    LogOutIcon,
-    MoonIcon,
-    SearchIcon,
-    SettingsIcon,
-    UsersIcon,
-} from "lucide-react";
+import { useAppStore } from "@store/index.js";
+import { BarChart2Icon, HandCoinsIcon, HospitalIcon, LogOutIcon, MoonIcon, UsersIcon, } from "lucide-react";
 import { useState } from "react";
 import SidebarItem from "./sidebar/SidebarItem.jsx";
 
 export default function Sidebar() {
+    const { isExpanded } = useAppStore()
+
     const [darkMode, setDarkMode] = useState(false);
-    const [isExpanded, setIsExpanded] = useState(true);
 
 
     const toggleDarkMode = () => {
@@ -21,11 +14,15 @@ export default function Sidebar() {
         setDarkMode(!darkMode);
     };
 
+    const doLogout = () => {
+        alert('logout')
+    }
+
     return (
         <aside
-            className="transition-all duration-300 ${isExpanded ? 'w-64' : 'w-20'} h-screen bg-gray-100 dark:bg-zinc-900 text-zinc-900 dark:text-white flex flex-col justify-between">
+            className={ `transition-all duration-300 ${isExpanded ? 'w-64' : 'w-20'} h-screen flex flex-col justify-between border-r border-gray-300 dark:border-zinc-700` }>
             <div>
-                <div className="flex items-center gap-3 px-4 py-6 border-b dark:border-zinc-700">
+                <div className="flex items-center gap-3 px-4 h-12 border-b dark:border-zinc-700 mb-4">
                     <img
                         src="https://i.pravatar.cc/100"
                         alt="User"
@@ -37,37 +34,50 @@ export default function Sidebar() {
                     </div>
                 </div>
 
-                { /* Search */ }
-                <div className="px-4 py-4">
-                    <div className="flex items-center bg-white dark:bg-zinc-800 px-3 py-2 rounded-md shadow-inner">
-                        <SearchIcon className="w-4 h-4 text-zinc-400"/>
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            className="ml-2 bg-transparent outline-none text-sm text-zinc-800 dark:text-white placeholder:text-zinc-400"
-                        />
-                    </div>
-                </div>
-
                 { /* Navigation */ }
                 <nav className="px-4 space-y-2">
-                    <SidebarItem icon={ <UsersIcon/> } label="Patients" isExpanded={ isExpanded } />
-                    <SidebarItem icon={ <HospitalIcon/> } label="Hospital" isExpanded={ isExpanded } />
-                    <SidebarItem icon={ <BarChart2Icon/> } label="Analytics" isExpanded={ isExpanded } />
-                    <SidebarItem icon={ <SettingsIcon/> } label="Settings" isExpanded={ isExpanded } />
+                    <SidebarItem
+                        to="/"
+                        icon={ UsersIcon }
+                        label="Dashboard"
+                        isExpanded={ isExpanded }
+                    />
+
+                    <SidebarItem
+                        to="/items"
+                        icon={ BarChart2Icon }
+                        label="Analytics"
+                        isExpanded={ isExpanded }/>
+
+                    <SidebarItem
+                        to="/settings"
+                        icon={ HospitalIcon }
+                        label="Hospital"
+                        isExpanded={ isExpanded }/>
                 </nav>
             </div>
 
             { /* Footer */ }
             <div className="px-4 py-4 space-y-2">
-                <SidebarItem icon={ <HelpCircleIcon/> } label="Help Center"/>
-                <SidebarItem icon={ <LogOutIcon/> } label="Log Out"/>
+                <SidebarItem
+                    to="/cashier"
+                    icon={ HandCoinsIcon }
+                    label="Cashier"
+                    isExpanded={ isExpanded }/>
+
+                <SidebarItem
+                    onClick={ doLogout }
+                    icon={ LogOutIcon }
+                    label="Logout"
+                    isExpanded={ isExpanded }/>
 
                 { /* Night mode toggle */ }
                 <div className="flex items-center justify-between bg-zinc-200 dark:bg-zinc-800 rounded-full px-3 py-2">
-                    <div className="flex items-center gap-2">
+                    <div
+                        onClick={ toggleDarkMode }
+                        className="flex items-center gap-2 cursor-pointer">
                         <MoonIcon className="w-4 h-4"/>
-                        <span className="text-sm">Nightmode</span>
+                        { isExpanded && <span className="text-sm">Nightmode</span> }
                     </div>
                     <button
                         onClick={ toggleDarkMode }
