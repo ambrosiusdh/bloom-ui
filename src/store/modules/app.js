@@ -1,7 +1,7 @@
 import { create } from "zustand/react";
 
 const useAppStore = create((set) => ({
-    isExpanded: false,
+    isExpanded: true,
     toggleExpanded: () => set(state => state.isExpanded = !state.isExpanded)
 }))
 

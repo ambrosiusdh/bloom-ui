@@ -28,10 +28,15 @@ export default function Sidebar() {
                         alt="User"
                         className="w-10 h-10 rounded-full"
                     />
-                    <div>
-                        <div className="font-semibold">John Doe</div>
-                        <div className="text-xs text-zinc-500 dark:text-zinc-400">D. in Medicine</div>
-                    </div>
+
+                    {
+                        isExpanded && (
+                        <div>
+                            <div className="font-semibold">John Doe</div>
+                            <div className="text-xs text-zinc-500 dark:text-zinc-400">D. in Medicine</div>
+                        </div>
+                        )
+                    }
                 </div>
 
                 { /* Navigation */ }
