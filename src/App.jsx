@@ -2,8 +2,16 @@ import './App.css'
 import { Outlet } from "react-router-dom";
 import Header from "@components/app/Header.jsx";
 import Sidebar from "@components/app/Sidebar.jsx";
+import { useAuthStore } from "@store/index.js";
+import { useEffect } from "react"
 
 function App() {
+    const authStore = useAuthStore();
+
+    useEffect(() => {
+        authStore.getCurrentUser()
+    }, [])
+
     return (
         <div className="bloom flex w-full h-screen bg-gray-100 dark:bg-zinc-900 text-zinc-900 dark:text-white transition duration-300">
             <Sidebar/>
