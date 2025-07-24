@@ -1,11 +1,11 @@
 /* eslint-env node */
 import react from '@vitejs/plugin-react'
 import path from "path";
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-    const env = process.env
+    const env = loadEnv(mode, process.cwd(), '')
     return {
         plugins: [react()],
 
@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
         server: {
             proxy: {
                 '/api': {
-                    target: env.BE_API_URL,
+                    target: env.VITE_BE_API_URL,
                     changeOrigin: true,
                     secure: false,
                 },

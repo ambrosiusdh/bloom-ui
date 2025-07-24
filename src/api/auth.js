@@ -1,14 +1,30 @@
 import api from "@api/index.js";
+import { AUTH } from "@api/path/index.js";
 
-export const getCurrentUser = async () => {
-    const res = await api.get('/api/auth/current')
-    return res.data
+const getCurrentUser = async () => {
+    return api({
+        url: AUTH.currentUser,
+        method: 'GET'
+    });
 }
 
-export const login = async (data) => {
-    await api.post('/api/auth/login', data)
+const doLogin = async payload => {
+    return api({
+        url: AUTH.login,
+        method: 'POST',
+        ...payload
+    });
 }
 
-export const logout = async () => {
-    await api.post('/api/auth/logout')
+const doLogout = async () => {
+    return api({
+        url: AUTH.logout,
+        method: 'POST'
+    });
+}
+
+export default {
+    getCurrentUser,
+    doLogin,
+    doLogout
 }

@@ -1,32 +1,57 @@
-import { Button, TextField } from "@mui/material";
-import { useState } from "react";
+import { Alert, Button, TextField } from "@mui/material";
+import { useEffect, useState } from "react";
+import { useAuthStore } from "@store/index.js";
+import { useNavigate } from "react-router-dom";
 
 export function Login() {
+    const currentUser = useAuthStore(state => state.currentUser);
+    const doLogin = useAuthStore(state => state.doLogin);
+    const getCurrentUser = useAuthStore(state => state.getCurrentUser);
+    const navigate = useNavigate();
+
     const [form, setForm] = useState({
         username: '',
         password: ''
     })
-
     const [isInvalidForm, setIsInvalidForm] = useState({
         username: false,
         password: false
     });
+    const [errorMessage, setErrorMessage] = useState('')
 
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        setIsInvalidForm({
-            username: !form.username,
-            password: !form.password
-        })
+        if (!form.username || !form.password) {
+            setIsInvalidForm({
+                username: !form.username,
+                password: !form.password
+            })
+            return
+        }
 
-        console.log('submit')
-        console.log(e)
-        console.log(form)
+        const response = await doLogin({
+            data: {
+                ...form
+            }
+        })
+        if (response.status !== 200) {
+            setErrorMessage(response.data.message)
+        }
     }
+
+    useEffect(() => {
+        getCurrentUser()
+    }, []);
+
+    useEffect(() => {
+        if (currentUser?.username) {
+            navigate('/')
+        }
+    }, [currentUser]);
 
     return (
         <div className="login w-full h-screen flex items-center justify-center bg-white text-black">
@@ -37,6 +62,10 @@ export function Login() {
                 <div className="login__header mb-2">
                     <h1 className="login__header-title text-4xl">Login</h1>
                 </div>
+
+                { errorMessage && (
+                    <Alert severity="error">{ errorMessage }</Alert>
+                ) }
 
                 <div className="login__content-username">
                     <TextField

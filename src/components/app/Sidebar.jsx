@@ -1,10 +1,12 @@
-import { useAppStore } from "@store/index.js";
-import { BarChart2Icon, HandCoinsIcon, HospitalIcon, LogOutIcon, MoonIcon, UsersIcon, } from "lucide-react";
+import { useAppStore, useAuthStore } from "@store/index.js";
+import { BarChart2Icon, HandCoinsIcon, HospitalIcon, LogOutIcon, MoonIcon, UsersIcon, UserIcon } from "lucide-react";
 import { useState } from "react";
 import SidebarItem from "./sidebar/SidebarItem.jsx";
 
 export default function Sidebar() {
     const { isExpanded } = useAppStore()
+    const currentUser = useAuthStore(state => state.currentUser)
+    const doLogout = useAuthStore(state => state.doLogout)
 
     const [darkMode, setDarkMode] = useState(false);
 
@@ -14,8 +16,8 @@ export default function Sidebar() {
         setDarkMode(!darkMode);
     };
 
-    const doLogout = () => {
-        alert('logout')
+    const handleLogout = async () => {
+        await doLogout();
     }
 
     return (
@@ -23,8 +25,7 @@ export default function Sidebar() {
             className={ `transition-all duration-300 ${isExpanded ? 'w-64' : 'w-20'} h-screen flex flex-col justify-between border-r border-gray-300 dark:border-zinc-700` }>
             <div>
                 <div className="flex items-center gap-3 px-4 h-12 border-b dark:border-zinc-700 mb-4">
-                    <img
-                        src="https://i.pravatar.cc/100"
+                    <UserIcon
                         alt="User"
                         className="w-10 h-10 rounded-full"
                     />
@@ -32,8 +33,8 @@ export default function Sidebar() {
                     {
                         isExpanded && (
                         <div>
-                            <div className="font-semibold">John Doe</div>
-                            <div className="text-xs text-zinc-500 dark:text-zinc-400">D. in Medicine</div>
+                            <div className="font-semibold">{ currentUser?.name }</div>
+                            <div className="text-xs text-zinc-500 dark:text-zinc-400">{ currentUser?.role }</div>
                         </div>
                         )
                     }
@@ -71,7 +72,7 @@ export default function Sidebar() {
                     isExpanded={ isExpanded }/>
 
                 <SidebarItem
-                    onClick={ doLogout }
+                    onClick={ handleLogout }
                     icon={ LogOutIcon }
                     label="Logout"
                     isExpanded={ isExpanded }/>
