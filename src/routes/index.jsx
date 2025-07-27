@@ -1,9 +1,10 @@
 import { createBrowserRouter } from "react-router-dom";
-import App from "../App.jsx";
+import App from "@/App.jsx";
 import { Cashier } from "@pages/cashier/Cashier.jsx";
 import { Dashboard } from "@pages/dashboard/Dashboard.jsx";
-import {Login} from "@pages/login/Login.jsx";
-import {ItemList} from "@pages/item/ItemList.jsx";
+import { Login } from "@pages/login/Login.jsx";
+import { ItemList } from "@pages/item/ItemList.jsx";
+import NotFound from "@pages/NotFound.jsx";
 
 const router = createBrowserRouter([
     {
@@ -14,20 +15,31 @@ const router = createBrowserRouter([
                 path: "",
                 element: <Dashboard/>
             },
+
+            {
+                path: "login",
+                element: <Login/>,
+                handle: {
+                    hideLayout: true
+                }
+            },
+
             {
                 path: "cashier",
                 element: <Cashier/>
             },
+
             {
-                path: "item",
+                path: "items",
                 element: <ItemList/>,
                 children: []
+            },
+
+            {
+                path: "*",
+                element: <NotFound/>
             }
         ]
-    },
-    {
-        path: "/login",
-        element: <Login/>
     }
 ])
 

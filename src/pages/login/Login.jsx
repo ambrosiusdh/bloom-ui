@@ -40,12 +40,11 @@ export function Login() {
         })
         if (response.status !== 200) {
             setErrorMessage(response.data.message)
+            return
         }
-    }
 
-    useEffect(() => {
-        getCurrentUser()
-    }, []);
+        await getCurrentUser()
+    }
 
     useEffect(() => {
         if (currentUser?.username) {
@@ -54,7 +53,7 @@ export function Login() {
     }, [currentUser]);
 
     return (
-        <div className="login w-full h-screen flex items-center justify-center bg-white text-black">
+        <div className="login w-full h-screen flex items-center justify-center">
             <form
                 className="login__content shadow-lg rounded border border-gray p-4 w-1/2 flex flex-col gap-4"
                 onSubmit={ handleSubmit }

@@ -10,7 +10,12 @@ const axiosInstance = axios.create({
 })
 
 axiosInstance.interceptors.response.use(response => response, error => {
-    console.log(error)
+    const location = window.location.pathname;
+
+    if (error.response?.status === 401 && location !== "/login") {
+        window.location.href = "/login";
+    }
+
     return Promise.reject(error)
 })
 

@@ -1,5 +1,14 @@
 import { useAppStore, useAuthStore } from "@store/index.js";
-import { BarChart2Icon, HandCoinsIcon, HospitalIcon, LogOutIcon, MoonIcon, UsersIcon, UserIcon } from "lucide-react";
+import {
+    BarChart2Icon,
+    HandCoinsIcon,
+    HospitalIcon,
+    LogOutIcon,
+    MoonIcon,
+    UsersIcon,
+    UserIcon,
+    PackageSearchIcon
+} from "lucide-react";
 import { useState } from "react";
 import SidebarItem from "./sidebar/SidebarItem.jsx";
 
@@ -51,8 +60,8 @@ export default function Sidebar() {
 
                     <SidebarItem
                         to="/items"
-                        icon={ BarChart2Icon }
-                        label="Analytics"
+                        icon={ PackageSearchIcon }
+                        label="Master Items"
                         isExpanded={ isExpanded }/>
 
                     <SidebarItem
