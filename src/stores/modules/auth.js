@@ -8,11 +8,12 @@ const useAuthStore = create((set) => ({
         try {
             const response = await api.getCurrentUser()
             if (response.status !== 200) {
+                console.log(response)
                 set({ currentUser: {} })
                 return
             }
 
-            set({ currentUser: response.data })
+            set({ currentUser: response.data.data })
             return response
         } catch (error) {
             console.error('Error fetching current user:', error);
@@ -22,21 +23,22 @@ const useAuthStore = create((set) => ({
 
     doLogin: async payload => {
         try {
-            return await api.doLogin(payload)
+            const { data: response } = await api.doLogin(payload)
+            return response
         } catch (error) {
             console.error('Error login: ', error);
-            return error.response
+            return error.response.data
         }
     },
 
     doLogout: async () => {
         try {
-            const response = await api.doLogout()
+            const { data: response } = await api.doLogout()
             set({ currentUser: {} })
             return response
         } catch (error) {
             console.error('Error logout: ', error);
-            return error.response
+            return error.response.data
         }
     }
 }));

@@ -19,18 +19,29 @@ export default function SidebarItem(props) {
     } = props
 
     const location = useLocation()
-    const isActive = to ? location.pathname === to : false
+    const isActive = to ? location.pathname.startsWith(to) : false
 
     const content = (
         <div
-            className={ `flex items-center p-2 rounded gap-3 transition-colors duration-500 ${
+            className={ `
+            flex
+            font-semibold
+            items-center 
+            p-2
+            rounded
+            gap-3 
+            transition-colors 
+            duration-500
+            hover:cursor-pointer 
+            whitespace-nowrap
+            ${
                 isActive
-                    ? "bg-blue-100 dark:bg-blue-800"
-                    : "hover:bg-gray-200 dark:hover:bg-gray-700"
+                    ? "bg-white text-blue-700"
+                    : "text-white hover:bg-blue-700"
             }` }
         >
-            <Icon className="text-xl text-zinc-900 dark:text-white" />
-            { isExpanded && <span className="text-zinc-900 dark:text-white font-semibold">{ label }</span> }
+            <Icon className="text-xl" />
+            { isExpanded && <span className="font-semibold">{ label }</span> }
         </div>
     );
 

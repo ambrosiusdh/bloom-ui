@@ -12,7 +12,15 @@ const ITEM = {
     deactivate: sku => `/api/items/${sku}`,
 }
 
+const ITEM_CATEGORY = {
+    list: '/api/item-categories',
+    create: '/api/item-categories',
+    update: code => `/api/item-categories/${code}`,
+    deactivate: code => `/api/item-categories/${code}`
+}
+
 export {
     AUTH,
-    ITEM
+    ITEM,
+    ITEM_CATEGORY
 }

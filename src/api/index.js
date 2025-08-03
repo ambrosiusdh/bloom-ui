@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { useLoaderStore } from "@store/index.js";
+import { useLoaderStore } from "@stores/index.js";
 
 const axiosInstance = axios.create({
     baseURL: import.meta.env.VITE_BE_API_URL,
@@ -22,7 +22,7 @@ axiosInstance.interceptors.response.use(response => response, error => {
 export default async function (config, options = {}) {
     const { showLoader, hideLoader } = useLoaderStore.getState();
     const {
-        useLoader = true
+        useLoader = false
     } = options;
 
     if (useLoader) {

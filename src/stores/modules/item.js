@@ -7,50 +7,56 @@ const useItemStore = create((set) => ({
 
     getItemList: async payload => {
         try {
-            const response = await api.getItemList(payload)
+            const { data: response } = await api.getItemList(payload)
             set({ itemList: response.data })
             return response
         } catch (error) {
             console.error('Error getting item list:', error);
-            set({ currentUser: {} })
+            return error.response.data
         }
     },
 
     getItemDetails: async sku => {
         try {
-            const response = await api.getItemDetails(sku)
+            const { data: response } = await api.getItemDetails(sku)
             set({ itemDetails: response.data })
             return response
         } catch (error) {
             console.error('Error getting item details: ', error);
-            return error.response
+            return error.response.data
         }
     },
 
     createItem: async payload => {
         try {
-            return await api.createItem(payload)
+            return await api.createItem(payload, {
+                useLoader: true
+            })
         } catch (error) {
             console.error('Error logout: ', error);
-            return error.response
+            return error.response.data
         }
     },
 
     updateItem: async (sku, payload) => {
         try {
-            return await api.createItem(sku, payload)
+            return await api.updateItem(sku, payload, {
+                useLoader: true
+            })
         } catch (error) {
             console.error('Error logout: ', error);
-            return error.response
+            return error.response.data
         }
     },
 
     deactivateItem: async sku => {
         try {
-            return await api.deactivateItem(sku)
+            return await api.deactivateItem(sku, {
+                useLoader: true
+            })
         } catch (error) {
             console.error('Error logout: ', error);
-            return error.response
+            return error.response.data
         }
     }
 }));

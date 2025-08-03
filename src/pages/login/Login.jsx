@@ -1,6 +1,6 @@
 import { Alert, Button, TextField } from "@mui/material";
 import { useEffect, useState } from "react";
-import { useAuthStore } from "@store/index.js";
+import { useAuthStore } from "@stores/index.js";
 import { useNavigate } from "react-router-dom";
 
 export function Login() {
@@ -33,13 +33,13 @@ export function Login() {
             return
         }
 
-        const response = await doLogin({
-            data: {
-                ...form
-            }
-        })
-        if (response.status !== 200) {
-            setErrorMessage(response.data.message)
+        const payload = {
+            data: { ...form }
+        }
+        const response = await doLogin(payload)
+
+        if (response.code !== 200) {
+            setErrorMessage(response.message)
             return
         }
 
@@ -47,13 +47,14 @@ export function Login() {
     }
 
     useEffect(() => {
+        console.log(currentUser)
         if (currentUser?.username) {
             navigate('/')
         }
     }, [currentUser]);
 
     return (
-        <div className="login w-full h-screen flex items-center justify-center">
+        <div className="login w-full min-h-screen flex items-center justify-center">
             <form
                 className="login__content shadow-lg rounded border border-gray p-4 w-1/2 flex flex-col gap-4"
                 onSubmit={ handleSubmit }
