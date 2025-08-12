@@ -1,4 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useItemStore, useItemCategoryStore, useLoaderStore } from "@stores/index.js";
+import { debounce } from "@utils/general-utils.js";
+import { formatDate } from "@utils/date-utils.js";
+import { Link } from "react-router-dom";
+import { EyeIcon, PencilIcon, Plus, TrashIcon } from "lucide-react";
 import {
     Button,
     Pagination,
@@ -10,17 +15,17 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    Paper, IconButton,
+    Paper,
+    IconButton,
 } from '@mui/material';
-import { useItemStore } from "@stores/index.js";
-import { debounce } from "@utils/general-utils.js";
-import { EyeIcon, PencilIcon, Plus, TrashIcon } from "lucide-react";
-import { Link } from "react-router-dom";
-import { formatDate } from "@utils/date-utils.js";
 
 export function ItemList() {
     const itemList = useItemStore(state => state.itemList);
     const getItemList = useItemStore(state => state.getItemList);
+    const itemCategoryList = useItemCategoryStore(state => state.itemCategoryList);
+    const getItemCategoryList = useItemCategoryStore(state => state.getItemCategoryList);
+    const showLoader = useLoaderStore(state => state.showLoader);
+    const hideLoader = useLoaderStore(state => state.hideLoader);
 
     const [filters, setFilters] = useState('');
     const [selectedFilterKey, setSelectedFilterKey] = useState('sku');
@@ -56,6 +61,19 @@ export function ItemList() {
         setLoadingTable(false);
     }
 
+    const filterItemCategoryList = async () => {
+        showLoader()
+
+        const payload = {
+            params: {
+                page: 1,
+                size: 2000
+            }
+        }
+        await getItemCategoryList(payload)
+        hideLoader()
+    }
+
     const handleItemPerPageChange = (e) => {
         setItemPerPage(e.target.value)
         setCurrentPage(1)
@@ -78,8 +96,8 @@ export function ItemList() {
     }, [selectedFilterKey]);
 
     useEffect(() => {
-        console.log(itemList);
-    }, [itemList]);
+        filterItemCategoryList()
+    }, []);
 
     return (
         <div className="item-list">
@@ -103,10 +121,7 @@ export function ItemList() {
 
             <div className="
                 item-list__filter
-                bg-white
-                rounded-lg
-                shadow-lg
-                p-4
+                card
                 mb-4
                 flex
                 items-center
@@ -128,14 +143,36 @@ export function ItemList() {
                     )) }
                 </TextField>
 
-                <TextField
-                    className="item-list__filter-value basis-1/3"
-                    label={ `Filter by ${filterKeyData[selectedFilterKey]}` }
-                    variant="outlined"
-                    size="small"
-                    value={ filters }
-                    onChange={ handleFilterChange }
-                />
+                {
+                    selectedFilterKey === 'category'
+                        ? (
+                            <TextField
+                                select
+                                className="item-list__filter-value basis-1/3"
+                                label={ `Filter by ${filterKeyData[selectedFilterKey]}` }
+                                variant="outlined"
+                                size="small"
+                                value={ filters }
+                                onChange={ handleFilterChange }
+                            >
+                                { itemCategoryList?.content?.map(category => (
+                                    <MenuItem key={ category.code } value={ category.code }>
+                                        { category.name }
+                                    </MenuItem>
+                                )) }
+                            </TextField>
+                        )
+                        : (
+                            <TextField
+                                className="item-list__filter-value basis-1/3"
+                                label={ `Filter by ${filterKeyData[selectedFilterKey]}` }
+                                variant="outlined"
+                                size="small"
+                                value={ filters }
+                                onChange={ handleFilterChange }
+                            />
+                        )
+                }
             </div>
 
             <div className="item-list__content il-content bg-white rounded-lg shadow-lg pb-2">

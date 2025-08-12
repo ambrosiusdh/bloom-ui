@@ -27,7 +27,7 @@ const useAuthStore = create((set) => ({
             return response
         } catch (error) {
             console.error('Error login: ', error);
-            return error.response.data
+            return error?.response?.data || error
         }
     },
 
@@ -38,7 +38,7 @@ const useAuthStore = create((set) => ({
             return response
         } catch (error) {
             console.error('Error logout: ', error);
-            return error.response.data
+            return error?.response?.data || error
         }
     }
 }));

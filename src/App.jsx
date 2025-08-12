@@ -12,7 +12,6 @@ function App() {
 
     const currentUser = useAuthStore(state => state.currentUser);
     const getCurrentUser = useAuthStore(state => state.getCurrentUser);
-    const loaderCount = useLoaderStore(state => state.loaderCount);
     const [authChecked, setAuthChecked] = useState(false);
 
     const hideLayout = matches.some(match => match.handle?.hideLayout);
@@ -34,7 +33,7 @@ function App() {
 
     return (
         <div className="bloom flex w-full min-h-screen bg-gray-100 dark:bg-zinc-900 text-zinc-900 dark:text-white transition duration-300">
-            { !!loaderCount && ( <Loader /> ) }
+            <Loader />
 
             { !hideLayout && <Sidebar/> }
             <div className="bloom__content grow">

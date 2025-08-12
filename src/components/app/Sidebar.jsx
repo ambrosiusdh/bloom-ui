@@ -32,7 +32,7 @@ export default function Sidebar() {
             className=
                 { `transition-all duration-300 ${isExpanded ? 'w-64' : 'w-20'} 
                 min-h-screen 
-                bg-blue-600
+                bg-maroon-600
                 text-white
                 flex 
                 flex-col 

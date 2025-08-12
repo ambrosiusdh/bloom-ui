@@ -36,8 +36,8 @@ export default function SidebarItem(props) {
             whitespace-nowrap
             ${
                 isActive
-                    ? "bg-white text-blue-700"
-                    : "text-white hover:bg-blue-700"
+                    ? "bg-white text-maroon-700"
+                    : "text-white hover:bg-maroon-700"
             }` }
         >
             <Icon className="text-xl" />

@@ -1,9 +1,15 @@
-import { LoaderCircle } from "lucide-react";
+import { Backdrop, CircularProgress } from "@mui/material";
+import { useLoaderStore } from "@stores/index.js";
 
 export function Loader() {
+    const loaderCount = useLoaderStore(state => state.loaderCount);
+
     return (
-        <div className="bloom-loader fixed w-full h-screen bg-white opacity-[0.5] top-0 left-0 z-50 flex items-center justify-center">
-            <LoaderCircle className="bloom-loader--icon animate-spin duration-300 w-12 h-12" />
-        </div>
+        <Backdrop
+            className="bloom-loader z-50 text-white"
+            open={ !!loaderCount }
+        >
+            <CircularProgress color="inherit" />
+        </Backdrop>
     )
 }

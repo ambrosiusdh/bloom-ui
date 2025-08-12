@@ -11,7 +11,7 @@ const useItemCategoryStore = create((set) => ({
             return response
         } catch (error) {
             console.error('Error getting item category list:', error);
-            return error.response.data
+            return error?.response?.data || error
         }
     },
 
@@ -22,7 +22,7 @@ const useItemCategoryStore = create((set) => ({
             })
         } catch (error) {
             console.error('Error logout: ', error);
-            return error.response.data
+            return error?.response?.data || error
         }
     },
 
@@ -33,18 +33,18 @@ const useItemCategoryStore = create((set) => ({
             })
         } catch (error) {
             console.error('Error logout: ', error);
-            return error.response.data
+            return error?.response?.data || error
         }
     },
 
     deactivateItemCategory: async code => {
         try {
-            return await api.deactivateItem(code, {
+            return await api.deactivateItemCategory(code, {
                 useLoader: true
             })
         } catch (error) {
             console.error('Error logout: ', error);
-            return error.response.data
+            return error?.response?.data || error
         }
     }
 }));
