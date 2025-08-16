@@ -1,3 +1,4 @@
+import { SnackbarProvider } from "notistack";
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import { RouterProvider } from "react-router-dom";
@@ -7,6 +8,8 @@ import { ThemeProvider } from "@mui/material";
 
 createRoot(document.getElementById('root')).render(
     <ThemeProvider theme={ theme }>
-        <RouterProvider router={ router }/>
+        <SnackbarProvider>
+            <RouterProvider router={ router }/>
+        </SnackbarProvider>
     </ThemeProvider>
 )

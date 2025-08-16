@@ -229,9 +229,9 @@ export function ItemList() {
                                         </TableCell>
                                     </TableRow>
                                 )
-                                : itemList?.content?.length
-                                    ? itemList?.content?.map(((item, index) => {
-                                        const isLastRow = index === itemList.content.length - 1
+                                : itemList?.length
+                                    ? itemList?.map(((item, index) => {
+                                        const isLastRow = index === itemList.length - 1
                                         const tableCellClass = isLastRow ? '!border-b-0' : ''
                                         return (
                                             <TableRow

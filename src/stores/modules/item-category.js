@@ -3,15 +3,19 @@ import api from '@api/item-category.js'
 
 const useItemCategoryStore = create((set) => ({
     itemCategoryList: [],
+    itemCategoryPaging: {},
 
     getItemCategoryList: async payload => {
         try {
             const { data: response } = await api.getItemCategoryList(payload)
-            set({ itemCategoryList: response.data })
+            set({
+                itemCategoryList: response.data.content,
+                itemCategoryPaging: { ...response.data }
+            })
             return response
         } catch (error) {
             console.error('Error getting item category list:', error);
-            return error?.response?.data || error
+            throw error?.response?.data || error
         }
     },
 
@@ -22,7 +26,7 @@ const useItemCategoryStore = create((set) => ({
             })
         } catch (error) {
             console.error('Error logout: ', error);
-            return error?.response?.data || error
+            throw error?.response?.data || error
         }
     },
 
@@ -33,7 +37,7 @@ const useItemCategoryStore = create((set) => ({
             })
         } catch (error) {
             console.error('Error logout: ', error);
-            return error?.response?.data || error
+            throw error?.response?.data || error
         }
     },
 
@@ -44,7 +48,7 @@ const useItemCategoryStore = create((set) => ({
             })
         } catch (error) {
             console.error('Error logout: ', error);
-            return error?.response?.data || error
+            throw error?.response?.data || error
         }
     }
 }));

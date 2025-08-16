@@ -4,6 +4,12 @@ function debounce(func, debounceKey, delay = 500) {
     debounceIds[debounceKey] = setTimeout(func, delay)
 }
 
+function clearDebounce (debounceKey) {
+    clearTimeout(debounceIds[debounceKey])
+    delete debounceIds[debounceKey]
+}
+
 export {
-    debounce
+    debounce,
+    clearDebounce
 }
