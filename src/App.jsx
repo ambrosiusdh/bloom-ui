@@ -36,10 +36,10 @@ function App() {
             <Loader />
 
             { !hideLayout && <Sidebar/> }
-            <div className="bloom__content grow">
+            <div className="bloom__content flex-grow flex flex-col">
                 { !hideLayout && <Header className="bloom__content-header"/> }
 
-                <div className="bloom__content-main p-4">
+                <div className="bloom__content-main p-4 flex-grow">
                     <Outlet/>
                 </div>
             </div>

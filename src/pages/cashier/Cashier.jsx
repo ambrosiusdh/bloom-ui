@@ -39,11 +39,21 @@ export function Cashier() {
         await getItemList(payload)
     }
 
+    const handleQuantityUpdate = (quantity, sku) => {
+        setLocalItemList(prevState => prevState.map(item => ({
+            ...item,
+            quantity: item.sku === sku ? quantity : item.quantity
+        })))
+    }
+
     useEffect(() => {
         console.log(itemList);
 
         if (itemList?.content?.length) {
-            setLocalItemList([...itemList.content]);
+            setLocalItemList(itemList.content.map(item => ({
+                quantity: 1,
+                ...item
+            })));
         }
     }, [itemList]);
 
@@ -72,7 +82,10 @@ export function Cashier() {
             </div>
 
             <div className="cashier__cart basis-1/3">
-                <CashierCart itemList={ localItemList } />
+                <CashierCart
+                    itemList={ localItemList }
+                    onQuantityUpdate={ handleQuantityUpdate }
+                />
             </div>
         </div>
     )
