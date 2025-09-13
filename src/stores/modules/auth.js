@@ -1,5 +1,7 @@
 import { create } from 'zustand'
+
 import api from '@api/auth.js'
+
 
 const useAuthStore = create((set) => ({
     currentUser: null,
@@ -21,9 +23,9 @@ const useAuthStore = create((set) => ({
         }
     },
 
-    doLogin: async payload => {
+    doLogin: async (payload, options) => {
         try {
-            const { data: response } = await api.doLogin(payload)
+            const { data: response } = await api.doLogin(payload, options)
             return response
         } catch (error) {
             console.error('Error login: ', error);

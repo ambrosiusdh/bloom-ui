@@ -36,7 +36,9 @@ export function Login() {
         const payload = {
             data: { ...form }
         }
-        const response = await doLogin(payload)
+        const response = await doLogin(payload, {
+            useLoader: true
+        })
 
         if (response.code !== 200) {
             setErrorMessage(response.message)
@@ -95,7 +97,8 @@ export function Login() {
                         className="login__content-action-submit w-full"
                         variant="contained"
                         size="large"
-                        type="submit">
+                        type="submit"
+                    >
                         Log in
                     </Button>
                 </div>

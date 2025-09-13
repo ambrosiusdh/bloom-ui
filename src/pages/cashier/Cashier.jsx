@@ -14,13 +14,14 @@ import {
     TableRow,
     TextField
 } from "@mui/material";
-import { useItemCategoryStore, useItemStore } from "@stores/index.js";
+import { useBreadcrumbStore, useItemCategoryStore, useItemStore } from "@stores/index.js";
 import { clearDebounce, debounce } from "@utils/general-utils.js";
 import { LayoutGridIcon, LayoutListIcon, ShoppingCartIcon } from "lucide-react";
 import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
 
 export function Cashier() {
+    const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const itemList = useItemStore(state => state.itemList);
     const itemCategoryList = useItemCategoryStore(state => state.itemCategoryList);
     const getItemList = useItemStore(state => state.getItemList);
@@ -133,6 +134,7 @@ export function Cashier() {
         debounce(filterItemList, 'filterItemList', 500)
     }, [searchValue, categoryFilter]);
     useEffect(() => {
+        setBreadcrumbs(['Cashier'])
         filterItemCategoryList()
     }, [])
 
@@ -148,6 +150,7 @@ export function Cashier() {
                         value={ searchValue }
                         onKeyUp={ handleSearchKeyup }
                         onChange={ handleSearchChange }
+                        autoFocus
                     />
                 </div>
 

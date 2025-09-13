@@ -16,7 +16,8 @@
   },
   "plugins": [
     "react",
-    "react-hooks"
+    "react-hooks",
+    "import"
   ],
   "rules": {
     "object-curly-spacing": [
@@ -38,7 +39,68 @@
       }
     ],
     "react/react-in-jsx-scope": "off",
-    "react-hooks/rules-of-hooks": "error"
+    "react-hooks/rules-of-hooks": "error",
+    "import/order": [ "error", {
+      "groups": ["builtin", "external", "internal", "parent", "sibling", "index"],
+      "pathGroups": [
+        {
+          "pattern": "{react,react-dom}",
+          "group": "external",
+          "position": "before"
+        },
+        {
+          "pattern": "{zustand,react-router-dom}",
+          "group": "external",
+          "position": "after"
+        },
+        {
+          "pattern": "@stores/**",
+          "group": "internal",
+          "position": "after"
+        },
+        {
+          "pattern": "@utils/**",
+          "group": "internal",
+          "position": "after"
+        },
+        {
+          "pattern": "@mui/**",
+          "group": "external",
+          "position": "after"
+        },
+        {
+          "pattern": "lucide-react",
+          "group": "external",
+          "position": "after"
+        },
+        {
+          "pattern": "@api/**",
+          "group": "internal",
+          "position": "after"
+        },
+        {
+          "pattern": "@pages/**",
+          "group": "internal",
+          "position": "after"
+        },
+        {
+          "pattern": "@components/**",
+          "group": "internal",
+          "position": "after"
+        },
+        {
+          "pattern": "@constants/**",
+          "group": "internal",
+          "position": "after"
+        }
+      ],
+      "pathGroupsExcludedImportTypes": ["builtin"],
+      "newlines-between": "always",
+      "alphabetize": {
+        "order": "asc",
+        "caseInsensitive": true
+      }
+    }]
   },
   "settings": {
     "react": {

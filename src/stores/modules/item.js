@@ -1,5 +1,7 @@
 import { create } from 'zustand'
+
 import api from '@api/item.js'
+
 
 const useItemStore = create((set) => ({
     itemList: [],
@@ -9,8 +11,8 @@ const useItemStore = create((set) => ({
     getItemList: async (payload, options) => {
         try {
             const { data: response } = await api.getItemList(payload, options)
-            set({ itemList: response.data.content })
-            set({ itemPaging: response.data.pageable })
+            const { content, ...itemPaging } = response.data
+            set({ itemList: content, itemPaging })
             return response
         } catch (error) {
             console.error('Error getting item list:', error);
@@ -31,7 +33,8 @@ const useItemStore = create((set) => ({
 
     createItem: async (payload, options) => {
         try {
-            return await api.createItem(payload, options)
+            const { data: response } = await api.createItem(payload, options)
+            return response
         } catch (error) {
             console.error('Error logout: ', error);
             throw error?.response?.data || error
@@ -40,7 +43,8 @@ const useItemStore = create((set) => ({
 
     updateItem: async (sku, payload, options) => {
         try {
-            return await api.updateItem(sku, payload, options)
+            const { data: response } = await api.updateItem(sku, payload, options)
+            return response
         } catch (error) {
             console.error('Error logout: ', error);
             throw error?.response?.data || error
@@ -49,7 +53,8 @@ const useItemStore = create((set) => ({
 
     deactivateItem: async (sku, options) => {
         try {
-            return await api.deactivateItem(sku, options)
+            const { data: response } = await api.deactivateItem(sku, options)
+            return response
         } catch (error) {
             console.error('Error logout: ', error);
             throw error?.response?.data || error
