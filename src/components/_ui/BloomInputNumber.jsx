@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+
 import PropTypes from "prop-types";
+
 import { IconButton, TextField } from "@mui/material";
+
 import { MinusIcon, PlusIcon } from "lucide-react";
 
 const propTypes = {

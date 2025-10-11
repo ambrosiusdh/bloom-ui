@@ -1,12 +1,8 @@
-import {
-    useEffect,
-    useState
-} from 'react';
+import { useEffect, useState } from 'react';
 
-import {
-    Link,
-    useSearchParams
-} from "react-router-dom";
+import { enqueueSnackbar } from "notistack"
+
+import { Link, useSearchParams } from "react-router-dom";
 
 import {
     Alert,
@@ -24,18 +20,9 @@ import {
     TextField,
 } from '@mui/material';
 
-import {
-    EyeIcon,
-    PencilIcon,
-    Plus,
-    TrashIcon
-} from "lucide-react";
+import { EyeIcon, PencilIcon, Plus, TrashIcon } from "lucide-react";
 
-import {
-    useBreadcrumbStore,
-    useItemCategoryStore,
-    useItemStore
-} from "@stores/index.js";
+import { useBreadcrumbStore, useItemCategoryStore, useItemStore } from "@stores/index.js";
 
 import { formatDate } from "@utils/date-utils.js";
 import { debounce } from "@utils/general-utils.js";
@@ -43,18 +30,23 @@ import { debounce } from "@utils/general-utils.js";
 import { BloomConfirmationModal } from "@components/_ui/BloomConfirmationModal.jsx";
 import { ItemDetailModal } from "@components/item/ItemDetailModal.jsx";
 
+import { GENERIC_ERR_MESSAGE } from "@constants/general.js"
+import { ITEM_LIST_MESSAGES } from "@constants/item.jsx"
+
+
 export function ItemList() {
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const itemList = useItemStore(state => state.itemList);
     const itemPaging = useItemStore(state => state.itemPaging);
-    const getItemList = useItemStore(state => state.getItemList);
     const itemCategoryList = useItemCategoryStore(state => state.itemCategoryList);
+    const getItemList = useItemStore(state => state.getItemList);
     const getItemCategoryList = useItemCategoryStore(state => state.getItemCategoryList);
+    const deactivateItem = useItemStore(state => state.deactivateItem);
 
     const [searchParams, setSearchParams] = useSearchParams();
 
     const [selectedItemDetailData, setSelectedItemDetailData] = useState({});
-    const [selectedDeleteTarget, setSelectedDeleteTarget] = useState('');
+    const [selectedDeleteTarget, setSelectedDeleteTarget] = useState({});
     const [filters, setFilters] = useState('');
     const [selectedFilterKey, setSelectedFilterKey] = useState('sku');
     const filterKeyData = {
@@ -126,8 +118,20 @@ export function ItemList() {
     }
 
     const handleDeleteItem = async () => {
-        alert('hapus')
-        setSelectedDeleteTarget({});
+        try {
+            await deactivateItem(selectedDeleteTarget.sku, {
+                useLoader: true
+            })
+            enqueueSnackbar(
+                ITEM_LIST_MESSAGES.deleteItemSuccess.message(selectedDeleteTarget.name),
+                ITEM_LIST_MESSAGES.deleteItemSuccess.options
+            )
+            setSelectedDeleteTarget({});
+            filterItemList(1)
+        } catch (error) {
+            enqueueSnackbar(JSON.stringify(error?.message) || GENERIC_ERR_MESSAGE, { variant: 'error' })
+            console.log(error)
+        }
     }
 
     useEffect(() => {
@@ -321,7 +325,8 @@ export function ItemList() {
                                 <TableCell>SKU</TableCell>
                                 <TableCell>Nama barang</TableCell>
                                 <TableCell>Kategori</TableCell>
-                                <TableCell>Dibuat pada</TableCell>
+                                <TableCell>Diperbarui oleh</TableCell>
+                                <TableCell>Diperbarui pada</TableCell>
                                 <TableCell></TableCell>
                             </TableRow>
                         </TableHead>
@@ -359,7 +364,11 @@ export function ItemList() {
                                                 </TableCell>
 
                                                 <TableCell className={ `${ tableCellClass } whitespace-nowrap` }>
-                                                    { formatDate(item.createdAt) }
+                                                    { item.updatedBy || 'SYSTEM' }
+                                                </TableCell>
+
+                                                <TableCell className={ `${ tableCellClass } whitespace-nowrap` }>
+                                                    { formatDate(item.updatedAt || item.createdAt) }
                                                 </TableCell>
 
                                                 <TableCell

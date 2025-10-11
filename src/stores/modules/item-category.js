@@ -7,6 +7,7 @@ const useItemCategoryStore = create((set) => ({
     itemCategoryList: [],
     itemCategoryPaging: {},
     itemCategoryDetails: {},
+    itemCategoriesItemCount: {},
 
     getItemCategoryList: async (payload, options) => {
         try {
@@ -52,6 +53,17 @@ const useItemCategoryStore = create((set) => ({
     deactivateItemCategory: async (code, options) => {
         try {
             return await api.deactivateItemCategory(code, options)
+        } catch (error) {
+            console.error('Error logout: ', error);
+            throw error?.response?.data || error
+        }
+    },
+
+    getItemCategoriesItemCount: async (code, options) => {
+        try {
+            const { data: response } = await api.getItemCategoriesItemCount(code, options)
+            set({ itemCategoriesItemCount: response.data })
+            return response
         } catch (error) {
             console.error('Error logout: ', error);
             throw error?.response?.data || error

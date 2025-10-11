@@ -17,7 +17,8 @@ const ITEM_CATEGORY = {
     create: '/api/item-categories',
     detail: code => `/api/item-categories/${code}`,
     update: code => `/api/item-categories/${code}`,
-    deactivate: code => `/api/item-categories/${code}`
+    deactivate: code => `/api/item-categories/${code}`,
+    itemCount: code => `/api/item-categories/${code}/items/count`,
 }
 
 export {

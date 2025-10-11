@@ -37,7 +37,7 @@ export function ItemCategoryUpsert() {
     const [errorMessage, setErrorMessage] = useState("");
     const [formData, setFormData] = useState({
         name: "",
-        code: code || "",
+        code: "",
         description: "",
     })
     const [errorData, setErrorData] = useState({
@@ -63,11 +63,11 @@ export function ItemCategoryUpsert() {
 
     const validateCode = () => {
         const error = []
-        if (!formData.name.trim()) {
+        if (!formData.code.trim()) {
             error.push('Kode kategori tidak boleh kosong')
         }
 
-        if (formData.name.length < 1 || formData.name.length > 10) {
+        if (formData.code.length < 1 || formData.code.length > 10) {
             error.push('Kode kategori harus diantara 1 ~ 10 karakter')
         }
 
@@ -86,12 +86,17 @@ export function ItemCategoryUpsert() {
                 break
         }
     }
-    const isValidUpsertForm = !!(errorData.name.length);
+    const isValidUpsertForm = !errorData.name.length && !errorData.code.length;
 
     const doGetItemCategoryDetails = async () => {
         try {
-            await getItemCategoryDetails(code, {
+            const { data } = await getItemCategoryDetails(code, {
                 useLoader: true
+            })
+            setFormData({
+                name: data.name,
+                code: data.code,
+                description: data.description
             })
         } catch (error) {
             console.log(error)
@@ -159,22 +164,22 @@ export function ItemCategoryUpsert() {
 
     return (
         <div className="item-create">
-            <div className="item-category-create__header mb-4">
-                <h2 className="item-category-create__header-title font-bold text-2xl">
+            <div className="item-category-upsert__header mb-4">
+                <h2 className="item-category-upsert__header-title font-bold text-2xl">
                     { code ? `Ubah kategori: [${ code }]` : 'Buat kategori baru' }
                 </h2>
             </div>
 
-            <form className="item-category-create__form card p-4 w-2/3">
-                <div className="item-category-create__form-row flex items-center gap-4 mb-4">
-                    <div className="item-category-create__form-item basis-1/2">
-                        <div className="item-category-create__form-item-name mb-2">
+            <form className="item-category-upsert__form card p-4 w-2/3">
+                <div className="item-category-upsert__form-row flex items-center gap-4 mb-4">
+                    <div className="item-category-upsert__form-item basis-1/2">
+                        <div className="item-category-upsert__form-item-name mb-2">
                             Nama kategori:
                         </div>
 
-                        <div className="item-category-create__form-item-value">
+                        <div className="item-category-upsert__form-item-value">
                             <TextField
-                                className="item-category-create__form-item-value-input"
+                                className="item-category-upsert__form-item-value-input"
                                 name="name"
                                 value={ formData.name }
                                 variant="outlined"
@@ -189,39 +194,45 @@ export function ItemCategoryUpsert() {
                         </div>
                     </div>
 
-                    <div className="item-category-create__form-item basis-1/2">
-                        <div className="item-category-create__form-item-name mb-2">
+                    <div className="item-category-upsert__form-item basis-1/2">
+                        <div className="item-category-upsert__form-item-name mb-2">
                             Kode kategori:
                         </div>
 
-                        <div className="item-category-create__form-item-value">
-                            <TextField
-                                className="item-category-create__form-item-value-input"
-                                name="code"
-                                value={ formData.code }
-                                variant="outlined"
-                                size="small"
-                                placeholder="Kode kategori"
-                                fullWidth
-                                disabled={ !!code }
-                                error={ !!errorData.code.length }
-                                helperText={ errorData.code[0] || '' }
-                                onChange={ handleFormChange }
-                                onBlur={ () => validateForm('code') }
-                            />
+                        <div className="item-category-upsert__form-item-value">
+                            {
+                                code
+                                ? <span className="item-category-upsert__form-item-value-text font-bold">
+                                        { code }
+                                </span>
+                                : <TextField
+                                    className="item-category-upsert__form-item-value-input"
+                                    name="code"
+                                    value={ formData.code }
+                                    variant="outlined"
+                                    size="small"
+                                    placeholder="Kode kategori"
+                                    fullWidth
+                                    disabled={ !!code }
+                                    error={ !!errorData.code.length }
+                                    helperText={ errorData.code[0] || '' }
+                                    onChange={ handleFormChange }
+                                    onBlur={ () => validateForm('code') }
+                                />
+                            }
                         </div>
                     </div>
                 </div>
 
-                <div className="item-category-create__form-row mb-4">
-                    <div className="item-category-create__form-item">
-                        <div className="item-category-create__form-item-name mb-2">
+                <div className="item-category-upsert__form-row mb-4">
+                    <div className="item-category-upsert__form-item">
+                        <div className="item-category-upsert__form-item-name mb-2">
                             Deskripsi kategori:
                         </div>
 
-                        <div className="item-category-create__form-item-value">
+                        <div className="item-category-upsert__form-item-value">
                             <TextField
-                                className="item-category-create__form-item-value-input scrollbar-thin"
+                                className="item-category-upsert__form-item-value-input scrollbar-thin"
                                 multiline
                                 name="description"
                                 value={ formData.description }
@@ -236,9 +247,9 @@ export function ItemCategoryUpsert() {
                     </div>
                 </div>
 
-                <div className="item-category-create__form-action">
+                <div className="item-category-upsert__form-action">
                     <Button
-                        className="item-category-create__form-submit"
+                        className="item-category-upsert__form-submit"
                         variant="contained"
                         disabled={ !isValidUpsertForm }
                         onClick={ submitUpsertItem }

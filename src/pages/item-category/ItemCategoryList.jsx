@@ -3,6 +3,8 @@ import {
     useState
 } from 'react';
 
+import { enqueueSnackbar } from "notistack"
+
 import {
     Link,
     useSearchParams
@@ -42,15 +44,21 @@ import { debounce } from "@utils/general-utils.js";
 
 import { BloomConfirmationModal } from "@components/_ui/BloomConfirmationModal.jsx";
 
+import { GENERIC_ERR_MESSAGE } from "@constants/general.js"
+import { ITEM_CATEGORY_LIST_MESSAGES } from "@constants/item-category.jsx"
+
 export function ItemCategoryList() {
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const itemCategoryList = useItemCategoryStore(state => state.itemCategoryList);
     const itemCategoryPaging = useItemCategoryStore(state => state.itemCategoryPaging);
+    const itemCategoriesItemCount = useItemCategoryStore(state => state.itemCategoriesItemCount);
     const getItemCategoryList = useItemCategoryStore(state => state.getItemCategoryList);
+    const deactivateItemCategory = useItemCategoryStore(state => state.deactivateItemCategory);
+    const getItemCategoriesItemCount = useItemCategoryStore(state => state.getItemCategoriesItemCount);
 
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const [selectedDeleteTarget, setSelectedDeleteTarget] = useState('');
+    const [selectedDeleteTarget, setSelectedDeleteTarget] = useState({});
     const [filters, setFilters] = useState('');
     const [selectedFilterKey, setSelectedFilterKey] = useState('code');
     const filterKeyData = {
@@ -74,7 +82,7 @@ export function ItemCategoryList() {
         setSelectedFilterKey('code');
     }
 
-    const filterItemList = async (page = currentPage) => {
+    const filterItemCategoryList = async (page = currentPage) => {
         setLoadingTable(true);
         setCurrentPage(page);
         const payload = {
@@ -101,23 +109,45 @@ export function ItemCategoryList() {
         setCurrentPage(value);
     }
 
-    const fetchItemList = async () => {
+    const fetchItemCategoryList = async () => {
         setSearchParams({
             page: currentPage,
             itemPerPage: itemPerPage,
             q: filters,
             key: selectedFilterKey
         })
-        await filterItemList();
+        await filterItemCategoryList();
     }
 
-    const handleDeleteItem = async () => {
-        alert('hapus')
-        setSelectedDeleteTarget({});
+    const openDeleteItemCategoryConfirmationModal = async itemCategory => {
+        try {
+            await getItemCategoriesItemCount(itemCategory.code)
+            setSelectedDeleteTarget(itemCategory)
+        } catch (error) {
+            enqueueSnackbar(JSON.stringify(error?.message) || GENERIC_ERR_MESSAGE, { variant: 'error' })
+            console.error(error)
+        }
+    }
+
+    const handleDeleteItemCategory = async () => {
+        try {
+            await deactivateItemCategory(selectedDeleteTarget.code, {
+                useLoader: true
+            })
+            enqueueSnackbar(
+                ITEM_CATEGORY_LIST_MESSAGES.deleteItemCategorySuccess.message(selectedDeleteTarget.name),
+                ITEM_CATEGORY_LIST_MESSAGES.deleteItemCategorySuccess.options
+            )
+            setSelectedDeleteTarget({});
+            filterItemCategoryList(1)
+        } catch (error) {
+            enqueueSnackbar(JSON.stringify(error?.message) || GENERIC_ERR_MESSAGE, { variant: 'error' })
+            console.log(error)
+        }
     }
 
     useEffect(() => {
-        debounce(fetchItemList, 'fetchItemList', 500)
+        debounce(fetchItemCategoryList, 'fetchItemList', 500)
     }, [itemPerPage, filters, currentPage]);
 
     useEffect(() => {
@@ -142,21 +172,28 @@ export function ItemCategoryList() {
     }, []);
 
     return (
-        <div className="item-list">
+        <div className="item-category-list">
             {
-                selectedDeleteTarget?.sku && (
+                selectedDeleteTarget?.code && (
                     <BloomConfirmationModal
                         onCancel={ () => setSelectedDeleteTarget({}) }
-                        onConfirm={ handleDeleteItem }
+                        onConfirm={ handleDeleteItemCategory }
                         title={ `Hapus ${ selectedDeleteTarget.name }?` }
                         confirmButtonText="Hapus">
                         <div className="item-category-list__delete">
                             <div className="item-category-list__delete-description">
-                                Apakah Anda yakin ingin menghapus
+                                Apakah Anda yakin ingin menghapus kategori
                                 <span className="font-bold"> { selectedDeleteTarget.name }</span>?
                             </div>
 
-                            Jika dihapus, data barang tidak bisa dikembalikan lagi.
+                            { !!itemCategoriesItemCount?.itemCount &&
+                                <div className="item-category-list__delete-description">
+                                    Saat ini ada
+                                    <span className="font-bold"> { itemCategoriesItemCount?.itemCount } barang </span>
+                                    yang terikat pada kategori ini.
+                                </div>
+                            }
+                            Jika dihapus, data kategori dan barang tidak bisa dikembalikan lagi.
                         </div>
                     </BloomConfirmationModal>
                 )
@@ -350,7 +387,7 @@ export function ItemCategoryList() {
                                                         <IconButton
                                                             size="small"
                                                             color="error"
-                                                            onClick={ () => setSelectedDeleteTarget(itemCategory) }
+                                                            onClick={ () => openDeleteItemCategoryConfirmationModal(itemCategory) }
                                                         >
                                                             <TrashIcon className="table-action__delete"/>
                                                         </IconButton>

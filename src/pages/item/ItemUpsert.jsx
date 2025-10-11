@@ -118,8 +118,15 @@ export function ItemUpsert() {
 
     const doGetItemDetails = async () => {
         try {
-            await getItemDetails(sku, {
+            const { data } = await getItemDetails(sku, {
                 useLoader: true
+            })
+            setFormData({
+                name: data.name,
+                categoryCode: data.category.code,
+                description: data.description,
+                stockQuantity: data.stockQuantity,
+                price: getPriceValue(data.price.toString()),
             })
         } catch (error) {
             console.log(error)
@@ -144,13 +151,14 @@ export function ItemUpsert() {
 
     const doCreateItem = async payload => {
         try {
-            const response = await createItem(payload, {
+            const { data } = await createItem(payload, {
                 useLoader: true
             })
 
-            console.log(response)
+            console.log(data)
+
             const params = new URLSearchParams({
-                message: `Sukses! Berhasil membuat barang [${ formData.name }] dengan kode barang: [${ response.data.data.sku }]`,
+                message: `Sukses! Berhasil membuat barang [${ formData.name }] dengan kode barang: [${ data.sku }]`,
                 messageType: 'success'
             })
             navigate(`/items?${ params.toString() }`)
@@ -225,25 +233,31 @@ export function ItemUpsert() {
                         </div>
 
                         <div className="item-create__form-item-value">
-                            <TextField
-                                select
-                                className="item-list__filter-value"
-                                name="categoryCode"
-                                value={ formData.categoryCode }
-                                variant="outlined"
-                                size="small"
-                                label={ formData.categoryCode ? '' : 'Kategori barang' }
-                                onChange={ handleFormChange }
-                                fullWidth
-                            >
-                                {
-                                    itemCategoryList?.map(category => (
-                                        <MenuItem key={ category.code } value={ category.code }>
-                                            [{ category.code }] { category.name }
-                                        </MenuItem>
-                                    ))
-                                }
-                            </TextField>
+                            {
+                                sku
+                                ? <span className="item-create__form-item-value-text font-bold">
+                                        [{ itemDetails?.category?.code }] - { itemDetails?.category?.name }
+                                </span>
+                                : <TextField
+                                    select
+                                    className="item-list__filter-value"
+                                    name="categoryCode"
+                                    value={ formData.categoryCode }
+                                    variant="outlined"
+                                    size="small"
+                                    label={ formData.categoryCode ? '' : 'Kategori barang' }
+                                    onChange={ handleFormChange }
+                                    fullWidth
+                                >
+                                    {
+                                        itemCategoryList?.map(category => (
+                                            <MenuItem key={ category.code } value={ category.code }>
+                                                [{ category.code }] { category.name }
+                                            </MenuItem>
+                                        ))
+                                    }
+                                </TextField>
+                            }
                         </div>
                     </div>
                 </div>
@@ -325,7 +339,7 @@ export function ItemUpsert() {
                         disabled={ !isValidUpsertForm }
                         onClick={ submitUpsertItem }
                     >
-                        Buat
+                        { sku ? 'Ubah' : 'Buat' }
                     </Button>
                 </div>
             </form>

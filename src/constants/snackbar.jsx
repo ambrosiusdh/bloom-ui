@@ -1,6 +1,8 @@
-import { IconButton } from "@mui/material";
-import { XIcon } from "lucide-react";
 import { closeSnackbar } from "notistack";
+
+import { IconButton } from "@mui/material";
+
+import { XIcon } from "lucide-react";
 
 const DISMISS_ACTION = snackbarId => (
     <>

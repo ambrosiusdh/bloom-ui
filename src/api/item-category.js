@@ -39,10 +39,18 @@ const deactivateItemCategory = async (code, options) => {
     }, options)
 }
 
+const getItemCategoriesItemCount = async (code, options) => {
+    return api({
+        url: ITEM_CATEGORY.itemCount(code),
+        method: 'GET'
+    }, options)
+}
+
 export default {
     getItemCategoryList,
     getItemCategoryDetails,
     createItemCategory,
     updateItemCategory,
-    deactivateItemCategory
+    deactivateItemCategory,
+    getItemCategoriesItemCount
 }
