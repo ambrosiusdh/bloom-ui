@@ -333,7 +333,8 @@ export function ItemCategoryList() {
                             <TableRow className="text-xs font-semibold tracking-wider">
                                 <TableCell>Kode kategori</TableCell>
                                 <TableCell>Nama kategori</TableCell>
-                                <TableCell>Dibuat pada</TableCell>
+                                <TableCell>Diperbarui oleh</TableCell>
+                                <TableCell>Diperbarui pada</TableCell>
                                 <TableCell></TableCell>
                             </TableRow>
                         </TableHead>
@@ -367,7 +368,11 @@ export function ItemCategoryList() {
                                                 </TableCell>
 
                                                 <TableCell className={ `${ tableCellClass } whitespace-nowrap` }>
-                                                    { formatDate(itemCategory.createdAt) }
+                                                    { itemCategory.updatedBy }
+                                                </TableCell>
+
+                                                <TableCell className={ `${ tableCellClass } whitespace-nowrap` }>
+                                                    { formatDate(itemCategory.updatedAt) }
                                                 </TableCell>
 
                                                 <TableCell
