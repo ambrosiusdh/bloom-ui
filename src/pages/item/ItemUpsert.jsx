@@ -23,11 +23,11 @@ import {
     useItemStore
 } from "@stores/index.js";
 
-import { BloomInputNumber } from "@components/_ui/BloomInputNumber.jsx";
+import BloomInputNumber from "@components/_ui/BloomInputNumber.jsx";
 
 import { GENERIC_ERR_MESSAGE } from "@constants/general.js"
 
-export function ItemUpsert() {
+export default function ItemUpsert() {
     const navigate = useNavigate();
 
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
@@ -196,23 +196,23 @@ export function ItemUpsert() {
     }, []);
 
     return (
-        <div className="item-create">
-            <div className="item-create__header mb-4">
-                <h2 className="item-create__header-title font-bold text-2xl">
+        <div className="item-upsert">
+            <div className="item-upsert__header mb-4">
+                <h2 className="item-upsert__header-title font-bold text-2xl">
                     { sku ? `Ubah ${ sku }` : 'Buat baru' }
                 </h2>
             </div>
 
-            <form className="item-create__form card p-4 w-2/3">
-                <div className="item-create__form-row flex items-center gap-4 mb-4">
-                    <div className="item-create__form-item basis-1/2">
-                        <div className="item-create__form-item-name mb-2">
+            <form className="item-upsert__form card p-4 w-2/3">
+                <div className="item-upsert__form-row flex items-center gap-4 mb-4">
+                    <div className="item-upsert__form-item basis-1/2">
+                        <div className="item-upsert__form-item-name mb-2">
                             Nama barang:
                         </div>
 
-                        <div className="item-create__form-item-value">
+                        <div className="item-upsert__form-item-value">
                             <TextField
-                                className="item-create__form-item-value-input"
+                                className="item-upsert__form-item-value-input"
                                 name="name"
                                 value={ formData.name }
                                 variant="outlined"
@@ -227,15 +227,15 @@ export function ItemUpsert() {
                         </div>
                     </div>
 
-                    <div className="item-create__form-item basis-1/2">
-                        <div className="item-create__form-item-name mb-2">
+                    <div className="item-upsert__form-item basis-1/2">
+                        <div className="item-upsert__form-item-name mb-2">
                             Kategori barang:
                         </div>
 
-                        <div className="item-create__form-item-value">
+                        <div className="item-upsert__form-item-value">
                             {
                                 sku
-                                ? <span className="item-create__form-item-value-text font-bold">
+                                ? <span className="item-upsert__form-item-value-text font-bold">
                                         [{ itemDetails?.category?.code }] - { itemDetails?.category?.name }
                                 </span>
                                 : <TextField
@@ -262,15 +262,15 @@ export function ItemUpsert() {
                     </div>
                 </div>
 
-                <div className="item-create__form-row flex items-center gap-4 mb-4">
-                    <div className="item-create__form-item basis-1/2">
-                        <div className="item-create__form-item-name mb-2">
+                <div className="item-upsert__form-row flex items-center gap-4 mb-4">
+                    <div className="item-upsert__form-item basis-1/2">
+                        <div className="item-upsert__form-item-name mb-2">
                             Harga barang:
                         </div>
 
-                        <div className="item-create__form-item-value">
+                        <div className="item-upsert__form-item-value">
                             <TextField
-                                className="item-create__form-item-value-input"
+                                className="item-upsert__form-item-value-input"
                                 name="price"
                                 value={ formData.price }
                                 variant="outlined"
@@ -290,12 +290,12 @@ export function ItemUpsert() {
                         </div>
                     </div>
 
-                    <div className="item-create__form-item basis-1/2">
-                        <div className="item-create__form-item-name mb-2">
+                    <div className="item-upsert__form-item basis-1/2">
+                        <div className="item-upsert__form-item-name mb-2">
                             Stok barang:
                         </div>
 
-                        <div className="item-create__form-item-value">
+                        <div className="item-upsert__form-item-value">
                             <BloomInputNumber
                                 value={ formData.stockQuantity }
                                 onChange={ newQuantity => setFormData(prevState => ({
@@ -309,15 +309,15 @@ export function ItemUpsert() {
                     </div>
                 </div>
 
-                <div className="item-create__form-row mb-4">
-                    <div className="item-create__form-item">
-                        <div className="item-create__form-item-name mb-2">
+                <div className="item-upsert__form-row mb-4">
+                    <div className="item-upsert__form-item">
+                        <div className="item-upsert__form-item-name mb-2">
                             Deskripsi barang:
                         </div>
 
-                        <div className="item-create__form-item-value">
+                        <div className="item-upsert__form-item-value">
                             <TextField
-                                className="item-create__form-item-value-input scrollbar-thin"
+                                className="item-upsert__form-item-value-input scrollbar-thin"
                                 multiline
                                 name="description"
                                 value={ formData.description }
@@ -332,14 +332,22 @@ export function ItemUpsert() {
                     </div>
                 </div>
 
-                <div className="item-create__form-action">
+                <div className="item-upsert__form-action flex gap-2">
                     <Button
-                        className="item-create__form-submit"
+                        className="item-upsert__form-submit"
                         variant="contained"
                         disabled={ !isValidUpsertForm }
                         onClick={ submitUpsertItem }
                     >
                         { sku ? 'Ubah' : 'Buat' }
+                    </Button>
+
+                    <Button
+                        className="item-upsert__form-cancel"
+                        variant="text"
+                        onClick={ () => navigate(-1) }
+                    >
+                        Kembali
                     </Button>
                 </div>
             </form>

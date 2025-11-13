@@ -1,3 +1,5 @@
+import PropTypes from "prop-types";
+
 import {
     Dialog,
     DialogContent,
@@ -5,16 +7,18 @@ import {
     DialogTitle,
     IconButton
 } from "@mui/material";
-import { formatDate } from "@utils/date-utils.js";
+
 import { XIcon } from "lucide-react";
-import PropTypes from "prop-types";
+
+import { formatDate } from "@utils/date-utils.js";
+
 
 const propTypes = {
     onClose: PropTypes.func.isRequired,
     itemData: PropTypes.object.isRequired
 }
 
-export function ItemDetailModal(props) {
+export default function ItemDetailModal(props) {
     const {
         onClose,
         itemData

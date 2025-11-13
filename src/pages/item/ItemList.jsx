@@ -20,21 +20,26 @@ import {
     TextField,
 } from '@mui/material';
 
-import { EyeIcon, PencilIcon, Plus, TrashIcon } from "lucide-react";
+import {
+    SearchIcon,
+    PencilIcon,
+    Plus,
+    TrashIcon
+} from "lucide-react";
 
 import { useBreadcrumbStore, useItemCategoryStore, useItemStore } from "@stores/index.js";
 
 import { formatDate } from "@utils/date-utils.js";
 import { debounce } from "@utils/general-utils.js";
 
-import { BloomConfirmationModal } from "@components/_ui/BloomConfirmationModal.jsx";
-import { ItemDetailModal } from "@components/item/ItemDetailModal.jsx";
+import BloomConfirmationModal from "@components/_ui/BloomConfirmationModal.jsx";
+import ItemDetailModal from "@components/item/ItemDetailModal.jsx";
 
 import { GENERIC_ERR_MESSAGE } from "@constants/general.js"
 import { ITEM_LIST_MESSAGES } from "@constants/item.jsx"
 
 
-export function ItemList() {
+export default function ItemList() {
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const itemList = useItemStore(state => state.itemList);
     const itemPaging = useItemStore(state => state.itemPaging);
@@ -322,12 +327,12 @@ export function ItemList() {
                     <Table>
                         <TableHead className="il-content__table-header bg-gray-100">
                             <TableRow className="text-xs font-semibold tracking-wider">
-                                <TableCell>SKU</TableCell>
-                                <TableCell>Nama barang</TableCell>
-                                <TableCell>Kategori</TableCell>
-                                <TableCell>Diperbarui oleh</TableCell>
-                                <TableCell>Diperbarui pada</TableCell>
-                                <TableCell></TableCell>
+                                <TableCell className="whitespace-nowrap">SKU</TableCell>
+                                <TableCell className="whitespace-nowrap">Nama barang</TableCell>
+                                <TableCell className="whitespace-nowrap">Kategori</TableCell>
+                                <TableCell className="whitespace-nowrap">Diperbarui oleh</TableCell>
+                                <TableCell className="whitespace-nowrap">Diperbarui pada</TableCell>
+                                <TableCell className="whitespace-nowrap"></TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -379,7 +384,7 @@ export function ItemList() {
                                                             size="small"
                                                             onClick={ () => setSelectedItemDetailData(item) }
                                                         >
-                                                            <EyeIcon className="table-action__detail"/>
+                                                            <SearchIcon className="table-action__detail"/>
                                                         </IconButton>
 
                                                         <Link

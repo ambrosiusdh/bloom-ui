@@ -18,7 +18,7 @@ const propTypes = {
     buttonClassName: PropTypes.string
 }
 
-export function BloomInputNumber (props) {
+export default function BloomInputNumber (props) {
     const {
         value,
         onChange = () => {},

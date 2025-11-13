@@ -1,7 +1,8 @@
-import { useBreadcrumbStore } from "@stores/index.js";
 import { useEffect } from "react";
 
-export function Dashboard() {
+import { useBreadcrumbStore } from "@stores/index.js";
+
+export default function Dashboard() {
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
 
     useEffect(() => {

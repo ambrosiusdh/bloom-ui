@@ -23,15 +23,11 @@ import { useBreadcrumbStore, useItemCategoryStore, useItemStore } from "@stores/
 
 import { clearDebounce, debounce } from "@utils/general-utils.js";
 
-import { CashierCart } from "@components/cashier/CashierCart.jsx";
+import CashierCart from "@components/cashier/CashierCart.jsx";
 
 import { CASHIER_ACTION_MESSAGE } from "@constants/cashier.jsx";
 
-
-
-
-
-export function Cashier() {
+export default function Cashier() {
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const itemList = useItemStore(state => state.itemList);
     const itemCategoryList = useItemCategoryStore(state => state.itemCategoryList);

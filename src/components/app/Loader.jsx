@@ -1,7 +1,8 @@
 import { Backdrop, CircularProgress } from "@mui/material";
+
 import { useLoaderStore } from "@stores/index.js";
 
-export function Loader() {
+export default function Loader() {
     const loaderCount = useLoaderStore(state => state.loaderCount);
 
     return (

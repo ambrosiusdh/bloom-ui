@@ -42,12 +42,12 @@ import {
 import { formatDate } from "@utils/date-utils.js";
 import { debounce } from "@utils/general-utils.js";
 
-import { BloomConfirmationModal } from "@components/_ui/BloomConfirmationModal.jsx";
+import BloomConfirmationModal from "@components/_ui/BloomConfirmationModal.jsx";
 
 import { GENERIC_ERR_MESSAGE } from "@constants/general.js"
 import { ITEM_CATEGORY_LIST_MESSAGES } from "@constants/item-category.jsx"
 
-export function ItemCategoryList() {
+export default function ItemCategoryList() {
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const itemCategoryList = useItemCategoryStore(state => state.itemCategoryList);
     const itemCategoryPaging = useItemCategoryStore(state => state.itemCategoryPaging);

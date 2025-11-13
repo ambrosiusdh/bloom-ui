@@ -1,9 +1,13 @@
-import { Alert, Button, TextField } from "@mui/material";
 import { useEffect, useState } from "react";
-import { useAuthStore } from "@stores/index.js";
+
 import { useNavigate } from "react-router-dom";
 
-export function Login() {
+import { Alert, Button, TextField } from "@mui/material";
+
+import { useAuthStore } from "@stores/index.js";
+
+
+export default function Login() {
     const currentUser = useAuthStore(state => state.currentUser);
     const doLogin = useAuthStore(state => state.doLogin);
     const getCurrentUser = useAuthStore(state => state.getCurrentUser);

@@ -1,10 +1,13 @@
 import './App.css'
-import { Outlet, useMatches, useNavigate } from "react-router-dom";
-import { useAuthStore, useLoaderStore } from "@stores/index.js";
 import { useEffect, useState } from "react"
-import { Loader } from "@components/app/Loader.jsx";
-import Sidebar from "@components/app/Sidebar.jsx";
+
+import { Outlet, useMatches, useNavigate } from "react-router-dom";
+
+import { useAuthStore, useLoaderStore } from "@stores/index.js";
+
 import Header from "@components/app/Header.jsx";
+import Loader from "@components/app/Loader.jsx";
+import Sidebar from "@components/app/Sidebar.jsx";
 
 function App() {
     const navigate = useNavigate();

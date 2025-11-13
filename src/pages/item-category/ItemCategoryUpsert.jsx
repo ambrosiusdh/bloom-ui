@@ -22,7 +22,7 @@ import {
 
 import { GENERIC_ERR_MESSAGE } from "@constants/general.js"
 
-export function ItemCategoryUpsert() {
+export default function ItemCategoryUpsert() {
     const navigate = useNavigate();
 
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);

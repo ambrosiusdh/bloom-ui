@@ -6,14 +6,14 @@ import { Button, InputAdornment, TextField } from "@mui/material";
 
 import { ShoppingBasketIcon } from "lucide-react";
 
-import { BloomInputNumber } from "@components/_ui/BloomInputNumber.jsx";
+import BloomInputNumber from "@components/_ui/BloomInputNumber.jsx";
 
 const propTypes = {
     itemList: PropTypes.array,
     onQuantityUpdate: PropTypes.func
 }
 
-export function CashierCart(props) {
+export default function CashierCart(props) {
     const {
         itemList,
         onQuantityUpdate

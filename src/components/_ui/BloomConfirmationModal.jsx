@@ -18,7 +18,7 @@ const propTypes = {
     maxWidth: PropTypes.string
 }
 
-export function BloomConfirmationModal(props) {
+export default function BloomConfirmationModal(props) {
     const {
         onCancel,
         onConfirm,
