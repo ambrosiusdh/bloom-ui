@@ -11,8 +11,11 @@ const getSaleList = async (payload, options) => {
 
 const getSaleDetails = async (code, options) => {
     return api({
-        url: SALE.detail(code),
-        method: 'GET'
+        url: SALE.detail,
+        method: 'GET',
+        params: {
+            code
+        }
     }, options)
 }
 

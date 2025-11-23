@@ -23,13 +23,18 @@ const ITEM_CATEGORY = {
 
 const SALE = {
     list: '/api/sales',
-    detail: code => `/api/sales/${code}`,
+    detail: '/api/sales/details',
     create: '/api/sales'
+}
+
+const DASHBOARD = {
+    overview: '/api/dashboard/overview'
 }
 
 export {
     AUTH,
     ITEM,
     ITEM_CATEGORY,
-    SALE
+    SALE,
+    DASHBOARD
 }
