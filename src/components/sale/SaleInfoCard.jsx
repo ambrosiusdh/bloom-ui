@@ -1,5 +1,20 @@
 import { Card, CardContent, Typography, Chip, Divider } from '@mui/material';
+
 import { formatDate } from '@utils/date-utils';
+import PropTypes from 'prop-types';
+
+const propTypes = {
+    sale: PropTypes.shape({
+        code: PropTypes.string,
+        createdAt: PropTypes.string,
+        createdBy: PropTypes.string,
+        paymentType: PropTypes.string,
+        subtotalAmount: PropTypes.number,
+        discountAmount: PropTypes.number,
+        totalAmount: PropTypes.number,
+        paidAmount: PropTypes.number
+    })
+};
 
 const SaleInfoCard = ({ sale }) => {
     if (!sale) return null;
@@ -78,5 +93,7 @@ const SaleInfoCard = ({ sale }) => {
         </Card>
     );
 };
+
+SaleInfoCard.propTypes = propTypes;
 
 export default SaleInfoCard;

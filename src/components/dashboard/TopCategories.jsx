@@ -1,9 +1,5 @@
 import React from 'react';
-import {
-    Paper,
-    Typography,
-    Box
-} from '@mui/material';
+
 import {
     PieChart,
     Pie,
@@ -12,6 +8,12 @@ import {
     Tooltip,
     Legend
 } from 'recharts';
+
+import {
+    Paper,
+    Typography,
+    Box
+} from '@mui/material';
 
 const TopCategories = ({ data }) => {
     const COLORS = ['#A72828', '#D97706', '#2563EB', '#10B981', '#8B5CF6'];
@@ -31,24 +33,24 @@ const TopCategories = ({ data }) => {
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
-                            data={data}
+                            data={ data }
                             cx="50%"
                             cy="50%"
-                            innerRadius={60}
-                            outerRadius={80}
-                            paddingAngle={5}
+                            innerRadius={ 60 }
+                            outerRadius={ 80 }
+                            paddingAngle={ 5 }
                             dataKey="value"
                         >
-                            {data.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
+                            { data.map((entry, index) => (
+                                <Cell key={ `cell-${index}` } fill={ COLORS[index % COLORS.length] } />
+                            )) }
                         </Pie>
                         <Tooltip
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                            contentStyle={ { borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' } }
                         />
                         <Legend
                             verticalAlign="bottom"
-                            height={36}
+                            height={ 36 }
                             iconType="circle"
                         />
                     </PieChart>

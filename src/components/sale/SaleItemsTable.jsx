@@ -8,6 +8,20 @@ import {
     Paper,
     Typography
 } from '@mui/material';
+import PropTypes from 'prop-types';
+
+const propTypes = {
+    items: PropTypes.arrayOf(PropTypes.shape({
+        item: PropTypes.shape({
+            name: PropTypes.string,
+            sku: PropTypes.string,
+            description: PropTypes.string
+        }),
+        unitPrice: PropTypes.number,
+        quantity: PropTypes.number,
+        subtotal: PropTypes.number
+    }))
+};
 
 const SaleItemsTable = ({ items }) => {
     return (
@@ -59,5 +73,7 @@ const SaleItemsTable = ({ items }) => {
         </div>
     );
 };
+
+SaleItemsTable.propTypes = propTypes;
 
 export default SaleItemsTable;

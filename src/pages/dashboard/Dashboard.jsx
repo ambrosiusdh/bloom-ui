@@ -69,7 +69,7 @@ export default function Dashboard() {
                     </Typography>
                 </div>
                 <div className="dashboard__actions flex items-center gap-4">
-                    <Typography variant="caption" className="text-gray-500 italic">
+                    <Typography variant="caption" className="text-gray-500">
                         Terakhir diperbarui: { lastUpdated.toLocaleTimeString('id-ID') }
                     </Typography>
                     <Button

@@ -1,4 +1,4 @@
-import './App.css'
+import './App.scss'
 import { useEffect, useState } from "react"
 
 import { Outlet, useMatches, useNavigate } from "react-router-dom";

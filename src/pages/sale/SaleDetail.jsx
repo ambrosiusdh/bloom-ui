@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
+
 import { useParams, Link } from 'react-router-dom';
-import { useSaleStore, useBreadcrumbStore } from '@stores/index.js';
+
 import { Button, Alert } from '@mui/material';
+
 import { Printer, ArrowLeft } from 'lucide-react';
+
+import { useSaleStore, useBreadcrumbStore } from '@stores/index.js';
+
 import SaleInfoCard from '@components/sale/SaleInfoCard';
 import SaleItemsTable from '@components/sale/SaleItemsTable';
 
@@ -38,11 +43,11 @@ const SaleDetail = () => {
     if (error) {
         return (
             <div className="p-4">
-                <Alert severity="error">{error}</Alert>
+                <Alert severity="error">{ error }</Alert>
                 <Button
-                    component={Link}
+                    component={ Link }
                     to="/sales"
-                    startIcon={<ArrowLeft />}
+                    startIcon={ <ArrowLeft /> }
                     className="mt-4"
                 >
                     Kembali ke Daftar
@@ -55,9 +60,9 @@ const SaleDetail = () => {
         <div className="sale-detail space-y-6 pb-8">
             <div className="flex justify-between items-center print:hidden">
                 <Button
-                    component={Link}
+                    component={ Link }
                     to="/sales"
-                    startIcon={<ArrowLeft />}
+                    startIcon={ <ArrowLeft /> }
                     variant="text"
                     color="inherit"
                 >
@@ -65,16 +70,16 @@ const SaleDetail = () => {
                 </Button>
                 <Button
                     variant="contained"
-                    startIcon={<Printer />}
-                    onClick={handlePrint}
+                    startIcon={ <Printer /> }
+                    onClick={ handlePrint }
                 >
                     Cetak Invoice
                 </Button>
             </div>
 
-            <SaleInfoCard sale={saleDetails} />
+            <SaleInfoCard sale={ saleDetails } />
 
-            <SaleItemsTable items={saleDetails?.saleItems} />
+            <SaleItemsTable items={ saleDetails?.saleItems } />
         </div>
     );
 };

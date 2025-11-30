@@ -1,0 +1,10 @@
+#root {
+  width: 100%;
+}
+
+.bloom {
+  &__content-main {
+    overflow: auto;
+    max-height: calc(100vh - 48px);
+  }
+}
