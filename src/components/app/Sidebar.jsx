@@ -1,13 +1,16 @@
-import { useAppStore, useAuthStore } from "@stores/index.js";
+import { useState } from "react";
+
 import {
     HandCoinsIcon,
     LogOutIcon,
     UsersIcon,
     UserIcon,
     PackageSearchIcon,
-    ReceiptTextIcon, TagsIcon
+    ReceiptTextIcon, TagsIcon, TruckIcon, ClipboardCheckIcon
 } from "lucide-react";
-import { useState } from "react";
+
+import { useAppStore, useAuthStore } from "@stores/index.js";
+
 import SidebarItem from "./sidebar/SidebarItem.jsx";
 
 export default function Sidebar() {
@@ -30,7 +33,7 @@ export default function Sidebar() {
     return (
         <aside
             className=
-                { `transition-all duration-300 ${isExpanded ? 'w-64' : 'w-20'} 
+            { `transition-all duration-300 ${isExpanded ? 'w-64' : 'w-20'} 
                 min-h-screen 
                 bg-maroon-600
                 text-white
@@ -49,10 +52,10 @@ export default function Sidebar() {
 
                     {
                         isExpanded && (
-                        <div>
-                            <div className="font-semibold">{ currentUser?.name }</div>
-                            <div className="text-xs">{ currentUser?.role }</div>
-                        </div>
+                            <div>
+                                <div className="font-semibold">{ currentUser?.name }</div>
+                                <div className="text-xs">{ currentUser?.role }</div>
+                            </div>
                         )
                     }
                 </div>
@@ -70,19 +73,31 @@ export default function Sidebar() {
                         to="/items"
                         icon={ PackageSearchIcon }
                         label="Data Barang"
-                        isExpanded={ isExpanded }/>
+                        isExpanded={ isExpanded } />
 
                     <SidebarItem
                         to="/item-categories"
                         icon={ TagsIcon }
                         label="Kategori Barang"
-                        isExpanded={ isExpanded }/>
+                        isExpanded={ isExpanded } />
+
+                    <SidebarItem
+                        to="/goods-receipts"
+                        icon={ TruckIcon }
+                        label="Penerimaan Barang"
+                        isExpanded={ isExpanded } />
+
+                    <SidebarItem
+                        to="/stock-adjustments"
+                        icon={ ClipboardCheckIcon }
+                        label="Penyesuaian Stok"
+                        isExpanded={ isExpanded } />
 
                     <SidebarItem
                         to="/sales"
                         icon={ ReceiptTextIcon }
                         label="Riwayat Penjualan"
-                        isExpanded={ isExpanded }/>
+                        isExpanded={ isExpanded } />
                 </nav>
             </div>
 
@@ -92,13 +107,13 @@ export default function Sidebar() {
                     to="/cashier"
                     icon={ HandCoinsIcon }
                     label="Cashier"
-                    isExpanded={ isExpanded }/>
+                    isExpanded={ isExpanded } />
 
                 <SidebarItem
                     onClick={ handleLogout }
                     icon={ LogOutIcon }
                     label="Logout"
-                    isExpanded={ isExpanded }/>
+                    isExpanded={ isExpanded } />
 
                 { /* TODO: Night mode toggle */ }
                 { /*<div className="flex items-center justify-between bg-zinc-200 dark:bg-zinc-800 rounded-full px-3 py-2">*/ }

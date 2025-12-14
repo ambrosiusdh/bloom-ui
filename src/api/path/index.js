@@ -10,6 +10,7 @@ const ITEM = {
     update: sku => `/api/items/${sku}`,
     detail: sku => `/api/items/${sku}`,
     deactivate: sku => `/api/items/${sku}`,
+    auditLog: sku => `/api/items/${sku}/audit-log`,
 }
 
 const ITEM_CATEGORY = {
@@ -27,6 +28,20 @@ const SALE = {
     create: '/api/sales'
 }
 
+const GOODS_RECEIPT = {
+    list: '/api/goods-receipts',
+    create: '/api/goods-receipts',
+    detail: '/api/goods-receipts/details',
+}
+
+const STOCK_ADJUSTMENT = {
+    list: '/api/stock-adjustments',
+    create: '/api/stock-adjustments',
+    detail: `/api/stock-adjustments/details`,
+    csvParse: '/api/stock-adjustments/csv-parse',
+    template: '/api/stock-adjustments/template'
+}
+
 const DASHBOARD = {
     overview: '/api/dashboard/overview'
 }
@@ -36,5 +51,7 @@ export {
     ITEM,
     ITEM_CATEGORY,
     SALE,
+    GOODS_RECEIPT,
+    STOCK_ADJUSTMENT,
     DASHBOARD
 }

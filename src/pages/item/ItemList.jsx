@@ -1,8 +1,15 @@
-import { useEffect, useState } from 'react';
+import {
+    useEffect,
+    useState,
+    lazy
+} from "react";
 
 import { enqueueSnackbar } from "notistack"
 
-import { Link, useSearchParams } from "react-router-dom";
+import {
+    Link,
+    useSearchParams
+} from "react-router-dom";
 
 import {
     Alert,
@@ -17,46 +24,47 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    TextField,
-} from '@mui/material';
+    TextField
+} from "@mui/material";
 
 import {
-    SearchIcon,
     PencilIcon,
     Plus,
-    TrashIcon
+    TrashIcon,
+    HistoryIcon,
+    SearchIcon
 } from "lucide-react";
 
 import { useBreadcrumbStore, useItemCategoryStore, useItemStore } from "@stores/index.js";
 
-import { formatDate } from "@utils/date-utils.js";
 import { debounce } from "@utils/general-utils.js";
 
 import BloomConfirmationModal from "@components/_ui/BloomConfirmationModal.jsx";
+import ItemAuditLogModal from "@components/item/ItemAuditLogModal.jsx"; // Import Modal
 import ItemDetailModal from "@components/item/ItemDetailModal.jsx";
 
 import { GENERIC_ERR_MESSAGE } from "@constants/general.js"
 import { ITEM_LIST_MESSAGES } from "@constants/item.jsx"
 
-
-export default function ItemList() {
+const ItemList = () => {
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const itemList = useItemStore(state => state.itemList);
     const itemPaging = useItemStore(state => state.itemPaging);
-    const itemCategoryList = useItemCategoryStore(state => state.itemCategoryList);
     const getItemList = useItemStore(state => state.getItemList);
-    const getItemCategoryList = useItemCategoryStore(state => state.getItemCategoryList);
     const deactivateItem = useItemStore(state => state.deactivateItem);
+    const itemCategoryList = useItemCategoryStore(state => state.itemCategoryList);
+    const getItemCategoryList = useItemCategoryStore(state => state.getItemCategoryList);
 
     const [searchParams, setSearchParams] = useSearchParams();
 
     const [selectedItemDetailData, setSelectedItemDetailData] = useState({});
     const [selectedDeleteTarget, setSelectedDeleteTarget] = useState({});
+    const [selectedItemAuditLogData, setSelectedItemAuditLogData] = useState({}); // State for Audit Log
     const [filters, setFilters] = useState('');
-    const [selectedFilterKey, setSelectedFilterKey] = useState('sku');
+    const [selectedFilterKey, setSelectedFilterKey] = useState('name');
     const filterKeyData = {
-        "sku": "SKU",
-        "name": "Nama",
+        "name": "Nama barang",
+        "sku": "Kode barang",
         "category": "Kategori"
     }
     const [currentPage, setCurrentPage] = useState(1);
@@ -70,10 +78,11 @@ export default function ItemList() {
     }
     const handleFilterChange = e => {
         setFilters(e.target.value);
+        setCurrentPage(1)
     }
     const handleFilterClear = () => {
         setFilters('')
-        setSelectedFilterKey('sku');
+        setSelectedFilterKey('name');
     }
 
     const filterItemList = async (page = currentPage) => {
@@ -83,7 +92,8 @@ export default function ItemList() {
             params: {
                 page,
                 size: itemPerPage,
-                [selectedFilterKey]: filters
+                [selectedFilterKey]: filters,
+                isRemoved: false
             }
         }
 
@@ -139,6 +149,14 @@ export default function ItemList() {
         }
     }
 
+    const handleCloseItemDetail = () => {
+        setSelectedItemDetailData({});
+    }
+
+    const handleCloseAuditLog = () => {
+        setSelectedItemAuditLogData({});
+    }
+
     useEffect(() => {
         debounce(fetchItemList, 'fetchItemList', 500)
     }, [itemPerPage, filters, currentPage]);
@@ -171,7 +189,16 @@ export default function ItemList() {
                 selectedItemDetailData?.sku && (
                     <ItemDetailModal
                         itemData={ selectedItemDetailData }
-                        onClose={ () => setSelectedItemDetailData({}) }
+                        onClose={ handleCloseItemDetail }
+                    />
+                )
+            }
+
+            {
+                selectedItemAuditLogData?.sku && (
+                    <ItemAuditLogModal
+                        sku={ selectedItemAuditLogData.sku }
+                        onClose={ handleCloseAuditLog }
                     />
                 )
             }
@@ -207,7 +234,7 @@ export default function ItemList() {
             ) }
 
             <div className="item-list__header mb-4 flex justify-between items-center">
-                <h2 className="item-list__header-title font-bold text-2xl">Data Barang</h2>
+                <h2 className="item-list__header-title font-bold text-2xl">Daftar Barang</h2>
 
                 <div className="item-list__header-action">
                     <Link
@@ -216,8 +243,8 @@ export default function ItemList() {
                     >
                         <Button
                             variant="contained"
-                            endIcon={ <Plus className="w-5"/> }>
-                            Buat baru
+                            endIcon={ <Plus className="w-5" /> }>
+                            Buat Barang
                         </Button>
                     </Link>
                 </div>
@@ -247,41 +274,38 @@ export default function ItemList() {
                     )) }
                 </TextField>
 
-                {
-                    selectedFilterKey === 'category'
-                        ? (
-                            <TextField
-                                select
-                                className="item-list__filter-value basis-1/3"
-                                label={ `Filter by ${ filterKeyData[selectedFilterKey] }` }
-                                variant="outlined"
-                                size="small"
-                                value={ filters }
-                                onChange={ handleFilterChange }
-                            >
-                                { itemCategoryList?.length ?
-                                    itemCategoryList?.map(category => (
-                                        <MenuItem key={ category.code } value={ category.code }>
-                                            { category.name }
-                                        </MenuItem>
-                                    )) :
-                                    <MenuItem value={ selectedFilterKey }>
-                                        - Pilih kategori -
-                                    </MenuItem>
-                                }
-                            </TextField>
-                        )
-                        : (
-                            <TextField
-                                className="item-list__filter-value basis-1/3"
-                                label={ `Filter by ${ filterKeyData[selectedFilterKey] }` }
-                                variant="outlined"
-                                size="small"
-                                value={ filters }
-                                onChange={ handleFilterChange }
-                            />
-                        )
-                }
+                { selectedFilterKey === 'category'
+                    ? (
+                        <TextField
+                            select
+                            className="item-list__filter-value basis-1/3"
+                            label={ `Filter by ${filterKeyData[selectedFilterKey]}` }
+                            variant="outlined"
+                            size="small"
+                            value={ filters }
+                            onChange={ handleFilterChange }
+                        >
+                            <MenuItem value="">
+                                <em>None</em>
+                            </MenuItem>
+                            { itemCategoryList?.map(category => (
+                                <MenuItem key={ category.code } value={ category.code }>
+                                    [{ category.code }] { category.name }
+                                </MenuItem>
+                            )) }
+                        </TextField>
+                    )
+                    : (
+                        <TextField
+                            className="item-list__filter-value basis-1/3"
+                            label={ `Filter by ${filterKeyData[selectedFilterKey]}` }
+                            variant="outlined"
+                            size="small"
+                            value={ filters }
+                            onChange={ handleFilterChange }
+                        />
+                    ) }
+
 
                 <Button
                     className="item-list__filter-clear"
@@ -292,11 +316,11 @@ export default function ItemList() {
                 </Button>
             </div>
 
-            <div className="item-list__content il-content bg-white rounded-lg shadow-lg pb-2">
-                <div className="il-content__pagination px-4 py-2 flex justify-between items-center">
-                    <h3 className="il-content__pagination-title text-xl font-bold">Daftar barang</h3>
+            <div className="item-list__content bg-white rounded-lg shadow-lg pb-2">
+                <div className="item-list__content-pagination px-4 py-2 flex justify-between items-center">
+                    <h3 className="item-list__content-pagination-title text-xl font-bold">Daftar Barang</h3>
 
-                    <div className="il-content__pagination-inputs flex gap-2 items-center">
+                    <div className="item-list__content-pagination-inputs flex gap-2 items-center">
                         <span className="text-sm text-gray-700">Data per halaman:</span>
                         <TextField
                             select
@@ -322,17 +346,17 @@ export default function ItemList() {
                 <TableContainer
                     component={ Paper }
                     elevation={ 0 }
-                    className="il-content__table"
+                    className="item-list__content-table"
                 >
                     <Table>
-                        <TableHead className="il-content__table-header bg-gray-100">
+                        <TableHead className="item-list__content-table-header bg-gray-100">
                             <TableRow className="text-xs font-semibold tracking-wider">
-                                <TableCell className="whitespace-nowrap">SKU</TableCell>
-                                <TableCell className="whitespace-nowrap">Nama barang</TableCell>
+                                <TableCell className="whitespace-nowrap">Nama Barang</TableCell>
                                 <TableCell className="whitespace-nowrap">Kategori</TableCell>
-                                <TableCell className="whitespace-nowrap">Diperbarui oleh</TableCell>
-                                <TableCell className="whitespace-nowrap">Diperbarui pada</TableCell>
-                                <TableCell className="whitespace-nowrap"></TableCell>
+                                <TableCell className="whitespace-nowrap">Kode Barang</TableCell>
+                                <TableCell className="whitespace-nowrap text-right">Harga</TableCell>
+                                <TableCell className="whitespace-nowrap text-right">Stok</TableCell>
+                                <TableCell className="whitespace-nowrap w-[1%]">Aksi</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -340,7 +364,7 @@ export default function ItemList() {
                                 ? (
                                     <TableRow>
                                         <TableCell
-                                            colSpan="5"
+                                            colSpan="6"
                                             className="!border-b-0 !text-center italic !text-gray-500"
                                         >
                                             Loading...
@@ -354,32 +378,38 @@ export default function ItemList() {
                                         return (
                                             <TableRow
                                                 key={ item.sku }
-                                                className="il-content__table-row"
+                                                className="item-list__content-table-row hover:bg-gray-50 cursor-pointer"
+                                                onClick={ (e) => {
+                                                    // Prevent opening detail modal when clicking action buttons
+                                                    if (e.target.closest('button') || e.target.closest('a')) return;
+                                                    setSelectedItem(item);
+                                                } }
                                             >
-                                                <TableCell className={ `${ tableCellClass } whitespace-nowrap` }>
-                                                    { item.sku }
-                                                </TableCell>
-
-                                                <TableCell className={ `${ tableCellClass } w-full` }>
+                                                <TableCell className={ `${tableCellClass} whitespace-nowrap w-full` }>
                                                     { item.name }
                                                 </TableCell>
 
-                                                <TableCell className={ `${ tableCellClass } whitespace-nowrap` }>
-                                                    { item.category?.name }
+                                                <TableCell className={ `${tableCellClass} whitespace-nowrap` }>
+                                                    { item.category?.name || '-' }
                                                 </TableCell>
 
-                                                <TableCell className={ `${ tableCellClass } whitespace-nowrap` }>
-                                                    { item.updatedBy || 'SYSTEM' }
+                                                <TableCell className={ `${tableCellClass} whitespace-nowrap` }>
+                                                    { item.sku }
                                                 </TableCell>
 
-                                                <TableCell className={ `${ tableCellClass } whitespace-nowrap` }>
-                                                    { formatDate(item.updatedAt || item.createdAt) }
+                                                <TableCell className={ `${tableCellClass} whitespace-nowrap text-right` }>
+                                                    { new Intl.NumberFormat('id-ID', {
+                                                        style: 'currency',
+                                                        currency: 'IDR'
+                                                    }).format(item.price) }
                                                 </TableCell>
 
-                                                <TableCell
-                                                    className={ `${ tableCellClass } il-content__table-row-action table-action` }>
-                                                    <div
-                                                        className="table-action__content flex justify-end items-center gap-1">
+                                                <TableCell className={ `${tableCellClass} whitespace-nowrap text-right` }>
+                                                    { item.stockQuantity || 0 }
+                                                </TableCell>
+
+                                                <TableCell className={ `${tableCellClass} whitespace-nowrap` }>
+                                                    <div className="flex gap-2">
                                                         <IconButton
                                                             size="small"
                                                             onClick={ () => setSelectedItemDetailData(item) }
@@ -388,21 +418,34 @@ export default function ItemList() {
                                                         </IconButton>
 
                                                         <Link
-                                                            to={ `/items/${ item.sku }/edit` }
+                                                            to={ `/items/${item.sku}/edit` }
                                                             className="table-action__edit"
                                                         >
                                                             <IconButton size="small">
-                                                                <PencilIcon/>
+                                                                <PencilIcon className="table-action__edit-icon text-gray-500" />
                                                             </IconButton>
                                                         </Link>
 
+                                                        <IconButton
+                                                            size="small"
+                                                            title="Riwayat Stok"
+                                                            onClick={ (e) => {
+                                                                e.stopPropagation();
+                                                                setSelectedItemAuditLogData(item);
+                                                            } }
+                                                        >
+                                                            <HistoryIcon className="text-blue-500 w-5 h-5" />
+                                                        </IconButton>
 
                                                         <IconButton
                                                             size="small"
                                                             color="error"
-                                                            onClick={ () => setSelectedDeleteTarget(item) }
+                                                            onClick={ (e) => {
+                                                                e.stopPropagation();
+                                                                setSelectedDeleteTarget(item);
+                                                            } }
                                                         >
-                                                            <TrashIcon className="table-action__delete"/>
+                                                            <TrashIcon className="table-action__delete" />
                                                         </IconButton>
                                                     </div>
                                                 </TableCell>
@@ -413,7 +456,7 @@ export default function ItemList() {
                                         <TableRow>
                                             <TableCell
                                                 className="!border-b-0 !text-center italic !text-gray-500"
-                                                colSpan="5"
+                                                colSpan="6"
                                             >
                                                 Data tidak ditemukan
                                             </TableCell>
@@ -427,3 +470,5 @@ export default function ItemList() {
         </div>
     );
 }
+
+export default ItemList;

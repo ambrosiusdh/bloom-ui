@@ -15,6 +15,14 @@ const ItemCategoryUpsert = lazy(() => import("@pages/item-category/ItemCategoryU
 const SaleList = lazy(() => import("@pages/sale/SaleList.jsx"));
 const SaleDetail = lazy(() => import("@pages/sale/SaleDetail.jsx"));
 
+const GoodsReceiptList = lazy(() => import("@pages/goods-receipt/GoodsReceiptList.jsx"));
+const GoodsReceiptCreate = lazy(() => import("@pages/goods-receipt/GoodsReceiptCreate.jsx"));
+const GoodsReceiptDetail = lazy(() => import("@pages/goods-receipt/GoodsReceiptDetail.jsx"));
+
+const StockAdjustmentList = lazy(() => import("@pages/stock-adjustment/StockAdjustmentList.jsx"));
+const StockAdjustmentCreate = lazy(() => import("@pages/stock-adjustment/StockAdjustmentCreate.jsx"));
+const StockAdjustmentDetail = lazy(() => import("@pages/stock-adjustment/StockAdjustmentDetail.jsx"));
+
 const Login = lazy(() => import("@pages/login/Login.jsx"));
 const NotFound = lazy(() => import("@pages/NotFound.jsx"));
 
@@ -82,6 +90,30 @@ const router = createBrowserRouter([
             {
                 path: "sales/:code",
                 element: withSuspense(<SaleDetail />)
+            },
+            {
+                path: "goods-receipts",
+                element: withSuspense(<GoodsReceiptList />)
+            },
+            {
+                path: "goods-receipts/new",
+                element: withSuspense(<GoodsReceiptCreate />)
+            },
+            {
+                path: "goods-receipts/:code",
+                element: withSuspense(<GoodsReceiptDetail />)
+            },
+            {
+                path: "stock-adjustments",
+                element: withSuspense(<StockAdjustmentList />)
+            },
+            {
+                path: "stock-adjustments/new",
+                element: withSuspense(<StockAdjustmentCreate />)
+            },
+            {
+                path: "stock-adjustments/:code",
+                element: withSuspense(<StockAdjustmentDetail />)
             },
             {
                 path: "*",
