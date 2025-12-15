@@ -5,6 +5,8 @@ import {
 
 import {
     endOfDay,
+    endOfMonth,
+    startOfMonth,
     subWeeks
 } from "date-fns"
 import { enqueueSnackbar } from "notistack"
@@ -46,8 +48,8 @@ import { debounce } from "@utils/general-utils.js"
 import BloomDateRangePicker from "@components/_ui/BloomDateRangePicker.jsx"
 
 const INITIAL_FILTER_DATE = {
-    startDate: subWeeks(Date.now(), 1),
-    endDate: endOfDay(Date.now()),
+    startDate: startOfMonth(Date.now()),
+    endDate: endOfMonth(Date.now()),
     key: 'selection'
 }
 

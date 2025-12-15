@@ -30,9 +30,11 @@ import {
 import {
     PencilIcon,
     Plus,
+    PrinterIcon,
     TrashIcon,
     HistoryIcon,
-    SearchIcon
+    SearchIcon,
+    SquareArrowOutUpRightIcon
 } from "lucide-react";
 
 import { useBreadcrumbStore, useItemCategoryStore, useItemStore } from "@stores/index.js";
@@ -41,6 +43,7 @@ import { debounce } from "@utils/general-utils.js";
 
 import BloomConfirmationModal from "@components/_ui/BloomConfirmationModal.jsx";
 import ItemAuditLogModal from "@components/item/ItemAuditLogModal.jsx"; // Import Modal
+import ItemBarcodeModal from "@components/item/ItemBarcodeModal.jsx";
 import ItemDetailModal from "@components/item/ItemDetailModal.jsx";
 
 import { GENERIC_ERR_MESSAGE } from "@constants/general.js"
@@ -60,6 +63,7 @@ const ItemList = () => {
     const [selectedItemDetailData, setSelectedItemDetailData] = useState({});
     const [selectedDeleteTarget, setSelectedDeleteTarget] = useState({});
     const [selectedItemAuditLogData, setSelectedItemAuditLogData] = useState({}); // State for Audit Log
+    const [selectedBarcodeItem, setSelectedBarcodeItem] = useState({}); // State for Barcode Modal
     const [filters, setFilters] = useState('');
     const [selectedFilterKey, setSelectedFilterKey] = useState('name');
     const filterKeyData = {
@@ -157,6 +161,10 @@ const ItemList = () => {
         setSelectedItemAuditLogData({});
     }
 
+    const handleCloseBarcodeModal = () => {
+        setSelectedBarcodeItem({});
+    }
+
     useEffect(() => {
         debounce(fetchItemList, 'fetchItemList', 500)
     }, [itemPerPage, filters, currentPage]);
@@ -186,6 +194,15 @@ const ItemList = () => {
     return (
         <div className="item-list">
             {
+                selectedBarcodeItem?.sku && (
+                    <ItemBarcodeModal
+                        itemData={ selectedBarcodeItem }
+                        onClose={ handleCloseBarcodeModal }
+                    />
+                )
+            }
+
+            {
                 selectedItemDetailData?.sku && (
                     <ItemDetailModal
                         itemData={ selectedItemDetailData }
@@ -208,7 +225,7 @@ const ItemList = () => {
                     <BloomConfirmationModal
                         onCancel={ () => setSelectedDeleteTarget({}) }
                         onConfirm={ handleDeleteItem }
-                        title={ `Hapus ${ selectedDeleteTarget.name }?` }
+                        title={ `Hapus ${selectedDeleteTarget.name}?` }
                         confirmButtonText="Hapus">
                         <div className="item-list__delete">
                             <div className="item-list__delete-description">
@@ -382,7 +399,7 @@ const ItemList = () => {
                                                 onClick={ (e) => {
                                                     // Prevent opening detail modal when clicking action buttons
                                                     if (e.target.closest('button') || e.target.closest('a')) return;
-                                                    setSelectedItem(item);
+                                                    setSelectedItemDetailData(item);
                                                 } }
                                             >
                                                 <TableCell className={ `${tableCellClass} whitespace-nowrap w-full` }>
@@ -410,13 +427,6 @@ const ItemList = () => {
 
                                                 <TableCell className={ `${tableCellClass} whitespace-nowrap` }>
                                                     <div className="flex gap-2">
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={ () => setSelectedItemDetailData(item) }
-                                                        >
-                                                            <SearchIcon className="table-action__detail"/>
-                                                        </IconButton>
-
                                                         <Link
                                                             to={ `/items/${item.sku}/edit` }
                                                             className="table-action__edit"
@@ -435,6 +445,17 @@ const ItemList = () => {
                                                             } }
                                                         >
                                                             <HistoryIcon className="text-blue-500 w-5 h-5" />
+                                                        </IconButton>
+
+                                                        <IconButton
+                                                            size="small"
+                                                            title="Cetak Barcode"
+                                                            onClick={ (e) => {
+                                                                e.stopPropagation();
+                                                                setSelectedBarcodeItem(item);
+                                                            } }
+                                                        >
+                                                            <PrinterIcon className="text-gray-700 w-5 h-5" />
                                                         </IconButton>
 
                                                         <IconButton

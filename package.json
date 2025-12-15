@@ -19,6 +19,7 @@
     "lucide-react": "^0.522.0",
     "notistack": "^3.0.2",
     "react": "^19.1.0",
+    "react-barcode": "^1.6.1",
     "react-date-range": "^2.0.1",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.2",
