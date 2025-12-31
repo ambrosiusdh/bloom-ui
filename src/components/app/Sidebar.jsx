@@ -1,122 +1,149 @@
-import { useAppStore, useAuthStore } from "@stores/index.js";
+import { Link, useLocation } from "react-router-dom";
+
 import {
-    HandCoinsIcon,
-    LogOutIcon,
-    UsersIcon,
-    UserIcon,
-    PackageSearchIcon,
-    ReceiptTextIcon, TagsIcon
+    LayoutDashboard,
+    PackageSearch,
+    Tags,
+    Truck,
+    ClipboardCheck,
+    ReceiptText,
+    HandCoins,
+    LogOut,
+    Store,
+    ChevronLeft,
+    ChevronRight,
+    User
 } from "lucide-react";
-import { useState } from "react";
-import SidebarItem from "./sidebar/SidebarItem.jsx";
+
+import { useAppStore, useAuthStore } from "@stores/index.js";
 
 export default function Sidebar() {
-    const isExpanded = useAppStore(state => state.isExpanded)
-    const currentUser = useAuthStore(state => state.currentUser)
-    const doLogout = useAuthStore(state => state.doLogout)
+    const isExpanded = useAppStore(state => state.isExpanded);
+    const toggleExpand = useAppStore(state => state.toggleExpand);
+    const doLogout = useAuthStore(state => state.doLogout);
+    const location = useLocation();
 
-    const [darkMode, setDarkMode] = useState(false);
+    const navItems = [
+        { label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' },
+        { label: 'Data Barang', icon: PackageSearch, to: '/items' },
+        { label: 'Kategori', icon: Tags, to: '/item-categories' },
+        { label: 'Penerimaan Barang', icon: Truck, to: '/stock-in' },
+        { label: 'Penyesuaian Stok', icon: ClipboardCheck, to: '/stock-adjustment' },
+        { label: 'Riwayat Penjualan', icon: ReceiptText, to: '/sales' },
+    ];
 
-
-    const toggleDarkMode = () => {
-        document.documentElement.classList.toggle("dark");
-        setDarkMode(!darkMode);
-    };
+    const bottomItems = [
+        { label: 'Cashier', icon: HandCoins, to: '/cashier' },
+    ];
 
     const handleLogout = async () => {
         await doLogout();
-    }
+    };
 
     return (
         <aside
-            className=
-                { `transition-all duration-300 ${isExpanded ? 'w-64' : 'w-20'} 
-                min-h-screen 
-                bg-maroon-600
-                text-white
-                flex 
-                flex-col 
-                justify-between 
-                border-r 
-                border-gray-300` }
+            className={ `
+                h-screen sticky top-0
+                bg-maroon-900 text-white 
+                flex flex-col justify-between 
+                border-r border-maroon-800 
+                transition-all duration-300
+                ${isExpanded ? 'w-64' : 'w-20'}
+            ` }
         >
             <div>
-                <div className="flex items-center gap-3 px-4 h-16 border-b mb-4 pb-2">
-                    <UserIcon
-                        alt="User"
-                        className="w-10 h-10 rounded-full"
-                    />
-
-                    {
-                        isExpanded && (
-                        <div>
-                            <div className="font-semibold">{ currentUser?.name }</div>
-                            <div className="text-xs">{ currentUser?.role }</div>
+                { /* Branding & Toggle */ }
+                <div className={ `flex items-center ${isExpanded ? 'px-6 justify-between' : 'justify-center'} h-20 mb-2 relative` }>
+                    <div className="flex items-center gap-3">
+                        <div className="bg-white/10 p-2 rounded-lg">
+                            <Store className="w-6 h-6 text-white" />
                         </div>
-                        )
-                    }
+                        { isExpanded && <span className="font-bold text-xl tracking-wide transition-opacity duration-300">Bloom</span> }
+                    </div>
+
+                    { /* Collapse Button - Positioned absolutely if collapsed to save space or inline if expanded */ }
+                    <button
+                        onClick={ toggleExpand }
+                        className={ `
+                            hover:bg-white/10 p-1.5 rounded-lg transition-colors
+                            ${!isExpanded ? 'absolute -right-3 top-6 bg-maroon-800 border border-maroon-700 shadow-md z-50 rounded-full' : ''}
+                        ` }
+                    >
+                        { isExpanded ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-4 h-4" /> }
+                    </button>
                 </div>
 
                 { /* Navigation */ }
-                <nav className="px-4 space-y-2">
-                    <SidebarItem
-                        to="/dashboard"
-                        icon={ UsersIcon }
-                        label="Dashboard"
-                        isExpanded={ isExpanded }
-                    />
-
-                    <SidebarItem
-                        to="/items"
-                        icon={ PackageSearchIcon }
-                        label="Data Barang"
-                        isExpanded={ isExpanded }/>
-
-                    <SidebarItem
-                        to="/item-categories"
-                        icon={ TagsIcon }
-                        label="Kategori Barang"
-                        isExpanded={ isExpanded }/>
-
-                    <SidebarItem
-                        to="/sales"
-                        icon={ ReceiptTextIcon }
-                        label="Riwayat Penjualan"
-                        isExpanded={ isExpanded }/>
+                <nav className="px-3 space-y-2 overflow-y-auto max-h-[calc(100vh-200px)] custom-scrollbar">
+                    { navItems.map((item) => {
+                        const isActive = location.pathname.startsWith(item.to);
+                        return (
+                            <Link
+                                key={ item.to }
+                                to={ item.to }
+                                title={ !isExpanded ? item.label : '' }
+                                className={ `
+                                    flex items-center gap-3 py-3 rounded-lg transition-all duration-200 group
+                                    ${isExpanded ? 'px-4' : 'justify-center px-2'}
+                                    ${isActive
+                                        ? 'bg-white text-maroon-900 shadow-lg font-bold'
+                                        : 'text-white/80 hover:bg-white/10 hover:text-white'
+                                    }
+                                ` }
+                            >
+                                <item.icon
+                                    className={ `
+                                        shrink-0
+                                        ${isExpanded ? 'w-5 h-5' : 'w-6 h-6'}
+                                        ${isActive ? 'text-maroon-900' : 'text-white/80 group-hover:text-white'}
+                                    ` }
+                                />
+                                { isExpanded && (
+                                    <span className="text-sm font-medium whitespace-nowrap overflow-hidden transition-all duration-300">
+                                        { item.label }
+                                    </span>
+                                ) }
+                            </Link>
+                        );
+                    }) }
                 </nav>
             </div>
 
             { /* Footer */ }
-            <div className="px-4 py-4 space-y-2">
-                <SidebarItem
-                    to="/cashier"
-                    icon={ HandCoinsIcon }
-                    label="Cashier"
-                    isExpanded={ isExpanded }/>
+            <div className={ `px-3 py-6 space-y-2 bg-maroon-900` }>
+                { bottomItems.map((item) => {
+                    const isActive = location.pathname.startsWith(item.to);
+                    return (
+                        <Link
+                            key={ item.to }
+                            to={ item.to }
+                            title={ !isExpanded ? item.label : '' }
+                            className={ `
+                                flex items-center gap-3 py-3 rounded-lg transition-all duration-200 group
+                                ${isExpanded ? 'px-4' : 'justify-center px-2'}
+                                ${isActive
+                                    ? 'bg-white text-maroon-900 shadow-lg font-bold'
+                                    : 'text-white/80 hover:bg-white/10 hover:text-white'
+                                }
+                            ` }
+                        >
+                            <item.icon className={ `shrink-0 ${isExpanded ? 'w-5 h-5' : 'w-6 h-6'}` } />
+                            { isExpanded && <span className="text-sm font-medium">{ item.label }</span> }
+                        </Link>
+                    )
+                }) }
 
-                <SidebarItem
+                <button
                     onClick={ handleLogout }
-                    icon={ LogOutIcon }
-                    label="Logout"
-                    isExpanded={ isExpanded }/>
-
-                { /* TODO: Night mode toggle */ }
-                { /*<div className="flex items-center justify-between bg-zinc-200 dark:bg-zinc-800 rounded-full px-3 py-2">*/ }
-                { /*    <div*/ }
-                { /*        onClick={ toggleDarkMode }*/ }
-                { /*        className="flex items-center gap-2 cursor-pointer">*/ }
-                { /*        <MoonIcon className="w-4 h-4"/>*/ }
-                { /*        { isExpanded && <span className="text-sm">Nightmode</span> }*/ }
-                { /*    </div>*/ }
-                { /*    <button*/ }
-                { /*        onClick={ toggleDarkMode }*/ }
-                { /*        className={ `w-10 h-5 flex items-center bg-gray-400 rounded-full p-1 transition ${*/ }
-                { /*            darkMode ? "justify-end bg-blue-500" : "justify-start"*/ }
-                { /*        }` }*/ }
-                { /*    >*/ }
-                { /*        <div className="w-3 h-3 bg-white rounded-full"/>*/ }
-                { /*    </button>*/ }
-                { /*</div>*/ }
+                    title={ !isExpanded ? 'Logout' : '' }
+                    className={ `
+                        w-full flex items-center gap-3 py-3 rounded-lg text-white/80 hover:bg-white/10 hover:text-white transition-all duration-200 group
+                        ${isExpanded ? 'px-4' : 'justify-center px-2'}
+                    ` }
+                >
+                    <LogOut className={ `shrink-0 ${isExpanded ? 'w-5 h-5' : 'w-6 h-6'}` } />
+                    { isExpanded && <span className="text-sm font-medium">Logout</span> }
+                </button>
             </div>
         </aside>
     );
