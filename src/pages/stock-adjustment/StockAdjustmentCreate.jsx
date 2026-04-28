@@ -473,7 +473,7 @@ const StockAdjustmentCreate = () => {
                 </DialogTitle>
                 <DialogContent>
                     <DialogContentText className="space-y-2">
-                        <Typography>Apakah Anda yakin ingin menyimpan penyesuaian stok ini?</Typography>
+                        Apakah Anda yakin ingin menyimpan penyesuaian stok ini?
                         { hasCorrection && (
                             <Alert severity="warning" className="mt-2">
                                 <strong>PERHATIAN:</strong> Terdapat tindakan <strong>CORRECTION</strong> yang akan

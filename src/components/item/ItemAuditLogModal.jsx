@@ -49,14 +49,26 @@ const ItemAuditLogModal = (props) => {
         resetAuditLogs
     } = useItemStore();
 
-    // Reset logs when modal opens with a new SKU
     useEffect(() => {
         if (sku) {
-            console.log('sku', sku);
-            resetAuditLogs();
-            getItemAuditLog(sku, { params: { page: 0, size: 20 } });
+            const payload = {
+                params: {
+                    page: 1,
+                    size: 20
+                }
+            };
+            getItemAuditLog(sku, payload);
         }
-    }, []); // Intentionally not including functions to avoid loops, relying on open/sku change
+    }, [sku]);
+
+    useEffect(() => {
+        return () => {
+            if (observer.current) {
+                observer.current.disconnect();
+            }
+            resetAuditLogs();
+        }
+    }, []);
 
     // Infinite Scroll Logic
     const observer = useRef();

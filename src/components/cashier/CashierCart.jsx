@@ -123,6 +123,7 @@ export default function CashierCart(props) {
                                     className="cashier-cart__footer-submit-btn"
                                     variant="contained"
                                     fullWidth
+                                    onClick={ createSale }
                                 >
                                     BAYAR
                                 </Button>

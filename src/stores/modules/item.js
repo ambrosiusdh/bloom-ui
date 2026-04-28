@@ -79,12 +79,8 @@ const createItemAction = (set, get) => ({
             const { data: response } = await api.getItemAuditLog(sku, payload, options);
             const { content, last, totalPages, number } = response.data;
 
-            // Check if page 0 (initial load) or append
-            // Assuming payload.params.page is passed correctly
-            const isInitialLoad = payload?.params?.page === 0;
-
             set({
-                auditLogs: isInitialLoad ? content : [...auditLogs, ...content],
+                auditLogs: [...auditLogs, ...content],
                 auditLogPaging: {
                     page: number,
                     hasNext: !last
