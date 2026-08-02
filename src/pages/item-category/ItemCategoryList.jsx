@@ -49,12 +49,14 @@ import { ITEM_CATEGORY_LIST_MESSAGES } from "@constants/item-category.jsx"
 
 export default function ItemCategoryList() {
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
-    const itemCategoryList = useItemCategoryStore(state => state.itemCategoryList);
-    const itemCategoryPaging = useItemCategoryStore(state => state.itemCategoryPaging);
-    const itemCategoriesItemCount = useItemCategoryStore(state => state.itemCategoriesItemCount);
-    const getItemCategoryList = useItemCategoryStore(state => state.getItemCategoryList);
-    const deactivateItemCategory = useItemCategoryStore(state => state.deactivateItemCategory);
-    const getItemCategoriesItemCount = useItemCategoryStore(state => state.getItemCategoriesItemCount);
+    const {
+        itemCategoryList,
+        itemCategoryPaging,
+        itemCategoriesItemCount,
+        getItemCategoryList,
+        deactivateItemCategory,
+        getItemCategoriesItemCount
+    } = useItemCategoryStore();
 
     const [searchParams, setSearchParams] = useSearchParams();
 

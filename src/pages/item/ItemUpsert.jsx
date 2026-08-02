@@ -12,8 +12,10 @@ import {
 
 import {
     Button,
+    FormControlLabel,
     InputAdornment,
     MenuItem,
+    Switch,
     TextField
 } from "@mui/material";
 
@@ -41,8 +43,10 @@ export default function ItemUpsert() {
     const {
         sku
     } = useParams()
+    const [isAutoSku, setIsAutoSku] = useState(true);
     const [errorMessage, setErrorMessage] = useState("");
     const [formData, setFormData] = useState({
+        sku: "",
         name: "",
         categoryCode: "",
         description: "",
@@ -50,6 +54,7 @@ export default function ItemUpsert() {
         price: '0'
     })
     const [errorData, setErrorData] = useState({
+        sku: [],
         name: [],
         price: []
     })
@@ -65,6 +70,20 @@ export default function ItemUpsert() {
     const handleFormChange = (e) => {
         const value = e.target.name === 'price' ? getPriceValue(e.target.value) : e.target.value;
         setFormData({ ...formData, [e.target.name]: value });
+    }
+
+    const validateSku = () => {
+        const error = []
+        if (!isAutoSku && !formData.sku.trim()) {
+            error.push('Kode barang tidak boleh kosong')
+        }
+
+        // Basic length validation if needed
+        if (!isAutoSku && formData.sku.length > 50) {
+            error.push('Kode barang terlalu panjang (maksimal 50 karakter)')
+        }
+
+        setErrorData(prevState => ({ ...prevState, sku: error }))
     }
 
     const validateName = () => {
@@ -91,6 +110,9 @@ export default function ItemUpsert() {
 
     const validateForm = name => {
         switch (name) {
+            case "sku":
+                validateSku()
+                break
             case "name":
                 validateName()
                 break
@@ -101,7 +123,7 @@ export default function ItemUpsert() {
                 break
         }
     }
-    const isValidUpsertForm = !!(formData.name && formData.categoryCode && Number(formData.price.replace(/[^0-9]/g, "")) > 0);
+    const isValidUpsertForm = !!(formData.name && formData.categoryCode && Number(formData.price.replace(/[^0-9]/g, "")) > 0 && (isAutoSku || formData.sku));
 
 
     const filterItemCategoryList = async () => {
@@ -121,7 +143,11 @@ export default function ItemUpsert() {
             const { data } = await getItemDetails(sku, {
                 useLoader: true
             })
+            // If editing, sku is already set in params, but we might want to populate it in form if we allow editing it (usually SKU is immutable after creation, but if we need to show it)
+            // For now, let's assume we don't change SKU on edit or toggle auto/manual on edit for existing items easily without more complex logic.
+            // The requirement says "On Create Item page". So this logic mainly applies to Create.
             setFormData({
+                sku: data.sku,
                 name: data.name,
                 categoryCode: data.category.code,
                 description: data.description,
@@ -139,6 +165,11 @@ export default function ItemUpsert() {
                 ...formData,
                 price: formData.price.replace(/[^0-9]/g, "")
             }
+        }
+
+        // Add SKU to payload only if manual entry is enabled
+        if (!isAutoSku && !sku) {
+            payload.data.sku = formData.sku
         }
 
         if (!sku) {
@@ -204,6 +235,46 @@ export default function ItemUpsert() {
             </div>
 
             <form className="item-upsert__form card p-4 w-2/3">
+                { !sku && (
+                    <div className="item-upsert__form-row mb-4">
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={ isAutoSku }
+                                    onChange={ (e) => setIsAutoSku(e.target.checked) }
+                                    name="isAutoSku"
+                                />
+                            }
+                            label="Generate SKU Automatically"
+                        />
+                    </div>
+                ) }
+
+                { !isAutoSku && !sku && (
+                    <div className="item-upsert__form-row mb-4">
+                        <div className="item-upsert__form-item">
+                            <div className="item-upsert__form-item-name mb-2">
+                                Kode Barang (SKU):
+                            </div>
+                            <div className="item-upsert__form-item-value">
+                                <TextField
+                                    className="item-upsert__form-item-value-input"
+                                    name="sku"
+                                    value={ formData.sku }
+                                    variant="outlined"
+                                    size="small"
+                                    placeholder="Masukkan Kode Barang Manual"
+                                    fullWidth
+                                    error={ !!errorData.sku.length }
+                                    helperText={ errorData.sku[0] || '' }
+                                    onChange={ handleFormChange }
+                                    onBlur={ () => validateForm('sku') }
+                                />
+                            </div>
+                        </div>
+                    </div>
+                ) }
+
                 <div className="item-upsert__form-row flex items-center gap-4 mb-4">
                     <div className="item-upsert__form-item basis-1/2">
                         <div className="item-upsert__form-item-name mb-2">
@@ -235,28 +306,28 @@ export default function ItemUpsert() {
                         <div className="item-upsert__form-item-value">
                             {
                                 sku
-                                ? <span className="item-upsert__form-item-value-text font-bold">
-                                        [{ itemDetails?.category?.code }] - { itemDetails?.category?.name }
+                                    ? <span className="item-upsert__form-item-value-text font-bold">
+                                    [{ itemDetails?.category?.code }] - { itemDetails?.category?.name }
                                 </span>
-                                : <TextField
-                                    select
-                                    className="item-list__filter-value"
-                                    name="categoryCode"
-                                    value={ formData.categoryCode }
-                                    variant="outlined"
-                                    size="small"
-                                    label={ formData.categoryCode ? '' : 'Kategori barang' }
-                                    onChange={ handleFormChange }
-                                    fullWidth
-                                >
-                                    {
-                                        itemCategoryList?.map(category => (
-                                            <MenuItem key={ category.code } value={ category.code }>
-                                                [{ category.code }] { category.name }
-                                            </MenuItem>
-                                        ))
-                                    }
-                                </TextField>
+                                    : <TextField
+                                        select
+                                        className="item-list__filter-value"
+                                        name="categoryCode"
+                                        value={ formData.categoryCode }
+                                        variant="outlined"
+                                        size="small"
+                                        label={ formData.categoryCode ? '' : 'Kategori barang' }
+                                        onChange={ handleFormChange }
+                                        fullWidth
+                                    >
+                                        {
+                                            itemCategoryList?.map(category => (
+                                                <MenuItem key={ category.code } value={ category.code }>
+                                                    [{ category.code }] { category.name }
+                                                </MenuItem>
+                                            ))
+                                        }
+                                    </TextField>
                             }
                         </div>
                     </div>

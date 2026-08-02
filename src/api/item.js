@@ -39,10 +39,19 @@ const deactivateItem = async (sku, options) => {
     }, options)
 }
 
+const getItemAuditLog = async (sku, payload, options) => {
+    return api({
+        url: ITEM.auditLog(sku),
+        method: 'GET',
+        ...payload
+    }, options)
+}
+
 export default {
     getItemList,
     getItemDetails,
     createItem,
     updateItem,
-    deactivateItem
+    deactivateItem,
+    getItemAuditLog
 }

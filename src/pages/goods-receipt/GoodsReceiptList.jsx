@@ -5,8 +5,6 @@ import {
 
 import {
     endOfDay,
-    endOfMonth,
-    startOfMonth,
     subWeeks
 } from "date-fns"
 import { enqueueSnackbar } from "notistack"
@@ -18,7 +16,6 @@ import {
 
 import {
     Button,
-    IconButton,
     MenuItem,
     Pagination,
     Paper,
@@ -33,13 +30,12 @@ import {
 
 import {
     Plus,
-    SearchIcon,
     SquareArrowOutUpRightIcon
 } from "lucide-react"
 
 import {
     useBreadcrumbStore,
-    useSaleStore
+    useGoodsReceiptStore
 } from "@stores/index.js"
 
 import { formatDate } from "@utils/date-utils.js"
@@ -48,23 +44,23 @@ import { debounce } from "@utils/general-utils.js"
 import BloomDateRangePicker from "@components/_ui/BloomDateRangePicker.jsx"
 
 const INITIAL_FILTER_DATE = {
-    startDate: startOfMonth(Date.now()),
-    endDate: endOfMonth(Date.now()),
+    startDate: subWeeks(Date.now(), 1),
+    endDate: endOfDay(Date.now()),
     key: 'selection'
 }
 
-export default function SaleList() {
+export default function GoodsReceiptList() {
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
-    const saleList = useSaleStore(state => state.saleList);
-    const salePaging = useSaleStore(state => state.salePaging);
-    const getSaleList = useSaleStore(state => state.getSaleList);
+    const goodsReceiptList = useGoodsReceiptStore(state => state.goodsReceiptList);
+    const goodsReceiptPaging = useGoodsReceiptStore(state => state.goodsReceiptPaging);
+    const getGoodsReceiptList = useGoodsReceiptStore(state => state.getGoodsReceiptList);
 
     const [searchParams, setSearchParams] = useSearchParams();
     const [filters, setFilters] = useState('');
     const [selectedFilterKey, setSelectedFilterKey] = useState('code');
     const filterKeyData = {
-        "code": "Kode Penjualan",
-        "createdBy": "Dibuat oleh"
+        "code": "No. Penerimaan",
+        "supplierName": "Supplier"
     }
     const [filterDate, setFilterDate] = useState({ ...INITIAL_FILTER_DATE })
     const [currentPage, setCurrentPage] = useState(1);
@@ -89,7 +85,7 @@ export default function SaleList() {
         setFilterDate({ ...INITIAL_FILTER_DATE })
     }
 
-    const filterSaleList = async (page = currentPage) => {
+    const filterGoodsReceiptList = async (page = currentPage) => {
         setLoadingTable(true);
         setCurrentPage(page);
         const payload = {
@@ -102,7 +98,7 @@ export default function SaleList() {
             }
         }
 
-        await getSaleList(payload)
+        await getGoodsReceiptList(payload)
         setLoadingTable(false);
     }
 
@@ -115,18 +111,18 @@ export default function SaleList() {
         setCurrentPage(value);
     }
 
-    const fetchSaleList = async () => {
+    const fetchGoodsReceiptList = async () => {
         setSearchParams({
             page: currentPage,
             itemPerPage: itemPerPage,
             q: filters,
             key: selectedFilterKey
         })
-        await filterSaleList();
+        await filterGoodsReceiptList();
     }
 
     useEffect(() => {
-        debounce(fetchSaleList, 'fetchSaleList', 500)
+        debounce(fetchGoodsReceiptList, 'fetchGoodsReceiptList', 500)
     }, [itemPerPage, filters, filterDate, currentPage]);
 
     useEffect(() => {
@@ -134,10 +130,10 @@ export default function SaleList() {
     }, [selectedFilterKey]);
 
     useEffect(() => {
-        setBreadcrumbs(['Riwayat Penjualan'])
+        setBreadcrumbs(['Penerimaan Barang'])
         const filterQueryParameterList = ['q', 'key', 'page', 'itemPerPage']
         if (filterQueryParameterList.some(key => searchParams.has(key))) {
-            setSelectedFilterKey(searchParams.get('key') || 'sku');
+            setSelectedFilterKey(searchParams.get('key') || 'code');
             setFilters(searchParams.get('q') || '');
             setItemPerPage(Number(searchParams.get('itemPerPage')) || 10)
             setCurrentPage(Number(searchParams.get('page')) || 1)
@@ -145,13 +141,26 @@ export default function SaleList() {
     }, []);
 
     return (
-        <div className="sale-list">
-            <div className="sale-list__header mb-4 flex justify-between items-center">
-                <h2 className="sale-list__header-title font-bold text-2xl">Riwayat Penjualan</h2>
+        <div className="goods-receipt-list">
+            <div className="goods-receipt-list__header mb-4 flex justify-between items-center">
+                <h2 className="goods-receipt-list__header-title font-bold text-2xl">Riwayat Penerimaan Barang</h2>
+
+                <div className="goods-receipt-list__header-action">
+                    <Link
+                        to="/goods-receipts/new" // Updated route to match likely structure, or just /goods-receipts/new
+                        className="goods-receipt-list__header-action-create"
+                    >
+                        <Button
+                            variant="contained"
+                            endIcon={ <Plus className="w-5" /> }>
+                            Buat Penerimaan
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             <div className="
-                sale-list__filter
+                goods-receipt-list__filter
                 card
                 mb-4
                 flex
@@ -160,7 +169,7 @@ export default function SaleList() {
             >
                 <TextField
                     select
-                    className="sale-list__filter-key basis-1/6"
+                    className="goods-receipt-list__filter-key basis-1/6"
                     label="Filter by"
                     variant="outlined"
                     size="small"
@@ -175,8 +184,8 @@ export default function SaleList() {
                 </TextField>
 
                 <TextField
-                    className="sale-list__filter-value basis-1/3"
-                    label={ `Filter by ${ filterKeyData[selectedFilterKey] }` }
+                    className="goods-receipt-list__filter-value basis-1/3"
+                    label={ `Filter by ${filterKeyData[selectedFilterKey]}` }
                     variant="outlined"
                     size="small"
                     value={ filters }
@@ -185,12 +194,12 @@ export default function SaleList() {
 
                 <BloomDateRangePicker
                     ranges={ filterDate }
-                    label="Tanggal pembuatan"
+                    label="Tanggal penerimaan"
                     onChange={ handleFilterDateChange }
                 />
 
                 <Button
-                    className="sale-list__filter-clear"
+                    className="goods-receipt-list__filter-clear"
                     variant="text"
                     onClick={ handleFilterClear }
                 >
@@ -198,11 +207,11 @@ export default function SaleList() {
                 </Button>
             </div>
 
-            <div className="sale-list__content sl-content bg-white rounded-lg shadow-lg pb-2">
-                <div className="sl-content__pagination px-4 py-2 flex justify-between items-center">
-                    <h3 className="sl-content__pagination-title text-xl font-bold">Daftar penjualan</h3>
+            <div className="goods-receipt-list__content gr-content bg-white rounded-lg shadow-lg pb-2">
+                <div className="gr-content__pagination px-4 py-2 flex justify-between items-center">
+                    <h3 className="gr-content__pagination-title text-xl font-bold">Daftar Penerimaan</h3>
 
-                    <div className="sl-content__pagination-inputs flex gap-2 items-center">
+                    <div className="gr-content__pagination-inputs flex gap-2 items-center">
                         <span className="text-sm text-gray-700">Data per halaman:</span>
                         <TextField
                             select
@@ -219,7 +228,7 @@ export default function SaleList() {
                         </TextField>
                         <Pagination
                             page={ currentPage }
-                            count={ salePaging?.totalPages }
+                            count={ goodsReceiptPaging?.totalPages }
                             onChange={ handlePageChange }
                         />
                     </div>
@@ -228,14 +237,15 @@ export default function SaleList() {
                 <TableContainer
                     component={ Paper }
                     elevation={ 0 }
-                    className="sl-content__table"
+                    className="gr-content__table"
                 >
                     <Table>
-                        <TableHead className="sl-content__table-header bg-gray-100">
+                        <TableHead className="gr-content__table-header bg-gray-100">
                             <TableRow className="text-xs font-semibold tracking-wider">
-                                <TableCell className="whitespace-nowrap">Kode Penjualan</TableCell>
-                                <TableCell className="whitespace-nowrap">Dibuat oleh</TableCell>
-                                <TableCell className="whitespace-nowrap">Dibuat pada</TableCell>
+                                <TableCell className="whitespace-nowrap">No. Penerimaan</TableCell>
+                                <TableCell className="whitespace-nowrap">Supplier</TableCell>
+                                <TableCell className="whitespace-nowrap">Tanggal Terima</TableCell>
+                                <TableCell className="whitespace-nowrap">Dibuat Oleh</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -250,33 +260,37 @@ export default function SaleList() {
                                         </TableCell>
                                     </TableRow>
                                 )
-                                : saleList?.length
-                                    ? saleList?.map(((sale, index) => {
-                                        const isLastRow = index === saleList.length - 1
+                                : goodsReceiptList?.length
+                                    ? goodsReceiptList?.map(((receipt, index) => {
+                                        const isLastRow = index === goodsReceiptList.length - 1
                                         const tableCellClass = isLastRow ? '!border-b-0' : ''
                                         return (
                                             <TableRow
-                                                key={ sale.code }
-                                                className="sl-content__table-row"
+                                                key={ receipt.code }
+                                                className="gr-content__table-row"
                                             >
-                                                <TableCell className={ `${ tableCellClass } whitespace-nowrap w-full` }>
+                                                <TableCell className={ `${tableCellClass} whitespace-nowrap w-full` }>
                                                     <Link
-                                                        to={ `/sales/${ encodeURIComponent(sale.code) }` }
+                                                        to={ `/goods-receipts/${encodeURIComponent(receipt.code)}` }
                                                         className="table-action__detail flex items-start gap-0.5"
                                                     >
-                                                        { sale.code }
+                                                        { receipt.code }
                                                         <SquareArrowOutUpRightIcon
-                                                            className="sl-content__table-link w-3.5 h-3.5"
+                                                            className="gr-content__table-link w-3.5 h-3.5"
                                                         />
                                                     </Link>
                                                 </TableCell>
 
-                                                <TableCell className={ `${ tableCellClass } whitespace-nowrap` }>
-                                                    { sale.createdBy || 'SYSTEM' }
+                                                <TableCell className={ `${tableCellClass} whitespace-nowrap` }>
+                                                    { receipt.supplierName || '-' }
                                                 </TableCell>
 
-                                                <TableCell className={ `${ tableCellClass } whitespace-nowrap` }>
-                                                    { formatDate(sale.createdAt) }
+                                                <TableCell className={ `${tableCellClass} whitespace-nowrap` }>
+                                                    { formatDate(receipt.receivedDate) }
+                                                </TableCell>
+
+                                                <TableCell className={ `${tableCellClass} whitespace-nowrap` }>
+                                                    { receipt.createdBy || 'SYSTEM' }
                                                 </TableCell>
                                             </TableRow>
                                         )
