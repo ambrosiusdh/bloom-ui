@@ -1,809 +1,384 @@
 # Bloom Release 1 Frontend Contract
 
-Status: Active Release 1 working contract  
-Last updated: 2026-07-30  
-Audience: Repository owner, frontend engineers, backend engineers, reviewers, and AI coding agents
+Last updated: 2026-08-02
 
-## Purpose
+## 1. Purpose
 
-This document defines the intended Release 1 behavior and architectural boundaries
-of the Bloom React application.
+This document defines the Release 1 frontend behavior and frontend/backend boundaries for Bloom UI. It is a guardrail for small, reviewable React PRs; it is not a replacement for the backend domain contract.
 
-It exists to:
+When sources disagree, use this order:
 
-- Preserve product and UX decisions across pull requests and new conversations.
-- Prevent current implementation details from being mistaken for final behavior.
-- Define which calculations and validations belong to the backend.
-- Establish consistent behavior across cashier and back-office workflows.
-- Guide small, domain-focused frontend pull requests.
-
-This document describes target Release 1 behavior. A feature described here must
-not be assumed to be implemented until its roadmap PR is marked `MERGED`.
-
-## Sources of truth
-
-Source-of-truth precedence is:
-
-1. Confirmed product decisions from the repository owner.
+1. Confirmed product decisions in this document.
 2. The backend Release 1 domain contract for business invariants and authoritative calculations.
-3. This document for frontend architecture, UX, interaction, and presentation behavior.
-4. The frontend roadmap for implementation order and PR status.
-5. Current source code for currently implemented behavior.
-
-When current code conflicts with an approved Release 1 contract, the conflict must
-be reported. The frontend must not silently preserve incorrect legacy behavior.
-
-The frontend must inspect actual backend controllers, request DTOs, response DTOs,
-validation, services, and error responses before integrating an endpoint.
-
-A planned backend contract must not be treated as implemented until the relevant
-backend code is available.
-
-## Product scope
-
-Bloom is a small-family-store point-of-sale and inventory-management application.
-
-Release 1 targets the existing React web application.
-
-Release 1 does not include React Native implementation. Backend-owned business
-rules and stable API contracts should make a future React Native client possible
-without moving authoritative calculations into a client.
-
-## Release 1 working modes
-
-Bloom has two working modes.
-
-### Cashier workspace
-
-The cashier workspace is optimized for:
-
-- One laptop.
-- One active cashier at a time.
-- Fast product search.
-- Physical barcode scanning.
-- Keyboard-oriented operation.
-- Fractional quantity entry where allowed.
-- CASH and QRIS checkout.
-- Backend-calculated totals and cash change.
-- Backend-controlled receipt printing.
-- Minimal navigation and distraction.
-
-### Back-office workspace
-
-The back-office workspace is optimized for:
-
-- Item and category management.
-- STORE and WAREHOUSE inventory.
-- Opening balances.
-- Goods receipts.
-- Stock adjustments.
-- Stock transfers.
-- Stock movement history.
-- Supplier management.
-- Supplier accounts payable and payments.
-- Cash-session management.
-- Unexpected expenses.
-- Sales history and reporting.
-
-The information architecture must follow user tasks, not expose backend/JPA entity
-structure directly.
-
-## Confirmed and working decisions
-
-| Area | Release 1 decision | Status |
-|---|---|---|
-| Stock locations | Only `STORE` and `WAREHOUSE` | Confirmed |
-| Quantity precision | Decimal quantity with normalized scale no greater than four | Confirmed |
-| Negative stock | Not allowed | Confirmed |
-| Stock authority | Stock movements are authoritative; item location balances are derived | Confirmed |
-| Opening inventory | Creates `OPENING_BALANCE` movements | Confirmed |
-| UOM conversion | No package or alternate-UOM conversion | Confirmed |
-| Base UOM | One base UOM per item | Confirmed |
-| UOM vocabulary | `PIECE`, `METER`, `KILOGRAM`, `LITER` | Working decision |
-| UOM mutability | Locked after the first stock movement | Confirmed/working |
-| Fractional policy | `fractionalQuantityAllowed` is defined per item | Confirmed |
-| Fractional-policy mutability | Locked after the first stock movement | Working decision |
-| Sale payment methods | `CASH` and `QRIS` | Confirmed |
-| Supplier payment methods | `CASH`, `BANK_TRANSFER`, and `QRIS` | Confirmed |
-| Supplier payment allocation | One payment applies to one goods receipt | Working decision |
-| Partial supplier payment | Allowed | Confirmed |
-| Supplier overpayment | Rejected | Working decision |
-| Supplier credit/prepayment | Not supported in Release 1 | Working decision |
-| Cash sessions | Zero or one globally open session | Confirmed |
-| Expense correction | Void/reverse with audit trail; never delete | Confirmed |
-| Receipt printing | Backend-controlled printer endpoint | Confirmed |
-| Barcode input | Physical barcode scanner | Confirmed |
-| Scanner transport | Depends on confirmed device model and connection | Unresolved technical detail |
-
-Working decisions should be treated as the implementation direction unless the
-repository owner changes them before the affected PR begins.
-
-## Numeric and decimal UX contract
-
-### Exact input representation
-
-Editable monetary and quantity values should be retained as decimal strings while
-the user is typing.
-
-The frontend must not use floating-point arithmetic to determine authoritative:
-
-- Sale totals.
-- Sale change.
-- Goods-receipt totals.
-- Supplier outstanding balances.
-- Payment status.
-- Stock balances.
-- Expected closing cash.
-- Cash-session variance.
+3. Implemented backend controller, request DTO, response DTO, validation, and service behavior.
+4. Current frontend behavior.
 
-### Quantity validation
+A confirmed product decision is not automatically an implemented API contract. Any mismatch between this document and backend code remains a backend gate for the affected frontend PR.
 
-Quantity input must follow the backend contract:
+## 2. Current implementation versus Release 1 target
 
-1. Required quantities must be present.
-2. Movement quantities must be positive.
-3. After insignificant trailing zeroes are removed, scale must be no greater than four.
-4. If `fractionalQuantityAllowed` is `false`, normalized quantity must be whole.
-5. If `fractionalQuantityAllowed` is `true`, fractional input is allowed.
-6. Values must never be silently rounded to fit.
+### 2.1 Verified current baseline
 
-Examples:
+Bloom UI is currently a JavaScript React application:
 
-| Input | Fractional allowed | Frontend result |
-|---|---:|---|
-| `2` | false | Accept |
-| `2.0000` | false | Accept |
-| `2.5000` | false | Reject |
-| `2.5000` | true | Accept |
-| `2.50000` | true | Accept after insignificant-zero normalization |
-| `2.50001` | true | Reject |
-| `0` for a new movement | either | Reject |
-| Negative input | either | Reject |
+- React 19 and Vite 6.
+- JavaScript and JSX source files; no TypeScript application baseline.
+- React Router for client-side routing.
+- Axios through the existing shared API wrapper.
+- Zustand feature stores for shared client and server-derived state.
+- Material UI, Sass, and existing utility styles.
+- Vitest, React Testing Library, and jsdom for frontend tests.
+- PropTypes and existing ESLint rules for current runtime/static checks.
 
-Frontend validation exists for immediate feedback. The backend remains
-authoritative and must validate again.
+Release 1 work must preserve this baseline unless a narrowly scoped PR proves that a dependency change is necessary for its immediate domain. TypeScript migration, TanStack Query adoption, global store replacement, router restructuring, and a global design-system rewrite are not Release 1 prerequisites.
 
-### Display behavior
+### 2.2 Current implemented routes
 
-- Quantities display with the item UOM.
-- Do not force four visible decimal places when they are unnecessary.
-- Preserve meaningful fractional precision.
-- Indonesian money uses one shared `Intl.NumberFormat("id-ID", ...)` formatter.
-- Raw strings such as `Rp. 10000` must not be used.
-- Dates and times use an explicit Indonesian locale.
-- Backend instants are displayed in the intended store timezone.
-- The HTML document language must be Indonesian (`lang="id"`).
+The current application includes routes for login, dashboard, cashier, items, item categories, sales, goods receipts, and stock adjustments. These screens contain useful components and partial workflows, but several still depend on legacy fields or client-side assumptions that do not match the Release 1 target.
 
-## UOM behavior
+### 2.3 Release 1 target
 
-Allowed Release 1 UOM values:
+Release 1 adds or aligns these domains:
 
-| Backend value | Indonesian label | Examples |
-|---|---|---|
-| `PIECE` | pcs | Bottles, batteries, packaged items |
-| `METER` | meter | Cable, rope, fabric |
-| `KILOGRAM` | kg | Rice, sugar, flour |
-| `LITER` | liter | Bulk oil and other liquids |
+- STORE and WAREHOUSE inventory with decimal quantities.
+- Item UOM and fractional-quantity rules.
+- Stock receipts, adjustments, transfers, and movement history.
+- Cashier sale, cash session, QRIS/CASH checkout, and backend receipt printing.
+- Unexpected drawer expenses and void/reversal behavior.
+- Suppliers, goods receipts, supplier debt, and partial supplier payments.
 
-Release 1 does not perform unit conversion.
+The target must be delivered incrementally. Existing routes and reusable components remain in place unless a domain PR has a concrete reason to change them.
 
-Examples:
+## 3. Confirmed product direction
 
-- 250 grams is recorded as `0.2500 KILOGRAM`.
-- 500 milliliters is recorded as `0.5000 LITER`.
-- 50 centimeters is recorded as `0.5000 METER`.
-- A 100-meter cable roll received for a meter-based SKU is recorded as `100 METER`.
-- A packaged bottle sold as one item uses `PIECE`, not `LITER`.
-- A box sold as an independent SKU may use `PIECE`.
+| Decision | Release 1 direction | Contract status |
+| --- | --- | --- |
+| Primary client | React web application | Confirmed |
+| Future mobile client | React Native may later cover cashier/session/expense workflows | Deferred; not Release 1 scope |
+| Working modes | Focused cashier workspace and back-office workspace | Confirmed; validate details through usable flows |
+| Inventory locations | `STORE` and `WAREHOUSE` | Confirmed |
+| Negative stock | Prohibited | Confirmed; backend-enforced |
+| Quantity precision | Decimal quantities with up to four fractional digits | Confirmed |
+| Base UOM vocabulary | `PIECE`, `METER`, `KILOGRAM`, `LITER` | Product-confirmed; backend contract/code alignment required |
+| Fractional behavior | Each item has `fractionalQuantityAllowed` | Confirmed |
+| Item rule mutability | Base UOM and fractional policy become immutable after the first stock movement | Product-confirmed; backend enforcement required |
+| Opening inventory | Creating opening stock creates `OPENING_BALANCE` movements | Confirmed; requires an atomic backend contract |
+| Sale payments | `CASH` and `QRIS` | Confirmed |
+| Sale calculations | Totals and cash change are returned by the server | Confirmed |
+| Duplicate sale protection | Checkout uses a server-recognized idempotency mechanism | Confirmed; exact transport contract required |
+| Receipt output | Backend-controlled printer flow | Confirmed |
+| Scanner | A physical barcode scanner is intended | Confirmed; device transport/terminator behavior still requires verification |
+| Cash session | At most one globally open session | Confirmed |
+| Expense correction | Posted expenses are voided/reversed, not deleted | Confirmed |
+| Supplier payment allocation | One payment applies to one goods receipt; partial payment allowed; overpayment rejected | Product-confirmed; backend contract/code alignment required |
+| Supplier credit/prepayment | Not supported | Confirmed |
+| Multi-receipt allocation | Not supported | Confirmed; deferred beyond Release 1 |
+| Customer credit | Not supported | Confirmed |
 
-`baseUnitOfMeasure` and `fractionalQuantityAllowed` may be edited before the
-first stock movement. After the first movement they are read-only.
+The UOM vocabulary is intentionally small. It means the permitted base measurement choices shown to the user: piece/count, meter/length, kilogram/weight, and liter/volume. Release 1 does not include conversions such as box-to-piece or kilogram-to-gram.
 
-The frontend should use an explicit backend capability such as `hasMovements` or
-field-level editability rather than infer immutability from current stock being
-zero.
+A stock movement means any posted event that changes or records item stock, including opening balance, goods receipt, adjustment, transfer, sale, return, or reversal. Once the first such event exists, changing the item's base UOM or whether it allows fractions would make historical quantities ambiguous; the frontend must therefore display those fields as locked when the backend reports that state, and the backend must reject invalid changes.
 
-## Stock and item UX contract
+## 4. Authority boundary
 
-### Item list and detail
+### 4.1 Backend-owned decisions and calculations
 
-Item views must show:
+The frontend must not be authoritative for:
 
-- Name and SKU.
-- Category.
-- Selling price.
-- Base UOM.
-- Fractional-quantity policy.
-- STORE balance.
-- WAREHOUSE balance.
-- Active/inactive state.
-- Movement-history entry point.
+- stock on hand or stock availability;
+- whether a stock movement may be posted;
+- sale subtotal, total, amount due, or cash change;
+- goods-receipt total, paid amount, outstanding amount, or payment status;
+- supplier debt balances or payment allocation;
+- expected drawer cash or closing variance;
+- whether a cash session is open or closed;
+- whether an expense or payment affects drawer cash;
+- idempotency and duplicate-transaction detection;
+- document status transitions, reversals, or void eligibility.
 
-The frontend must not use legacy `stockQuantity`.
+The frontend may calculate transient presentation hints, such as a non-authoritative line preview, only when clearly labelled and replaced by the server response before confirmation. It must never persist or present a local preview as the posted result.
 
-A combined total may be displayed as supplementary information only if returned
-or explicitly approved, but it must not obscure location-specific availability.
+### 4.2 Frontend-owned responsibilities
 
-### Item creation
+The frontend owns:
 
-Item creation may accept optional opening quantities for STORE and WAREHOUSE.
+- input collection and accessible interaction;
+- client-side checks that improve usability without weakening backend validation;
+- request lifecycle, retry affordances, and duplicate-click prevention;
+- rendering backend-confirmed values and statuses;
+- locale-aware display formatting;
+- navigation, focus management, and responsive layout;
+- preserving enough request context to explain conflicts and recover safely.
 
-The backend must create the item and corresponding `OPENING_BALANCE` movements
-atomically.
+### 4.3 Contract inspection rule
 
-The frontend must not:
+Before implementing a backend-integrated PR, inspect the corresponding backend controller, request DTO, response DTO, validation, service behavior, and domain contract. Do not infer an endpoint or field from a JPA entity or from an old frontend shape.
 
-- Create an item and then issue separate independent stock mutations.
-- Directly set derived stock balances through ordinary item-master updates.
-- Present opening inventory as ordinary editable item metadata after creation.
+If the API lacks a required field or invariant, mark the frontend PR blocked. Do not add a frontend workaround that becomes the source of truth.
 
-### Item editing
+## 5. Quantity, UOM, money, and localization behavior
 
-Ordinary item editing may update backend-approved master data.
+### 5.1 Quantity input
 
-Existing stock must not be edited from the item form.
+- Quantities support up to four decimal places when the item allows fractions.
+- Whole-unit items accept only integral quantities.
+- Inputs should retain the user's editing string while focused so values such as `0,5` or `0.50` are not corrupted mid-entry.
+- Normalize the accepted decimal separator at the API boundary according to the agreed DTO format.
+- Never use binary floating-point arithmetic as the authoritative quantity calculation.
+- Validation must identify the affected field and explain whether the problem is precision, range, availability, or the item's fractional policy.
+- Stock location must be explicit wherever the operation affects a location.
 
-When UOM or fractional policy is immutable, the UI must:
+### 5.2 Quantity display
 
-- Display the value.
-- Disable or replace the control with read-only content.
-- Explain that the field is locked because stock movements already exist.
+- Display the item UOM beside quantities where the unit is otherwise ambiguous.
+- Preserve meaningful fractional digits without forcing four trailing zeros in ordinary tables.
+- Detail/audit views may show normalized precision when it helps reconciliation.
+- Never merge STORE and WAREHOUSE into a single legacy `stockQuantity` value.
 
-### Stock adjustments
+### 5.3 Money
 
-A stock adjustment must include:
+- Display money using Indonesian Rupiah conventions.
+- Send and receive monetary values using the backend's decimal representation; do not rely on floating-point totals.
+- Render server-confirmed totals, change, debt, payments, expected cash, actual cash, and variance.
 
-- Item.
-- Stock location.
-- Action type.
-- Positive decimal input or approved correction value.
-- UOM context.
-- Reason.
-- Confirmation.
+### 5.4 Dates, times, and language
 
-The backend determines before and after balances.
+- User-facing copy is Bahasa Indonesia unless a product decision says otherwise.
+- Dates and times use Indonesian locale conventions and the agreed store timezone.
+- API timestamps remain machine-readable; formatting happens at the display boundary.
+- Status labels should be translated consistently while preserving the backend enum value internally.
 
-### Stock transfers
+## 6. Domain behavior
 
-A transfer:
+### 6.1 Items and inventory
 
-- Moves stock between STORE and WAREHOUSE.
-- Is one atomic backend operation.
-- Produces an OUT movement at the source and an IN movement at the destination.
-- Must not be implemented as two independent frontend requests.
-- Must not allow the same source and destination.
-- Must handle backend insufficient-stock and concurrency errors.
+Item list and detail experiences must expose, when the backend supports them:
 
-### Stock movement history
+- SKU/barcode and item name;
+- category;
+- base UOM;
+- whether fractional quantities are allowed;
+- STORE stock;
+- WAREHOUSE stock;
+- active/inactive state;
+- whether UOM/fractional rules are locked.
 
-Movement history should show:
+Creating an item with opening inventory must use an atomic backend operation that creates the item and its `OPENING_BALANCE` movements. The frontend must not create an item and then simulate opening stock through unrelated requests.
 
-- Item and SKU.
-- Location.
-- Direction.
-- Source type.
-- Source reference.
-- Quantity and UOM.
-- Before balance.
-- After balance.
-- Actor.
-- Timestamp.
+Editing must distinguish editable item metadata from locked stock semantics. Stock is changed only through a stock operation, never by editing an item quantity field.
 
-Movement history is immutable and read-only.
+Movement history must be based on a backend read model and support the context required to understand quantity, location, movement type, reference, actor, and time.
 
-## Cash-session UX contract
+### 6.2 Stock operations
 
-There may be zero or one globally open cash session.
+- Receipt adds stock through a posted goods receipt.
+- Adjustment requires location, signed or directionally explicit quantity semantics, reason, and server confirmation.
+- Transfer requires source and destination, rejects identical locations, and is posted atomically by the backend.
+- Negative stock is prohibited and must be rejected by the backend at posting time.
+- Failed/conflicting stock operations must not optimistically alter displayed authoritative stock.
+- After success, the frontend refreshes the affected backend-derived views.
 
-### No open session
+### 6.3 Cash sessions
 
-When no session is open:
+- The application must establish the globally open session state before enabling drawer transactions.
+- Opening captures opening cash and renders the server-created session.
+- Closing renders server-calculated expected cash, captures actual cash, and displays the returned variance.
+- CASH sales, CASH supplier payments, and expenses affect drawer cash according to backend rules.
+- QRIS sales and non-cash supplier payments do not affect physical cash.
+- A closed or conflicting session response disables further drawer submission and guides the user to refresh the session state.
 
-- Cashier checkout is unavailable.
-- This applies to CASH and QRIS sales.
-- Unexpected expenses are unavailable.
-- CASH supplier payments are unavailable.
-- The UI provides an authorized open-session action.
+### 6.4 Cashier and checkout
 
-### Open session
+- The cashier workspace minimizes unrelated navigation and keeps search/scanning, cart, totals, and payment actions visible.
+- Product search and scanner input converge on the same backend item lookup and cart-add behavior.
+- Cart quantity editing respects the item's UOM and fractional policy.
+- Availability shown before checkout is advisory; the server revalidates stock during submission.
+- CASH and QRIS have distinct payment interactions.
+- The frontend sends only contract-approved inputs and renders the server-created sale and server-calculated totals/change.
+- Checkout has a pending state that prevents repeated local actions, but true duplicate resistance depends on the backend idempotency contract.
+- On an ambiguous timeout, do not silently resubmit with a new idempotency key. Offer a safe status/retry path defined by the backend contract.
 
-The persistent current-session surface should display:
+### 6.5 Receipt printing
 
-- Status.
-- Cashier.
-- Opening cash.
-- Opened time.
+- Printing calls the backend-controlled print endpoint; browser printing is not the primary path.
+- Sale posting and printing are separate outcomes: a print failure must not imply that the sale failed.
+- After a successful sale, show the confirmed sale reference before attempting or reporting print status.
+- Support retry/reprint without recreating the sale.
+- Render useful printer errors and preserve a path back to the completed sale.
 
-The backend is authoritative when another session is already open.
+### 6.6 Suppliers, goods receipts, and debt
 
-### Closing a session
+- Supplier management uses a stable supplier identifier, not a free-text name as the relationship key.
+- A goods receipt captures supplier, destination location per contract, and received item quantities/prices.
+- The backend returns receipt total, paid/outstanding values, and payment status.
+- Supplier debt views render backend-calculated receipt-level outstanding amounts.
+- One Release 1 supplier payment applies to one receipt.
+- Partial payment is allowed; overpayment is rejected.
+- Payment methods are `CASH`, `BANK_TRANSFER`, and `QRIS`; only CASH affects drawer cash.
+- No supplier credit balance, prepayment, or automatic multi-receipt allocation is represented in the UI.
+- Posted receipt/payment corrections follow backend reversal rules; the frontend must not delete financial history.
 
-The user enters actual counted closing cash.
+### 6.7 Unexpected expenses
 
-The backend returns:
+- Creating an expense requires an open cash session.
+- Capture amount, category or reason according to the API, and optional explanatory text where supported.
+- Render the server-posted expense and updated session-derived data.
+- Posted expenses are corrected through void/reversal, not deletion or silent editing.
+- Conflict responses caused by a closed session must preserve entered data while preventing unsafe resubmission.
 
-- Opening cash.
-- CASH sales.
-- CASH supplier payments.
-- Active expenses.
-- Expected closing cash.
-- Actual closing cash.
-- Variance.
+### 6.8 Sales and dashboard
 
-The frontend must not calculate expected closing cash or variance.
+- Sale history and detail render backend-confirmed payment, totals, status, and print/reprint actions.
+- The frontend must not infer payment status solely by comparing locally available totals.
+- Dashboard figures are backend read models. Widgets may link to operational workflows, but must not recompute business balances from multiple frontend requests.
 
-After successful close:
+## 7. Information architecture and routing
 
-- The session is visibly immutable.
-- Drawer-affecting actions are disabled or rejected.
-- Repeated close submission is prevented.
-- The user can inspect the backend reconciliation result.
+Release 1 should present two recognizable working contexts:
 
-## Cashier UX contract
+- Cashier: focused sale, current cash-session status, and essential transaction recovery.
+- Back office: dashboard, inventory, suppliers, goods receipts, debt/payments, expenses, sales history, cash-session history, and reporting/read models that actually exist.
 
-### Product discovery
+This is a navigation grouping, not permission to replace the router or migrate all URLs. Existing paths should be preserved while each domain is aligned. A route change requires a domain-specific reason, explicit compatibility/redirect behavior, and a small reviewable scope.
 
-Cashier product discovery supports:
+Navigation must not expose placeholder destinations as working features. Actions that depend on an unavailable backend contract should be omitted or visibly unavailable with a useful explanation.
 
-- Exact barcode lookup.
-- Name/SKU search.
-- Category filtering where useful.
-- STORE availability.
-- Clear loading, empty, not-found, and error states.
+## 8. State and API architecture
 
-### Physical barcode scanner
+### 8.1 Preserve the current architecture
 
-The primary workflow uses a physical scanner.
+Use the existing Axios wrapper, Zustand stores, component state, and React Router unless the touched domain demonstrates a concrete limitation. Release 1 does not require a new server-state library or a global state rewrite.
 
-Before scanner integration, confirm:
+State ownership should remain explicit:
 
-- Scanner model.
-- Connection type.
-- Whether it exposes USB HID, serial/COM, WebHID, WebSerial, or another interface.
-- Barcode suffix/terminator.
-- Browser and operating-system behavior.
+- component state for temporary interaction and form editing;
+- feature stores for genuinely shared workflow state;
+- backend responses as the source of truth for domain records and calculations;
+- URL state for shareable filters or selected identifiers when useful.
 
-A physical USB HID scanner may technically emit keyboard events. That does not
-make manual copy/paste the intended workflow.
+### 8.2 Request lifecycle
 
-The cashier UI should provide:
+Each touched workflow must define:
 
-- Scanner-ready state.
-- Successful scan feedback.
-- Not-found feedback.
-- Duplicate-scan behavior.
-- Reliable focus recovery.
-- Protection against a scan also triggering a stale search request.
+- initial/loading state;
+- success state using the returned backend record;
+- empty state where applicable;
+- validation errors;
+- authorization/session errors;
+- conflict/stale-state errors;
+- network or unexpected errors;
+- pending submission behavior;
+- safe retry behavior;
+- refresh of affected server-derived views after mutation.
 
-### Cart
+Protect screens from stale responses when filters or identifiers change quickly, using the smallest solution compatible with the existing stack. Do not add a global request abstraction without an immediate consumer and focused tests.
 
-Cart rows show:
+### 8.3 Error shape
 
-- Product name and SKU.
-- Quantity and UOM.
-- Unit price snapshot or current displayed price.
-- Location context where relevant.
-- Availability feedback.
-- Remove action.
+The shared API boundary should normalize enough information for screens to distinguish validation, authentication, authorization, not-found, conflict, and unexpected failures. User-facing messages remain domain-specific; raw backend or Axios errors should not leak into the UI.
 
-Cart quantity follows the item fractional policy.
+## 9. Interaction quality contract
 
-Cart calculations may be displayed as non-authoritative estimates while editing.
-Final confirmation must use backend values.
+### 9.1 Standard states
 
-### Checkout
+Every touched screen or major panel must deliberately cover:
 
-Every sale requires the globally open cash session.
+- loading;
+- error with a relevant recovery action;
+- empty with a useful next action;
+- pending submission;
+- success confirmation;
+- conflict/stale state;
+- confirmation for irreversible posting, closing, voiding, or reversal actions.
 
-Supported payment methods:
+### 9.2 Accessibility
 
-- `CASH`
-- `QRIS`
-
-For CASH:
-
-- User enters cash tender where required by the final backend contract.
-- Backend calculates final total and change.
-- Frontend displays the backend result.
-
-For QRIS:
-
-- QRIS does not affect physical drawer cash.
-- The exact QRIS confirmation mechanism must follow the available backend/product contract.
-
-Checkout must:
-
-- Use a stable idempotency key per checkout attempt.
-- Reuse that key for safe retry.
-- Disable repeated submission.
-- Handle an already-completed duplicate response.
-- Handle insufficient stock.
-- Handle changed price.
-- Handle a session that was closed.
-- Preserve the cart when the outcome is retryable.
-- Clear the cart only after confirmed sale success.
-
-## Receipt-printing contract
-
-Receipt printing is controlled through the backend printer endpoint.
-
-Sale creation and printing are separate operations:
-
-1. Backend creates and commits the sale.
-2. Frontend receives a stable sale code.
-3. Frontend requests printing using that sale code.
-4. Backend retrieves authoritative sale data and prints it.
-
-If printing fails:
-
-- The sale remains successful.
-- The frontend must not resubmit the sale.
-- The UI reports “transaction successful, printing failed.”
-- The user can retry printing.
-- Reprint uses the existing sale code.
-
-Sale history/detail should provide an explicit reprint action. It should be clear
-that the result is a copy.
-
-`window.print()` is not the primary Release 1 receipt path.
-
-PDF generation is not a required fallback unless separately approved.
-
-## Supplier and purchasing UX contract
-
-### Supplier master data
-
-Supplier management covers backend-approved fields such as:
-
-- Code.
-- Name.
-- Contact number.
-- Address.
-- Active state.
-- Audit information.
-
-Supplier debt is accounts payable only. It is not customer credit.
-
-### Goods receipts
-
-A goods receipt includes:
-
-- Structured supplier selection.
-- Received date.
-- Description/reference.
-- One or more item lines.
-- Quantity and UOM.
-- Purchase-price input/snapshot.
-- STORE or WAREHOUSE destination.
-
-The backend calculates:
-
-- Line subtotals.
-- Receipt total.
-- Amount paid.
-- Outstanding payable.
-- Settlement state, if exposed.
-
-The frontend must not submit an authoritative receipt total.
-
-A successful goods receipt atomically creates:
-
-- Receipt and lines.
-- Stock movements.
-- Supplier payable impact.
-
-### Supplier payable
-
-Supplier payable views show backend-returned:
-
-- Receipt total.
-- Total paid.
-- Outstanding amount.
-- Payment history.
-- Derived settlement condition.
-
-The frontend must not maintain an editable supplier-debt balance.
-
-### Supplier payments
-
-Release 1 uses a simple allocation rule:
-
-- One payment applies to one goods receipt.
-- Partial payments are allowed.
-- Payment greater than outstanding is rejected.
-- No multi-receipt allocation.
-- No supplier credit.
-- No overpayment balance.
-- No prepayment.
-- No automatic redistribution.
-
-Payment methods:
-
-- `CASH`
-- `BANK_TRANSFER`
-- `QRIS`
-
-Only CASH:
-
-- Requires an open cash session.
-- Reduces drawer cash.
-
-Payment submission requires idempotency protection.
-
-Supplier-payment reversal remains deferred until its backend policy is approved.
-
-## Unexpected-expense UX contract
-
-An unexpected expense:
-
-- Uses store drawer cash.
-- Requires the globally open cash session.
-- Includes amount, approved category, description, actor, and timestamp.
-- Reduces expected drawer cash through backend reconciliation.
-
-Expense categories must come from the backend-approved enum. Users cannot create
-free-form categories in Release 1.
-
-A posted expense:
-
-- Is never deleted.
-- Is never edited to simulate a correction.
-- May be fully voided/reversed with a mandatory reason.
-- Remains visible in history.
-- Has zero drawer effect after a successful void.
-
-Partial expense void is not supported.
-
-Post-close expense correction remains unresolved. The frontend must present the
-backend decision and must not mutate a closed session locally.
-
-## Sales history
-
-Sales history/detail should display backend-returned:
-
-- Sale code.
-- Session reference.
-- Cashier.
-- Timestamp.
-- Payment method.
-- Lines, quantities, UOM, unit-price snapshots, and line subtotals.
-- Subtotal.
-- Discount.
-- Total.
-- Tender/change where contractually defined.
-- Print/reprint state where useful.
-
-The frontend must not derive a financial status such as “paid/unpaid” unless that
-meaning is explicitly part of the backend contract.
-
-Sale void/refund/return is not part of the approved Release 1 frontend contract
-until its backend lifecycle is decided.
-
-## Target route and information architecture
-
-Suggested route families:
-
-```text
-/login
-
-/cashier
-/cashier/success/:saleCode
-
-/back-office/dashboard
-
-/back-office/items
-/back-office/items/new
-/back-office/items/:sku
-/back-office/items/:sku/edit
-
-/back-office/item-categories
-
-/back-office/stock-movements
-/back-office/stock-adjustments
-/back-office/stock-transfers
-
-/back-office/suppliers
-/back-office/suppliers/:code
-/back-office/goods-receipts
-/back-office/goods-receipts/:code
-/back-office/payables
-
-/back-office/cash-sessions
-/back-office/cash-sessions/:id
-/back-office/expenses
-
-/back-office/sales
-/back-office/sales/:code
-```
-
-Exact route migration may occur incrementally. Existing URLs should not be broken
-without redirects or an explicitly reviewed migration.
-
-## Frontend state ownership
-
-Target ownership:
-
-- Backend: authoritative domain state and calculations.
-- Query/server-state layer: remote lists, details, mutations, invalidation, and request cancellation.
-- Local React state: transient form and interaction state.
-- Zustand or equivalent UI state: application-shell concerns that are genuinely global.
-- URL: shareable filters, pagination, sorting, and selected reporting periods where practical.
-
-Do not copy server entities into long-lived mutable client stores without a clear
-invalidation strategy.
-
-Every domain defines query keys and invalidation behavior.
-
-Search requests should support cancellation or response sequencing so an older
-response cannot overwrite a newer query.
-
-## API and error contract
-
-The frontend should consume stable, purpose-built request and response DTOs.
-
-List responses should not expose large nested entity graphs when a lightweight
-summary DTO is sufficient.
-
-Expected machine-readable error categories include:
-
-- Validation failure.
-- Resource not found.
-- Insufficient stock.
-- Fractional quantity not allowed.
-- Invalid quantity scale.
-- Stock conflict/concurrent update.
-- Cash session required.
-- Cash session already open.
-- Cash session closed.
-- Payment greater than outstanding.
-- Duplicate/idempotent request.
-- Price changed.
-- Printer failure.
-- Authentication required.
-- Authorization denied.
-
-The frontend must not depend only on parsing human-readable error messages.
-
-## Standard screen states
-
-Every asynchronous screen or operation must deliberately handle applicable states.
-
-### Read screens
-
-- Initial loading.
-- Background refresh.
-- Successful data.
-- Empty.
-- Filtered empty.
-- Error.
-- Retry.
-
-### Mutation screens
-
-- Idle.
-- Client validation failure.
-- Confirmation.
-- Submitting.
-- Success.
-- Backend validation failure.
-- Domain conflict.
-- Network-ambiguous outcome.
-- Safe retry.
-- Already-completed idempotent result.
-
-Global blocking loaders should be reserved for operations that truly block the
-whole workspace.
-
-## Accessibility contract
-
-Touched workflows should meet WCAG 2.1 AA-oriented behavior where practical.
-
-Minimum requirements:
-
-- Semantic links and buttons.
-- No clickable `div` for actions.
-- Every icon-only button has an accessible name.
-- Visible focus indicators.
-- Keyboard-accessible tables and row actions.
-- Dialog focus containment and focus return.
-- Error text associated with its field.
-- Status updates exposed through appropriate live regions.
+- All actions are keyboard reachable and have visible focus.
+- Forms have programmatically associated labels, descriptions, and errors.
+- Dialog focus is trapped and returned to the invoking control.
+- Status, error, and success updates are announced appropriately.
+- Icon-only controls have accessible names.
 - Color is not the only status indicator.
-- Minimum practical pointer target size.
-- Correct Indonesian document language.
-- Scanner behavior must not make ordinary keyboard navigation impossible.
+- Tables retain meaningful headers and provide a usable narrow-screen alternative when needed.
+- Cashier shortcuts must not override normal text editing or assistive-technology behavior.
 
-MUI accessibility behavior should be preserved and supplemented where custom
-interactions require it.
+### 9.3 Keyboard and scanner behavior
 
-## Responsive desktop contract
+- Search and primary cashier quantity/payment actions need deliberate focus order.
+- Scanner handling must be tested with the actual device before timing, prefix, suffix, or terminator assumptions become contract requirements.
+- A scan must not trigger checkout or another destructive action.
+- Duplicate scans follow a documented cart rule and provide immediate feedback.
+- Manual search remains available when the scanner is unavailable.
 
-Primary Release 1 target:
+### 9.4 Responsive desktop behavior
 
-- Laptop/desktop browser.
-- Cashier optimized for the store’s expected laptop resolution.
-- Back-office usable at common laptop widths.
+Release 1 prioritizes the store laptop while remaining usable at narrower desktop/tablet widths. Domain PRs must test their touched layout at representative wide and narrow widths. Avoid global responsive sweeps unrelated to the workflow.
 
-The frontend is not required to become a mobile POS application in Release 1.
+## 10. Reuse guidance
 
-However:
+Preserve and improve useful existing assets where their behavior fits the contract:
 
-- Screens should not require a fixed large desktop width.
-- Tables should use intentional overflow or responsive column behavior.
-- Forms should not use fixed half/two-thirds widths without breakpoints.
-- Cashier cart and product search must remain usable on the minimum supported laptop width.
-- Browser zoom and text enlargement should not destroy primary actions.
+- shared Axios API wrapper;
+- feature-oriented Zustand stores;
+- route protection and layout building blocks;
+- reusable dialogs, inputs, buttons, tables, alerts/snackbars, and loading indicators;
+- current Indonesian formatters and theme tokens where correct;
+- Vitest/React Testing Library render utilities.
 
-The minimum supported viewport should be confirmed with the repository owner and
-documented when known.
+Reuse is not mandatory when an existing component encodes a legacy contract, inaccessible interaction, or unsafe transaction behavior. Prefer local extraction after a repeated pattern is proven over creating a global abstraction in advance.
 
-## Reusable implementation direction
+## 11. Explicit Release 1 exclusions
 
-Prefer preserving and improving:
-
-- Existing MUI-based visual foundation.
-- Existing Bloom color identity.
-- Lazy route loading.
-- Item detail, audit, and barcode components.
-- List/filter/pagination patterns.
-- Goods-receipt and stock-adjustment detail structures.
-- Stock-adjustment CSV workflow.
-- Snackbar notifications as secondary feedback.
-- Confirmation-dialog foundation.
-- Dashboard cards and charts where their data remains meaningful.
-
-Do not preserve a component merely because it exists if it silently drops props,
-prevents accessibility, or encodes an obsolete backend contract.
-
-## Explicit Release 1 exclusions
-
-Unless separately approved, Release 1 excludes:
-
+- TypeScript migration or mixed JavaScript/TypeScript conversion program.
+- Zustand replacement or global state-management migration.
+- Mandatory TanStack Query adoption or query-key architecture.
+- Router or URL restructuring without a domain need.
+- Whole-application shell rewrite.
+- Global design-system, lint, formatting, accessibility, or responsive sweep.
+- UOM conversion, packaging hierarchies, or configurable UOM vocabulary.
+- Customer credit.
+- Supplier prepayment/credit or multi-receipt payment allocation.
 - React Native implementation.
-- Package or alternate-UOM conversion.
-- ROLL-to-METER automatic conversion.
-- UOM conversion ratios.
-- Stock locations other than STORE and WAREHOUSE.
-- Negative inventory and back-ordering.
-- Customer credit or customer debt.
-- Supplier payment allocation across multiple receipts.
-- Supplier overpayment credit.
-- Supplier prepayment.
-- Sale refund/return/void workflow.
-- Partial expense void.
-- General cash-drawer adjustment without an approved audited source.
-- Browser printing as the primary receipt mechanism.
+- Frontend-owned financial or inventory calculations.
 
-## Remaining decisions
+TypeScript and broader infrastructure changes may be evaluated after Release 1 based on measured maintenance value. They are not hidden prerequisites for feature delivery.
 
-The following still require product or hardware decisions:
+## 12. Known backend gates and unresolved decisions
 
-1. Exact scanner model, transport, and terminator behavior.
-2. Supplier-payment reversal/void policy.
-3. Sale void/refund/return lifecycle.
-4. Goods-receipt cancellation/return lifecycle.
-5. Post-close expense-correction behavior.
-6. Cash-session reopen policy and authorization.
-7. Exact CASH tender and `paidAmount` representation in the backend API.
-8. QRIS confirmation behavior.
-9. Minimum supported cashier viewport.
-10. Whether receipt PDF export is needed as a fallback.
+The following must be verified or completed before their dependent frontend PRs proceed:
 
-A PR must not invent one of these decisions.
+- Decimal quantity DTOs and services across item, sale, receipt, adjustment, transfer, and movement APIs.
+- Removal or explicit deprecation plan for legacy aggregate `stockQuantity`.
+- Item `baseUom`, `fractionalQuantityAllowed`, and backend-reported/enforced immutability after first movement.
+- Atomic item opening-balance contract.
+- Stock movement history endpoint/read model.
+- Stock transfer endpoint and atomic behavior.
+- Cash-session current/open/close/history/detail endpoints and conflict semantics.
+- Sale request/response, server totals/change, payment method, cash-session enforcement, and idempotency/status-recovery contract.
+- Actual scanner model, interface, suffix/terminator, and behavior under rapid scans.
+- Printer endpoint success/error semantics in the target environment.
+- Supplier read/write contracts.
+- Goods-receipt totals, payment/outstanding fields, status, decimal quantities, and supplier identifier.
+- Accounts-payable and single-receipt payment endpoints, including overpayment and reversal behavior.
+- Expense create/list/detail/void contracts.
+- Sale void/return policy and endpoints.
+- Post-close correction policy for drawer-affecting expenses and supplier payments.
+- Dashboard read models required by Release 1.
 
-## Definition of done for a domain PR
+Until these are resolved, the frontend roadmap must name the gate and avoid inventing the contract.
 
-A frontend domain PR is complete only when:
+## 13. Definition of done for a frontend domain PR
 
-- Its backend contract is available and verified.
-- It changes one frontend domain.
-- Planned behavior is distinguished from current behavior.
-- Authoritative calculations remain on the backend.
-- Loading, empty, error, conflict, pending, success, and retry states are addressed.
-- Keyboard and accessibility behavior are tested.
-- Minimum laptop-width behavior is inspected.
-- Focused tests pass.
-- Existing relevant tests pass.
-- Build/type-check/lint validation for touched files is reported.
-- No unrelated changes are included.
-- Documentation is updated if the PR changes an approved contract or roadmap status.
+A Release 1 frontend PR is done when:
+
+- it changes one business domain and stays within the agreed review size;
+- current behavior and target behavior are not conflated;
+- relevant backend contracts were inspected and match the implementation;
+- no authoritative business calculation was moved into the frontend;
+- loading, error, empty, conflict, pending, success, retry, and confirmation states are covered where relevant;
+- keyboard, focus, accessibility, and touched responsive behavior are verified;
+- Indonesian money, quantity, date, and status display is correct for the touched workflow;
+- targeted tests cover critical interaction and request behavior;
+- the existing test suite and production build pass;
+- targeted lint checks pass for touched code, or existing unrelated failures are documented;
+- no unrelated dependency, formatting, routing, state-management, or migration work is included.
