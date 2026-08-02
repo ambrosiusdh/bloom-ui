@@ -90,10 +90,11 @@ const axiosInstance = axios.create({
 })
 
 axiosInstance.interceptors.response.use(response => response, error => {
-    const location = window.location.pathname;
+    const location = window.location;
 
-    if (error.response?.status === 401 && location !== "/login") {
-        window.location.href = "/login";
+    if (error.response?.status === 401 && location.pathname !== "/login") {
+        const redirectTarget = `${location.pathname}${location.search}${location.hash}`;
+        window.location.assign(`/login?redirect=${encodeURIComponent(redirectTarget)}`);
     }
 
     return Promise.reject(normalizeApiError(error))

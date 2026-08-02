@@ -111,4 +111,24 @@ describe('api', () => {
             validationErrors: []
         });
     });
+
+    it('redirects an expired session to login while preserving the internal destination', async () => {
+        const [, rejectResponse] = axiosMocks.useResponseInterceptor.mock.calls[0];
+        const assign = vi.fn();
+        vi.stubGlobal('window', {
+            location: {
+                pathname: '/items',
+                search: '?page=2',
+                hash: '#stock',
+                assign
+            }
+        });
+
+        await expect(rejectResponse(createHttpError(401))).rejects.toMatchObject({
+            category: API_ERROR_CATEGORY.AUTHENTICATION
+        });
+        expect(assign).toHaveBeenCalledWith('/login?redirect=%2Fitems%3Fpage%3D2%23stock');
+
+        vi.unstubAllGlobals();
+    });
 });
