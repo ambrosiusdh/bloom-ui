@@ -2,46 +2,50 @@ import { create } from 'zustand'
 
 import api from '@api/auth.js'
 
+let currentUserRequestId = 0;
 
 const useAuthStore = create((set) => ({
     currentUser: null,
+    authStatus: 'checking',
 
     getCurrentUser: async () => {
+        const requestId = ++currentUserRequestId;
+        set({ authStatus: 'checking' });
+
         try {
             const response = await api.getCurrentUser()
-            if (response.status !== 200) {
-                console.log(response)
-                set({ currentUser: {} })
-                return
+            const currentUser = response.data?.data;
+
+            if (requestId !== currentUserRequestId) {
+                return null;
             }
 
-            set({ currentUser: response.data.data })
+            if (response.status !== 200 || !currentUser?.username) {
+                set({ currentUser: null, authStatus: 'unauthenticated' })
+                return null;
+            }
+
+            set({ currentUser, authStatus: 'authenticated' })
             return response
         } catch (error) {
-            console.error('Error fetching current user:', error);
-            set({ currentUser: {} })
+            if (requestId === currentUserRequestId) {
+                set({ currentUser: null, authStatus: 'unauthenticated' })
+            }
+
+            return null;
         }
     },
 
     doLogin: async (payload, options) => {
-        try {
-            const { data: response } = await api.doLogin(payload, options)
-            return response
-        } catch (error) {
-            console.error('Error login: ', error);
-            throw error?.response?.data || error
-        }
+        const { data: response } = await api.doLogin(payload, options)
+        return response
     },
 
     doLogout: async () => {
-        try {
-            const { data: response } = await api.doLogout()
-            set({ currentUser: {} })
-            return response
-        } catch (error) {
-            console.error('Error logout: ', error);
-            throw error?.response?.data || error
-        }
+        const { data: response } = await api.doLogout()
+        currentUserRequestId += 1;
+        set({ currentUser: null, authStatus: 'unauthenticated' })
+        return response
     }
 }));
 

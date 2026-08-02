@@ -1,38 +1,48 @@
 import './App.scss'
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 
-import { Outlet, useMatches, useNavigate } from "react-router-dom";
+import { Navigate, Outlet, useLocation, useMatches } from "react-router-dom";
 
-import { useAuthStore, useLoaderStore } from "@stores/index.js";
+import { useAuthStore } from "@stores/index.js";
 
 import Header from "@components/app/Header.jsx";
 import Loader from "@components/app/Loader.jsx";
 import Sidebar from "@components/app/Sidebar.jsx";
 
 function App() {
-    const navigate = useNavigate();
     const matches = useMatches();
+    const location = useLocation();
 
-    const currentUser = useAuthStore(state => state.currentUser);
+    const authStatus = useAuthStore(state => state.authStatus);
     const getCurrentUser = useAuthStore(state => state.getCurrentUser);
-    const [authChecked, setAuthChecked] = useState(false);
 
     const hideLayout = matches.some(match => match.handle?.hideLayout);
 
     useEffect(() => {
-        const fetchUserData = async () => {
-            await getCurrentUser()
-            setAuthChecked(true)
-        }
+        getCurrentUser()
+    }, [getCurrentUser])
 
-        fetchUserData()
-    }, [])
+    if (!hideLayout && authStatus === 'checking') {
+        return (
+            <main
+                className="flex min-h-screen items-center justify-center"
+                role="status"
+                aria-live="polite"
+            >
+                Memeriksa sesi...
+            </main>
+        );
+    }
 
-    useEffect(() => {
-        if (authChecked && !currentUser?.username) {
-            navigate('/login', { replace: true })
-        }
-    }, [authChecked, currentUser]);
+    if (!hideLayout && authStatus === 'unauthenticated') {
+        return (
+            <Navigate
+                to="/login"
+                replace
+                state={ { from: location } }
+            />
+        );
+    }
 
     return (
         <div className="bloom flex w-full min-h-screen bg-gray-100 dark:bg-zinc-900 text-zinc-900 dark:text-white transition duration-300">
@@ -43,7 +53,7 @@ function App() {
                 { !hideLayout && <Header className="bloom__content-header"/> }
 
                 <div className="bloom__content-main p-4 flex-grow">
-                    <Outlet/>
+                    <Outlet />
                 </div>
             </div>
         </div>

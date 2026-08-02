@@ -14,6 +14,7 @@ Before planning or modifying Bloom UI:
 Implementation rules:
 
 - One frontend business domain per PR.
+- Update release-1-frontend-contract.md plan status when finishing the changes.
 - Do not invent missing backend endpoints or fields.
 - The frontend must not authoritatively calculate stock, sale totals, receipt
   totals, supplier debt, payment status, cash change, or reconciliation.
