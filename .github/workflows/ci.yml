@@ -36,7 +36,7 @@ jobs:
         run: npm run lint --if-present
 
       - name: Run Unit Tests
-        run: npm test -- --watchAll=false --passWithNoTests
+        run: npm test -- --run
         env:
           CI: true
 
