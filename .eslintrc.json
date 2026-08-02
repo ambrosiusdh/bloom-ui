@@ -20,6 +20,7 @@
     "import"
   ],
   "rules": {
+    "no-unused-vars": "warn",
     "object-curly-spacing": [
       "error",
       "always"
