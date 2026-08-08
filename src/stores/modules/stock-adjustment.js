@@ -11,7 +11,7 @@ const createStockAdjustmentState = () => ({
     errors: null
 });
 
-const createStockAdjustmentAction = (set, get) => ({
+const createStockAdjustmentAction = set => ({
     getStockAdjustmentList: async (payload, options) => {
         try {
             const { data: response } = await api.getStockAdjustmentList(payload, options)

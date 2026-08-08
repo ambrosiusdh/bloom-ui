@@ -1,37 +1,47 @@
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { ThemeProvider } from '@mui/material/styles';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
-import { Route, Routes } from 'react-router-dom';
-
 import Header from '@/components/app/Header.jsx';
-import { render, screen } from '@/test/render.jsx';
+import theme from '@/themes/index.js';
 
 describe('cashier header', () => {
-    it('provides a keyboard-reachable route back to the back office', async () => {
+    it('returns to the originating page with its query values by keyboard', async () => {
         const user = userEvent.setup();
 
         render(
-            <Routes>
-                <Route
-                    path="/cashier"
-                    element={ <Header cashierMode /> }
-                />
-                <Route
-                    path="/dashboard"
-                    element={ <p>Dashboard</p> }
-                />
-            </Routes>,
-            { route: '/cashier' }
+            <ThemeProvider theme={ theme }>
+                <MemoryRouter
+                    initialEntries={ [{
+                        pathname: '/cashier',
+                        state: { cashierReturnTo: '/sales?period=today' }
+                    }] }
+                >
+                    <Routes>
+                        <Route
+                            path="/cashier"
+                            element={ <Header cashierMode /> }
+                        />
+                        <Route
+                            path="/sales"
+                            element={ <p>Riwayat penjualan</p> }
+                        />
+                    </Routes>
+                </MemoryRouter>
+            </ThemeProvider>
         );
 
-        const backOfficeLink = screen.getByRole('link', { name: 'Kembali ke back office' });
+        const returnLink = screen.getByRole('link', { name: 'Kembali ke menu utama' });
 
         await user.tab();
 
-        expect(backOfficeLink).toHaveFocus();
+        expect(returnLink).toHaveFocus();
+        expect(returnLink).toHaveAttribute('href', '/sales?period=today');
 
         await user.keyboard('{Enter}');
 
-        expect(await screen.findByText('Dashboard')).toBeInTheDocument();
+        expect(await screen.findByText('Riwayat penjualan')).toBeInTheDocument();
     });
 });

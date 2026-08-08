@@ -1,16 +1,15 @@
-import PropTypes from "prop-types";
-
-import { Link } from "react-router-dom";
-
+import { Link, useLocation } from "react-router-dom";
 import { Breadcrumbs, Button, Typography } from "@mui/material";
-
 import { AlignLeftIcon, ArrowLeftIcon } from "lucide-react";
+import PropTypes from "prop-types";
 
 import { useAppStore, useBreadcrumbStore } from "@stores/index.js";
 
 export default function Header({ cashierMode = false }) {
     const toggleExpand = useAppStore(state => state.toggleExpand);
     const breadcrumbs = useBreadcrumbStore(state => state.breadcrumbs);
+    const location = useLocation();
+    const cashierReturnTo = location.state?.cashierReturnTo || '/dashboard';
     const doExpand = () => {
         toggleExpand();
     }
@@ -28,10 +27,10 @@ export default function Header({ cashierMode = false }) {
 
                     <Button
                         component={ Link }
-                        to="/dashboard"
+                        to={ cashierReturnTo }
                         startIcon={ <ArrowLeftIcon /> }
                     >
-                        Kembali ke back office
+                        Kembali ke menu utama
                     </Button>
                 </>
             ) : (

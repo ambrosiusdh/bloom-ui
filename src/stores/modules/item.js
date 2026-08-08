@@ -77,7 +77,7 @@ const createItemAction = (set, get) => ({
 
         try {
             const { data: response } = await api.getItemAuditLog(sku, payload, options);
-            const { content, last, totalPages, number } = response.data;
+            const { content, last, number } = response.data;
 
             set({
                 auditLogs: [...auditLogs, ...content],
