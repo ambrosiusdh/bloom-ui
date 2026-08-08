@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Roadmap
 
-Last updated: 2026-08-02
+Last updated: 2026-08-09
 
 ## 1. How to use this roadmap
 
@@ -65,7 +65,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-03 | Authentication reliability | PLANNED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-04 | Cashier-focused layout | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-01 | `gpt-5.6-terra`, high |
 | FE-05 | Back-office navigation accessibility | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-04 | `gpt-5.6-terra`, high |
-| FE-06 | Item-category reliability | PLANNED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
+| FE-06 | Item-category reliability | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-07 | Backend receipt reprint | PLANNED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-08 | Current dashboard reliability | PLANNED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-09 | Item inventory read model | BLOCKED | BLOCKED | FE-02 | `gpt-5.6-terra`, high |
@@ -219,7 +219,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-06 — Item-category reliability
 
 - **Domain:** Item categories.
-- **Status:** `PLANNED`.
+- **Status:** `IMPLEMENTED`.
 - **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-02.
 - **Backend gate:** Existing category list/create/update/delete-or-deactivate semantics verified against controller/DTO/service.

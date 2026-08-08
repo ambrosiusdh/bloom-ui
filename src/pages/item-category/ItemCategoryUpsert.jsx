@@ -1,17 +1,16 @@
 import {
     useEffect,
+    useRef,
     useState
 } from "react";
-
-import { enqueueSnackbar } from "notistack"
-
 import {
     useNavigate,
     useParams
 } from "react-router-dom";
-
 import {
+    Alert,
     Button,
+    CircularProgress,
     TextField
 } from "@mui/material";
 
@@ -20,13 +19,17 @@ import {
     useItemCategoryStore
 } from "@stores/index.js";
 
-import { GENERIC_ERR_MESSAGE } from "@constants/general.js"
+const REQUIRED_FIELD_MESSAGES = {
+    code: 'Kode kategori wajib diisi.',
+    name: 'Nama kategori wajib diisi.'
+};
+
+const EMPTY_ERRORS = { code: '', name: '' };
 
 export default function ItemCategoryUpsert() {
     const navigate = useNavigate();
 
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
-    const itemCategoryDetails = useItemCategoryStore(state => state.itemCategoryDetails);
     const getItemCategoryDetails = useItemCategoryStore(state => state.getItemCategoryDetails);
     const createItemCategory = useItemCategoryStore(state => state.createItemCategory);
     const updateItemCategory = useItemCategoryStore(state => state.updateItemCategory);
@@ -35,120 +38,109 @@ export default function ItemCategoryUpsert() {
         code
     } = useParams()
     const [errorMessage, setErrorMessage] = useState("");
+    const [isLoadingDetails, setIsLoadingDetails] = useState(Boolean(code));
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
         name: "",
         code: "",
         description: "",
     })
-    const [errorData, setErrorData] = useState({
-        name: [],
-        code: []
-    })
+    const [errorData, setErrorData] = useState(EMPTY_ERRORS)
+    const codeInputRef = useRef(null);
+    const errorAlertRef = useRef(null);
+    const nameInputRef = useRef(null);
+    const submitInProgressRef = useRef(false);
+
     const handleFormChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+        setErrorData({ ...errorData, [e.target.name]: '' });
+        setErrorMessage('');
     }
 
-    const validateName = () => {
-        const error = []
-        if (!formData.name.trim()) {
-            error.push('Nama kategori tidak boleh kosong')
-        }
-
-        if (formData.name.length < 1 || formData.name.length > 255) {
-            error.push('Nama kategori harus diantara 1 ~ 255 karakter')
-        }
-
-        setErrorData(prevState => ({ ...prevState, name: error }))
+    const validateField = name => {
+        const message = !formData[name]?.trim() ? REQUIRED_FIELD_MESSAGES[name] : '';
+        setErrorData(previous => ({ ...previous, [name]: message }));
+        return message;
     }
-
-    const validateCode = () => {
-        const error = []
-        if (!formData.code.trim()) {
-            error.push('Kode kategori tidak boleh kosong')
-        }
-
-        if (formData.code.length < 1 || formData.code.length > 10) {
-            error.push('Kode kategori harus diantara 1 ~ 10 karakter')
-        }
-
-        setErrorData(prevState => ({ ...prevState, code: error }))
-    }
-
-    const validateForm = name => {
-        switch (name) {
-            case "name":
-                validateName()
-                break
-            case "code":
-                validateCode()
-                break
-            default:
-                break
-        }
-    }
-    const isValidUpsertForm = !errorData.name.length && !errorData.code.length;
 
     const doGetItemCategoryDetails = async () => {
+        setIsLoadingDetails(true);
+        setErrorMessage('');
         try {
-            const { data } = await getItemCategoryDetails(code, {
-                useLoader: true
-            })
+            const { data } = await getItemCategoryDetails(code)
             setFormData({
                 name: data.name,
                 code: data.code,
-                description: data.description
+                description: data.description || ''
             })
         } catch (error) {
-            console.log(error)
+            setErrorMessage(error?.message || 'Kategori gagal dimuat. Silakan coba lagi.')
+        } finally {
+            setIsLoadingDetails(false);
         }
     }
 
-    const submitUpsertItem = () => {
+    const submitUpsertItem = async event => {
+        event.preventDefault();
+        if (submitInProgressRef.current) {
+            return;
+        }
+
+        const nextErrors = {
+            code: code ? '' : (!formData.code.trim() ? REQUIRED_FIELD_MESSAGES.code : ''),
+            name: !formData.name.trim() ? REQUIRED_FIELD_MESSAGES.name : ''
+        };
+        setErrorData(nextErrors);
+
+        if (nextErrors.code || nextErrors.name) {
+            (nextErrors.name ? nameInputRef : codeInputRef).current?.focus();
+            return;
+        }
+
+        submitInProgressRef.current = true;
+        setIsSubmitting(true);
+        setErrorMessage('');
         const payload = {
-            data: {
-                ...formData
+            data: code
+                ? { name: formData.name, description: formData.description }
+                : { ...formData }
+        }
+
+        try {
+            if (code) {
+                await updateItemCategory(code, payload)
+            } else {
+                await createItemCategory(payload)
             }
-        }
 
-        if (!code) {
-            doCreateItemCategory(payload)
-            return
-        }
-
-        doUpdateItemCategory(payload)
-    }
-
-    const doCreateItemCategory = async payload => {
-        try {
-            const response = await createItemCategory(payload, {
-                useLoader: true
-            })
-
-            console.log(response)
             const params = new URLSearchParams({
-                message: `Sukses! Berhasil membuat kategori barang [${ formData.name }] dengan kode barang: [${ formData.code }]`,
+                message: code
+                    ? `Kategori [${ code }] berhasil diperbarui.`
+                    : `Kategori [${ formData.code }] berhasil dibuat.`,
                 messageType: 'success'
             })
             navigate(`/item-categories?${ params.toString() }`)
         } catch (error) {
-            enqueueSnackbar(JSON.stringify(error?.message) || GENERIC_ERR_MESSAGE, { variant: 'error' })
-            console.log(error)
-        }
-    }
+            if (error?.validationErrors?.length) {
+                const backendErrors = { ...EMPTY_ERRORS };
+                error.validationErrors.forEach(detail => {
+                    if (detail.field in backendErrors) {
+                        backendErrors[detail.field] = REQUIRED_FIELD_MESSAGES[detail.field];
+                    }
+                });
+                setErrorData(backendErrors);
+            }
 
-    const doUpdateItemCategory = async payload => {
-        try {
-            await updateItemCategory(code, payload, {
-                useLoader: true
-            })
-            const params = new URLSearchParams({
-                message: `Sukses! Berhasil memperbarui kategori barang ${ formData.name } dengan kode kategori: [${ code }]`,
-                messageType: 'success'
-            })
-            navigate(`/item-categories?${ params.toString() }`)
-        } catch (error) {
-            enqueueSnackbar(JSON.stringify(error?.message) || GENERIC_ERR_MESSAGE, { variant: 'error' })
-            console.log(error)
+            if (error?.domainCode === 'item_category_already_exists') {
+                setErrorMessage(`Kode kategori [${ formData.code }] sudah digunakan. Gunakan kode lain.`)
+            } else if (error?.category === 'not_found') {
+                setErrorMessage('Kategori ini tidak lagi tersedia. Kembali ke daftar dan muat ulang data.')
+            } else {
+                setErrorMessage(error?.message || 'Kategori gagal disimpan. Silakan coba lagi.')
+            }
+        } finally {
+            submitInProgressRef.current = false;
+            setIsSubmitting(false);
         }
     }
 
@@ -162,6 +154,12 @@ export default function ItemCategoryUpsert() {
         doGetItemCategoryDetails()
     }, []);
 
+    useEffect(() => {
+        if (errorMessage) {
+            errorAlertRef.current?.focus();
+        }
+    }, [errorMessage]);
+
     return (
         <div className="item-create">
             <div className="item-category-upsert__header mb-4">
@@ -170,54 +168,84 @@ export default function ItemCategoryUpsert() {
                 </h2>
             </div>
 
-            <form className="item-category-upsert__form card p-4 w-2/3">
-                <div className="item-category-upsert__form-row flex items-center gap-4 mb-4">
-                    <div className="item-category-upsert__form-item basis-1/2">
-                        <div className="item-category-upsert__form-item-name mb-2">
-                            Nama kategori:
-                        </div>
+            { errorMessage && (
+                <Alert
+                    ref={ errorAlertRef }
+                    severity="error"
+                    tabIndex={ -1 }
+                    className="mb-4 max-w-3xl"
+                    action={ code && !formData.code && !isSubmitting ? (
+                        <Button
+                            color="inherit"
+                            onClick={ doGetItemCategoryDetails }
+                        >
+                            Coba lagi
+                        </Button>
+                    ) : undefined }
+                >
+                    { errorMessage }
+                </Alert>
+            ) }
+
+            { isLoadingDetails ? (
+                <div
+                    className="card p-8 w-full max-w-3xl flex items-center justify-center gap-3"
+                    role="status"
+                >
+                    <CircularProgress size={ 24 } />
+                    Memuat kategori...
+                </div>
+            ) : (!code || formData.code) && (
+                <form
+                    className="item-category-upsert__form card p-4 w-full max-w-3xl"
+                    onSubmit={ submitUpsertItem }
+                    noValidate
+                >
+                    <div className="item-category-upsert__form-row flex flex-wrap items-start gap-4 mb-4">
+                        <div className="item-category-upsert__form-item flex-1 min-w-60">
 
                         <div className="item-category-upsert__form-item-value">
                             <TextField
                                 className="item-category-upsert__form-item-value-input"
+                                label="Nama kategori"
                                 name="name"
                                 value={ formData.name }
                                 variant="outlined"
                                 size="small"
                                 placeholder="Nama kategori"
                                 fullWidth
-                                error={ !!errorData.name.length }
-                                helperText={ errorData.name[0] || '' }
+                                error={ !!errorData.name }
+                                helperText={ errorData.name }
+                                inputRef={ nameInputRef }
                                 onChange={ handleFormChange }
-                                onBlur={ () => validateForm('name') }
+                                onBlur={ () => validateField('name') }
                             />
                         </div>
                     </div>
 
-                    <div className="item-category-upsert__form-item basis-1/2">
-                        <div className="item-category-upsert__form-item-name mb-2">
-                            Kode kategori:
-                        </div>
+                    <div className="item-category-upsert__form-item flex-1 min-w-60">
 
                         <div className="item-category-upsert__form-item-value">
                             {
                                 code
-                                ? <span className="item-category-upsert__form-item-value-text font-bold">
-                                        { code }
-                                </span>
+                                ? <div>
+                                    <span>Kode kategori: </span>
+                                    <strong className="item-category-upsert__form-item-value-text">{ code }</strong>
+                                </div>
                                 : <TextField
                                     className="item-category-upsert__form-item-value-input"
+                                    label="Kode kategori"
                                     name="code"
                                     value={ formData.code }
                                     variant="outlined"
                                     size="small"
                                     placeholder="Kode kategori"
                                     fullWidth
-                                    disabled={ !!code }
-                                    error={ !!errorData.code.length }
-                                    helperText={ errorData.code[0] || '' }
+                                    error={ !!errorData.code }
+                                    helperText={ errorData.code }
+                                    inputRef={ codeInputRef }
                                     onChange={ handleFormChange }
-                                    onBlur={ () => validateForm('code') }
+                                    onBlur={ () => validateField('code') }
                                 />
                             }
                         </div>
@@ -226,13 +254,10 @@ export default function ItemCategoryUpsert() {
 
                 <div className="item-category-upsert__form-row mb-4">
                     <div className="item-category-upsert__form-item">
-                        <div className="item-category-upsert__form-item-name mb-2">
-                            Deskripsi kategori:
-                        </div>
-
                         <div className="item-category-upsert__form-item-value">
                             <TextField
                                 className="item-category-upsert__form-item-value-input scrollbar-thin"
+                                label="Deskripsi kategori"
                                 multiline
                                 name="description"
                                 value={ formData.description }
@@ -251,13 +276,17 @@ export default function ItemCategoryUpsert() {
                     <Button
                         className="item-category-upsert__form-submit"
                         variant="contained"
-                        disabled={ !isValidUpsertForm }
-                        onClick={ submitUpsertItem }
+                        type="submit"
+                        disabled={ isSubmitting }
+                        aria-busy={ isSubmitting }
                     >
-                        Buat
+                        { isSubmitting
+                            ? 'Menyimpan...'
+                            : code ? 'Simpan perubahan' : 'Buat kategori' }
                     </Button>
                 </div>
             </form>
+            ) }
         </div>
     )
 }

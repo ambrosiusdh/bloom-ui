@@ -22,6 +22,17 @@ const ERROR_MESSAGES = {
     [API_ERROR_CATEGORY.UNEXPECTED]: 'Terjadi kesalahan. Silakan coba lagi.'
 };
 
+const getDomainCode = data => {
+    if (
+        data?.errorType === 'ResponseStatusException'
+        && data?.message === 'Item Category already exists'
+    ) {
+        return 'item_category_already_exists';
+    }
+
+    return null;
+};
+
 const getValidationErrors = data => {
     if (!Array.isArray(data?.message)) {
         return [];
@@ -32,7 +43,11 @@ const getValidationErrors = data => {
         .map(({ field, message }) => ({ field, message }));
 };
 
-const getCategory = (status, validationErrors, hasRequest, isValidationFailure) => {
+const getCategory = (status, validationErrors, hasRequest, isValidationFailure, domainCode) => {
+    if (domainCode === 'item_category_already_exists') {
+        return API_ERROR_CATEGORY.CONFLICT;
+    }
+
     if (isValidationFailure || validationErrors.length || status === 422) {
         return API_ERROR_CATEGORY.VALIDATION;
     }
@@ -65,17 +80,20 @@ export const normalizeApiError = error => {
     const status = error?.response?.status ?? null;
     const responseData = error?.response?.data;
     const validationErrors = getValidationErrors(responseData);
+    const domainCode = getDomainCode(responseData);
     const category = getCategory(
         status,
         validationErrors,
         Boolean(error?.request),
-        responseData?.errorType === 'ValidationFailed'
+        responseData?.errorType === 'ValidationFailed',
+        domainCode
     );
     const normalizedError = new Error(ERROR_MESSAGES[category]);
 
     normalizedError.name = 'ApiError';
     normalizedError.status = status;
     normalizedError.category = category;
+    normalizedError.domainCode = domainCode;
     normalizedError.validationErrors = validationErrors;
 
     return normalizedError;

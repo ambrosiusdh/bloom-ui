@@ -95,6 +95,18 @@ describe('normalizeApiError', () => {
             status: null
         });
     });
+
+    it('maps the backend legacy duplicate-category response to a domain conflict', () => {
+        expect(normalizeApiError(createHttpError(400, {
+            errorType: 'ResponseStatusException',
+            message: 'Item Category already exists',
+            code: 400
+        }))).toMatchObject({
+            category: API_ERROR_CATEGORY.CONFLICT,
+            domainCode: 'item_category_already_exists',
+            status: 400
+        });
+    });
 });
 
 describe('api', () => {

@@ -10,64 +10,28 @@ const useItemCategoryStore = create((set) => ({
     itemCategoriesItemCount: {},
 
     getItemCategoryList: async (payload, options) => {
-        try {
-            const { data: response } = await api.getItemCategoryList(payload, options)
-            const { content, ...itemCategoryPaging } = response.data
-            set({ itemCategoryList: content, itemCategoryPaging })
-            return response
-        } catch (error) {
-            console.error('Error getting item category list:', error);
-            throw error?.response?.data || error
-        }
+        const { data: response } = await api.getItemCategoryList(payload, options)
+        const { content, ...itemCategoryPaging } = response.data
+        set({ itemCategoryList: content, itemCategoryPaging })
+        return response
     },
 
     getItemCategoryDetails: async (code, options) => {
-        try {
-            const { data: response } = await api.getItemCategoryDetails(code, options)
-            set({ itemCategoryDetails: response.data })
-            return response
-        } catch (error) {
-            console.error('Error getting item category details: ', error);
-            throw error?.response?.data || error
-        }
+        const { data: response } = await api.getItemCategoryDetails(code, options)
+        set({ itemCategoryDetails: response.data })
+        return response
     },
 
-    createItemCategory: async (payload, options) => {
-        try {
-            return await api.createItemCategory(payload, options)
-        } catch (error) {
-            console.error('Error logout: ', error);
-            throw error?.response?.data || error
-        }
-    },
+    createItemCategory: (payload, options) => api.createItemCategory(payload, options),
 
-    updateItemCategory: async (code, payload, options) => {
-        try {
-            return await api.updateItemCategory(code, payload, options)
-        } catch (error) {
-            console.error('Error logout: ', error);
-            throw error?.response?.data || error
-        }
-    },
+    updateItemCategory: (code, payload, options) => api.updateItemCategory(code, payload, options),
 
-    deactivateItemCategory: async (code, options) => {
-        try {
-            return await api.deactivateItemCategory(code, options)
-        } catch (error) {
-            console.error('Error logout: ', error);
-            throw error?.response?.data || error
-        }
-    },
+    deactivateItemCategory: (code, options) => api.deactivateItemCategory(code, options),
 
     getItemCategoriesItemCount: async (code, options) => {
-        try {
-            const { data: response } = await api.getItemCategoriesItemCount(code, options)
-            set({ itemCategoriesItemCount: response.data })
-            return response
-        } catch (error) {
-            console.error('Error logout: ', error);
-            throw error?.response?.data || error
-        }
+        const { data: response } = await api.getItemCategoriesItemCount(code, options)
+        set({ itemCategoriesItemCount: response.data })
+        return response
     }
 }));
 
