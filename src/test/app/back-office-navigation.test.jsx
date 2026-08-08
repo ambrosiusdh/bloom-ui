@@ -77,7 +77,7 @@ describe('back-office navigation', () => {
             '/sales'
         ]);
         expect(screen.getByRole('link', { name: 'Kasir' })).toHaveAttribute('href', '/cashier');
-        expect(screen.getByRole('button', { name: 'Keluar' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Keluar' })).toHaveClass('bg-transparent', 'hover:bg-maroon-700');
         expect(screen.queryByText(/supplier|utang|pengeluaran/i)).not.toBeInTheDocument();
     });
 

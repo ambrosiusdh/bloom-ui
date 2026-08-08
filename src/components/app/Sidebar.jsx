@@ -170,7 +170,7 @@ export default function Sidebar({ navigationToggleRef = null }) {
                         className="px-4 space-y-5"
                         aria-label="Destinasi back office"
                     >
-                        { navigationGroups.map(group => (
+                        { navigationGroups.map((group, groupIndex) => (
                             <section
                                 key={ group.id }
                                 aria-labelledby={ group.id }
@@ -183,11 +183,11 @@ export default function Sidebar({ navigationToggleRef = null }) {
                                 </h3>
 
                                 <div className="space-y-2">
-                                    { group.items.map(item => (
+                                    { group.items.map((item, itemIndex) => (
                                         <SidebarItem
                                             key={ item.to }
                                             { ...item }
-                                            itemRef={ item.to === '/dashboard' ? firstNavigationItemRef : null }
+                                            itemRef={ groupIndex === 0 && itemIndex === 0 ? firstNavigationItemRef : null }
                                             isExpanded={ isExpanded }
                                             onClick={ handleNavigate }
                                         />

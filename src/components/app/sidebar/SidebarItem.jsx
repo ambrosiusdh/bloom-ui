@@ -74,7 +74,7 @@ export default function SidebarItem(props) {
             ref={ itemRef }
             type="button"
             title={ isExpanded ? undefined : label }
-            className={ className(false) }
+            className={ `${className(false)} bg-transparent hover:border-transparent` }
             onClick={ onClick }
         >
             { content }
