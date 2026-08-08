@@ -1,5 +1,5 @@
-import PropTypes from "prop-types";
 import { NavLink, useLocation } from "react-router-dom";
+import PropTypes from "prop-types";
 
 const propTypes = {
     to: PropTypes.string,
@@ -7,6 +7,7 @@ const propTypes = {
     label: PropTypes.string.isRequired,
     isExpanded: PropTypes.bool.isRequired,
     onClick: PropTypes.func,
+    state: PropTypes.object,
 };
 
 export default function SidebarItem(props) {
@@ -15,7 +16,8 @@ export default function SidebarItem(props) {
         icon: Icon,
         label,
         isExpanded,
-        onClick = null
+        onClick = null,
+        state = null
     } = props
 
     const location = useLocation()
@@ -46,7 +48,11 @@ export default function SidebarItem(props) {
     );
 
     return to ? (
-        <NavLink to={ to } className="block w-full">
+        <NavLink
+            to={ to }
+            state={ state }
+            className="block w-full"
+        >
             { content }
         </NavLink>
     ) : (

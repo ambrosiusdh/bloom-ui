@@ -146,8 +146,8 @@ export default function Cashier() {
     }, [])
 
     return (
-        <div className="cashier flex gap-4">
-            <div className="cashier__content basis-2/3 min-w-0">
+        <div className="cashier flex flex-col gap-4 xl:flex-row">
+            <div className="cashier__content min-w-0 xl:basis-2/3">
                 <div className="cashier__content-filter card mb-4">
                     <TextField
                         className="cashier__content-filter-value w-full"
@@ -309,7 +309,7 @@ export default function Cashier() {
                 </div>
             </div>
 
-            <div className="cashier__cart basis-1/3">
+            <div className="cashier__cart xl:basis-1/3 xl:min-w-[20rem]">
                 <CashierCart
                     itemList={ localItemList }
                     onQuantityUpdate={ handleQuantityUpdate }

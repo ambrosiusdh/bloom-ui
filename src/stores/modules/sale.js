@@ -8,7 +8,7 @@ const createSaleState = () => ({
     saleDetails: {},
 });
 
-const createSaleAction = (set, get) => ({
+const createSaleAction = set => ({
     getSaleList: async (payload, options) => {
         try {
             const { data: response } = await api.getSaleList(payload, options)

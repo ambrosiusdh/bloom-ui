@@ -45,13 +45,38 @@
       "groups": ["builtin", "external", "internal", "parent", "sibling", "index"],
       "pathGroups": [
         {
-          "pattern": "{react,react-dom}",
+          "pattern": "react",
           "group": "external",
           "position": "before"
         },
         {
-          "pattern": "{zustand,react-router-dom}",
+          "pattern": "react-dom/**",
           "group": "external",
+          "position": "before"
+        },
+        {
+          "pattern": "react-router-dom",
+          "group": "external",
+          "position": "before"
+        },
+        {
+          "pattern": "@api/**",
+          "group": "internal",
+          "position": "after"
+        },
+        {
+          "pattern": "@components/**",
+          "group": "internal",
+          "position": "after"
+        },
+        {
+          "pattern": "@constants/**",
+          "group": "internal",
+          "position": "after"
+        },
+        {
+          "pattern": "@pages/**",
+          "group": "internal",
           "position": "after"
         },
         {
@@ -65,37 +90,13 @@
           "position": "after"
         },
         {
-          "pattern": "@mui/**",
-          "group": "external",
-          "position": "after"
-        },
-        {
-          "pattern": "lucide-react",
-          "group": "external",
-          "position": "after"
-        },
-        {
-          "pattern": "@api/**",
-          "group": "internal",
-          "position": "after"
-        },
-        {
-          "pattern": "@pages/**",
-          "group": "internal",
-          "position": "after"
-        },
-        {
-          "pattern": "@components/**",
-          "group": "internal",
-          "position": "after"
-        },
-        {
-          "pattern": "@constants/**",
+          "pattern": "@/**",
           "group": "internal",
           "position": "after"
         }
       ],
       "pathGroupsExcludedImportTypes": ["builtin"],
+      "distinctGroup": false,
       "newlines-between": "always",
       "alphabetize": {
         "order": "asc",

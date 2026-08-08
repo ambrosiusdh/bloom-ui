@@ -29,6 +29,7 @@ Bloom UI is currently a JavaScript React application:
 - Material UI, Sass, and existing utility styles.
 - Vitest, React Testing Library, and jsdom for frontend tests.
 - PropTypes and existing ESLint rules for current runtime/static checks.
+- FE-04 cashier-focused layout is implemented: `/cashier` uses a focused shell with a clear back-office escape while preserving the route and shared theme.
 
 Release 1 work must preserve this baseline unless a narrowly scoped PR proves that a dependency change is necessary for its immediate domain. TypeScript migration, TanStack Query adoption, global store replacement, router restructuring, and a global design-system rewrite are not Release 1 prerequisites.
 

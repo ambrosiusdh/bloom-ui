@@ -10,7 +10,7 @@ const createGoodsReceiptState = () => ({
     errors: null
 });
 
-const createGoodsReceiptAction = (set, get) => ({
+const createGoodsReceiptAction = set => ({
     getGoodsReceiptList: async (payload, options) => {
         try {
             const { data: response } = await api.getGoodsReceiptList(payload, options)

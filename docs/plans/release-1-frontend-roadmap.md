@@ -63,7 +63,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-01 | Frontend test foundation | MERGED | DIRECT_IMPLEMENTATION | FE-00 | `gpt-5.6-terra`, high |
 | FE-02 | Shared API error normalization | PLANNED | DIRECT_IMPLEMENTATION | FE-01 | `gpt-5.6-terra`, high |
 | FE-03 | Authentication reliability | PLANNED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
-| FE-04 | Cashier-focused layout | PLANNED | DIRECT_IMPLEMENTATION | FE-01 | `gpt-5.6-terra`, high |
+| FE-04 | Cashier-focused layout | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-01 | `gpt-5.6-terra`, high |
 | FE-05 | Back-office navigation accessibility | PLANNED | DIRECT_IMPLEMENTATION | FE-04 | `gpt-5.6-terra`, high |
 | FE-06 | Item-category reliability | PLANNED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-07 | Backend receipt reprint | PLANNED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
@@ -179,7 +179,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-04 — Cashier-focused layout
 
 - **Domain:** Cashier workspace shell.
-- **Status:** `PLANNED`.
+- **Status:** `IMPLEMENTED`.
 - **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-01.
 - **Backend gate:** None; this PR uses current routes and placeholder-safe UI only.

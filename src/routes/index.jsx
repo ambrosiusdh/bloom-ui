@@ -57,7 +57,8 @@ const router = createBrowserRouter([
             },
             {
                 path: "cashier",
-                element: withSuspense(<Cashier />)
+                element: withSuspense(<Cashier />),
+                handle: { cashierMode: true }
             },
             {
                 path: "items",

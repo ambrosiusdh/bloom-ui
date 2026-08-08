@@ -1,5 +1,5 @@
 import { useState } from "react";
-
+import { useLocation } from "react-router-dom";
 import {
     HandCoinsIcon,
     LogOutIcon,
@@ -17,6 +17,7 @@ export default function Sidebar() {
     const isExpanded = useAppStore(state => state.isExpanded)
     const currentUser = useAuthStore(state => state.currentUser)
     const doLogout = useAuthStore(state => state.doLogout)
+    const location = useLocation();
 
     const [darkMode, setDarkMode] = useState(false);
 
@@ -105,6 +106,7 @@ export default function Sidebar() {
             <div className="px-4 py-4 space-y-2">
                 <SidebarItem
                     to="/cashier"
+                    state={ { cashierReturnTo: `${location.pathname}${location.search}${location.hash}` } }
                     icon={ HandCoinsIcon }
                     label="Cashier"
                     isExpanded={ isExpanded } />
