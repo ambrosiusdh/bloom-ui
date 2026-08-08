@@ -13,6 +13,7 @@ import {
     UserIcon,
     XIcon
 } from "lucide-react";
+import PropTypes from "prop-types";
 
 import { useAppStore, useAuthStore } from "@stores/index.js";
 
@@ -45,11 +46,7 @@ const navigationGroups = [
     }
 ];
 
-const focusNavigationToggle = () => {
-    document.querySelector('#back-office-navigation-toggle')?.focus();
-};
-
-export default function Sidebar() {
+export default function Sidebar({ navigationToggleRef = null }) {
     const isExpanded = useAppStore(state => state.isExpanded);
     const closeNavigation = useAppStore(state => state.closeNavigation);
     const currentUser = useAuthStore(state => state.currentUser);
@@ -57,6 +54,8 @@ export default function Sidebar() {
     const location = useLocation();
     const isNarrowViewport = useMediaQuery('(max-width: 767px)');
     const previousIsNarrowViewport = useRef(false);
+    const previousIsExpanded = useRef(isExpanded);
+    const firstNavigationItemRef = useRef(null);
 
     useEffect(() => {
         if (isNarrowViewport && !previousIsNarrowViewport.current) {
@@ -66,9 +65,17 @@ export default function Sidebar() {
         previousIsNarrowViewport.current = isNarrowViewport;
     }, [closeNavigation, isNarrowViewport]);
 
+    useEffect(() => {
+        if (isNarrowViewport && isExpanded && !previousIsExpanded.current) {
+            firstNavigationItemRef.current?.focus();
+        }
+
+        previousIsExpanded.current = isExpanded;
+    }, [isExpanded, isNarrowViewport]);
+
     const handleClose = () => {
         closeNavigation();
-        focusNavigationToggle();
+        navigationToggleRef?.current?.focus();
     };
 
     const handleNavigate = () => {
@@ -180,6 +187,7 @@ export default function Sidebar() {
                                         <SidebarItem
                                             key={ item.to }
                                             { ...item }
+                                            itemRef={ item.to === '/dashboard' ? firstNavigationItemRef : null }
                                             isExpanded={ isExpanded }
                                             onClick={ handleNavigate }
                                         />
@@ -212,3 +220,7 @@ export default function Sidebar() {
         </>
     );
 }
+
+Sidebar.propTypes = {
+    navigationToggleRef: PropTypes.shape({ current: PropTypes.object }),
+};

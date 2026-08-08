@@ -5,7 +5,7 @@ import PropTypes from "prop-types";
 
 import { useAppStore, useBreadcrumbStore } from "@stores/index.js";
 
-export default function Header({ cashierMode = false }) {
+export default function Header({ cashierMode = false, navigationToggleRef = null }) {
     const toggleExpand = useAppStore(state => state.toggleExpand);
     const isExpanded = useAppStore(state => state.isExpanded);
     const breadcrumbs = useBreadcrumbStore(state => state.breadcrumbs);
@@ -13,12 +13,6 @@ export default function Header({ cashierMode = false }) {
     const cashierReturnTo = location.state?.cashierReturnTo || '/dashboard';
     const doExpand = () => {
         toggleExpand();
-
-        if (!isExpanded && window.matchMedia?.('(max-width: 767px)').matches) {
-            window.setTimeout(() => {
-                document.querySelector('#back-office-navigation a')?.focus();
-            });
-        }
     }
 
     return (
@@ -43,6 +37,7 @@ export default function Header({ cashierMode = false }) {
             ) : (
                 <div className="bloom-header__expand flex gap-4 items-center">
                     <Button
+                        ref={ navigationToggleRef }
                         id="back-office-navigation-toggle"
                         variant="contained"
                         aria-controls="back-office-navigation"
@@ -81,4 +76,5 @@ export default function Header({ cashierMode = false }) {
 
 Header.propTypes = {
     cashierMode: PropTypes.bool,
+    navigationToggleRef: PropTypes.shape({ current: PropTypes.object }),
 };

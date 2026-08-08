@@ -7,6 +7,7 @@ const propTypes = {
     label: PropTypes.string.isRequired,
     isExpanded: PropTypes.bool.isRequired,
     end: PropTypes.bool,
+    itemRef: PropTypes.shape({ current: PropTypes.object }),
     onClick: PropTypes.func,
     state: PropTypes.object,
 };
@@ -18,6 +19,7 @@ export default function SidebarItem(props) {
         label,
         isExpanded,
         end = false,
+        itemRef = null,
         onClick = null,
         state = null
     } = props
@@ -57,6 +59,7 @@ export default function SidebarItem(props) {
 
     return to ? (
         <NavLink
+            ref={ itemRef }
             to={ to }
             state={ state }
             end={ end }
@@ -68,6 +71,7 @@ export default function SidebarItem(props) {
         </NavLink>
     ) : (
         <button
+            ref={ itemRef }
             type="button"
             title={ isExpanded ? undefined : label }
             className={ className(false) }

@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -28,6 +29,17 @@ function LocationProbe() {
     const location = useLocation();
 
     return <output aria-label="Current path">{ location.pathname }</output>;
+}
+
+function NavigationShell() {
+    const navigationToggleRef = useRef(null);
+
+    return (
+        <>
+            <Sidebar navigationToggleRef={ navigationToggleRef } />
+            <Header navigationToggleRef={ navigationToggleRef } />
+        </>
+    );
 }
 
 describe('back-office navigation', () => {
@@ -104,10 +116,7 @@ describe('back-office navigation', () => {
         setNarrowViewport(true);
 
         render(
-            <>
-                <Sidebar />
-                <Header />
-            </>,
+            <NavigationShell />,
             { route: '/dashboard' }
         );
 
