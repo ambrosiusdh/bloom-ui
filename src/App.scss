@@ -3,8 +3,53 @@
 }
 
 .bloom {
+  &__navigation-backdrop {
+    display: none;
+  }
+
+  &__sidebar {
+    flex: 0 0 16rem;
+    width: 16rem;
+
+    &--collapsed {
+      flex-basis: 5rem;
+      width: 5rem;
+    }
+  }
+
   &__content-main {
     overflow: auto;
     max-height: calc(100vh - 48px);
+  }
+}
+
+@media (max-width: 767px) {
+  .bloom {
+    &__navigation-backdrop {
+      background: rgb(0 0 0 / 50%);
+      border: 0;
+      border-radius: 0;
+      display: block;
+      inset: 0;
+      padding: 0;
+      position: fixed;
+      z-index: 30;
+    }
+
+    &__sidebar {
+      flex-basis: auto;
+      inset: 0 auto 0 0;
+      max-width: calc(100vw - 3rem);
+      position: fixed;
+      transform: translateX(0);
+      width: 16rem;
+      z-index: 40;
+
+      &--collapsed {
+        transform: translateX(-100%);
+        visibility: hidden;
+        width: 16rem;
+      }
+    }
   }
 }

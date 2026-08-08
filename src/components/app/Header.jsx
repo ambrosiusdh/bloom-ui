@@ -5,8 +5,9 @@ import PropTypes from "prop-types";
 
 import { useAppStore, useBreadcrumbStore } from "@stores/index.js";
 
-export default function Header({ cashierMode = false }) {
+export default function Header({ cashierMode = false, navigationToggleRef = null }) {
     const toggleExpand = useAppStore(state => state.toggleExpand);
+    const isExpanded = useAppStore(state => state.isExpanded);
     const breadcrumbs = useBreadcrumbStore(state => state.breadcrumbs);
     const location = useLocation();
     const cashierReturnTo = location.state?.cashierReturnTo || '/dashboard';
@@ -36,9 +37,15 @@ export default function Header({ cashierMode = false }) {
             ) : (
                 <div className="bloom-header__expand flex gap-4 items-center">
                     <Button
+                        ref={ navigationToggleRef }
+                        id="back-office-navigation-toggle"
                         variant="contained"
-                        onClick={ doExpand }>
-                        <AlignLeftIcon />
+                        aria-controls="back-office-navigation"
+                        aria-expanded={ isExpanded }
+                        aria-label={ isExpanded ? 'Tutup navigasi back office' : 'Buka navigasi back office' }
+                        onClick={ doExpand }
+                    >
+                        <AlignLeftIcon aria-hidden="true" />
                     </Button>
 
                     <Breadcrumbs aria-label="breadcrumb">
@@ -69,4 +76,5 @@ export default function Header({ cashierMode = false }) {
 
 Header.propTypes = {
     cashierMode: PropTypes.bool,
+    navigationToggleRef: PropTypes.shape({ current: PropTypes.object }),
 };
