@@ -7,11 +7,18 @@ import { useAppStore, useBreadcrumbStore } from "@stores/index.js";
 
 export default function Header({ cashierMode = false }) {
     const toggleExpand = useAppStore(state => state.toggleExpand);
+    const isExpanded = useAppStore(state => state.isExpanded);
     const breadcrumbs = useBreadcrumbStore(state => state.breadcrumbs);
     const location = useLocation();
     const cashierReturnTo = location.state?.cashierReturnTo || '/dashboard';
     const doExpand = () => {
         toggleExpand();
+
+        if (!isExpanded && window.matchMedia?.('(max-width: 767px)').matches) {
+            window.setTimeout(() => {
+                document.querySelector('#back-office-navigation a')?.focus();
+            });
+        }
     }
 
     return (
@@ -36,9 +43,14 @@ export default function Header({ cashierMode = false }) {
             ) : (
                 <div className="bloom-header__expand flex gap-4 items-center">
                     <Button
+                        id="back-office-navigation-toggle"
                         variant="contained"
-                        onClick={ doExpand }>
-                        <AlignLeftIcon />
+                        aria-controls="back-office-navigation"
+                        aria-expanded={ isExpanded }
+                        aria-label={ isExpanded ? 'Tutup navigasi back office' : 'Buka navigasi back office' }
+                        onClick={ doExpand }
+                    >
+                        <AlignLeftIcon aria-hidden="true" />
                     </Button>
 
                     <Breadcrumbs aria-label="breadcrumb">

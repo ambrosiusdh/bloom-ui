@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import PropTypes from "prop-types";
 
 const propTypes = {
@@ -6,6 +6,7 @@ const propTypes = {
     icon: PropTypes.elementType.isRequired,
     label: PropTypes.string.isRequired,
     isExpanded: PropTypes.bool.isRequired,
+    end: PropTypes.bool,
     onClick: PropTypes.func,
     state: PropTypes.object,
 };
@@ -16,49 +17,64 @@ export default function SidebarItem(props) {
         icon: Icon,
         label,
         isExpanded,
+        end = false,
         onClick = null,
         state = null
     } = props
 
-    const location = useLocation()
-    const isActive = to ? location.pathname.startsWith(to) : false
-
-    const content = (
-        <div
-            className={ `
+    const className = isActive => `
             flex
             font-semibold
             items-center 
+            w-full
             p-2
             rounded
             gap-3 
             transition-colors 
-            duration-500
-            hover:cursor-pointer 
+            duration-200
             whitespace-nowrap
+            focus-visible:outline
+            focus-visible:outline-2
+            focus-visible:outline-offset-2
+            focus-visible:outline-white
             ${
                 isActive
                     ? "bg-white text-maroon-700"
                     : "text-white hover:bg-maroon-700"
-            }` }
-        >
-            <Icon className="text-xl" />
-            { isExpanded && <span className="font-semibold">{ label }</span> }
-        </div>
+            }`;
+
+    const content = (
+        <>
+            <Icon
+                aria-hidden="true"
+                className="shrink-0 text-xl"
+            />
+            <span className={ isExpanded ? "font-semibold" : "sr-only" }>
+                { label }
+            </span>
+        </>
     );
 
     return to ? (
         <NavLink
             to={ to }
             state={ state }
-            className="block w-full"
+            end={ end }
+            title={ isExpanded ? undefined : label }
+            className={ ({ isActive }) => className(isActive) }
+            onClick={ onClick }
         >
             { content }
         </NavLink>
     ) : (
-        <div onClick={ onClick } className="w-full text-left cursor-pointer">
+        <button
+            type="button"
+            title={ isExpanded ? undefined : label }
+            className={ className(false) }
+            onClick={ onClick }
+        >
             { content }
-        </div>
+        </button>
     );
 }
 
