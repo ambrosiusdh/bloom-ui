@@ -1,5 +1,9 @@
 import axios from 'axios'
 
+import {
+    API_DOMAIN_ERROR_CODE,
+    getLegacyDomainErrorCode
+} from "@api/error-contract.js";
 import { useLoaderStore } from "@stores/index.js";
 
 export const API_ERROR_CATEGORY = Object.freeze({
@@ -22,17 +26,6 @@ const ERROR_MESSAGES = {
     [API_ERROR_CATEGORY.UNEXPECTED]: 'Terjadi kesalahan. Silakan coba lagi.'
 };
 
-const getDomainCode = data => {
-    if (
-        data?.errorType === 'ResponseStatusException'
-        && data?.message === 'Item Category already exists'
-    ) {
-        return 'item_category_already_exists';
-    }
-
-    return null;
-};
-
 const getValidationErrors = data => {
     if (!Array.isArray(data?.message)) {
         return [];
@@ -44,7 +37,7 @@ const getValidationErrors = data => {
 };
 
 const getCategory = (status, validationErrors, hasRequest, isValidationFailure, domainCode) => {
-    if (domainCode === 'item_category_already_exists') {
+    if (domainCode === API_DOMAIN_ERROR_CODE.ITEM_CATEGORY_ALREADY_EXISTS) {
         return API_ERROR_CATEGORY.CONFLICT;
     }
 
@@ -80,7 +73,7 @@ export const normalizeApiError = error => {
     const status = error?.response?.status ?? null;
     const responseData = error?.response?.data;
     const validationErrors = getValidationErrors(responseData);
-    const domainCode = getDomainCode(responseData);
+    const domainCode = getLegacyDomainErrorCode(status, responseData);
     const category = getCategory(
         status,
         validationErrors,

@@ -13,6 +13,14 @@ vi.mock('@api/item-category.js', () => ({ default: categoryApi }));
 
 import useItemCategoryStore from '@stores/modules/item-category.js';
 
+const deferred = () => {
+    let resolve;
+    const promise = new Promise(resolvePromise => {
+        resolve = resolvePromise;
+    });
+    return { promise, resolve };
+};
+
 describe('item category store', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -62,6 +70,34 @@ describe('item category store', () => {
         ).rejects.toBe(error);
         expect(useItemCategoryStore.getState().itemCategoryList).toEqual([
             { code: 'KAIN', name: 'Kain' }
+        ]);
+    });
+
+    it('does not store a late list response after its request is aborted', async () => {
+        const request = deferred();
+        const controller = new AbortController();
+        useItemCategoryStore.setState({
+            itemCategoryList: [{ code: 'TERBARU', name: 'Terbaru' }]
+        });
+        categoryApi.getItemCategoryList.mockReturnValue(request.promise);
+
+        const pending = useItemCategoryStore.getState().getItemCategoryList({
+            signal: controller.signal,
+            params: { page: 1 }
+        });
+        controller.abort();
+        request.resolve({
+            data: {
+                data: {
+                    content: [{ code: 'LAMA', name: 'Lama' }],
+                    totalPages: 1
+                }
+            }
+        });
+        await pending;
+
+        expect(useItemCategoryStore.getState().itemCategoryList).toEqual([
+            { code: 'TERBARU', name: 'Terbaru' }
         ]);
     });
 

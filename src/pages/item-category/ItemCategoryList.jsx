@@ -38,6 +38,12 @@ import {
 } from "@stores/index.js";
 import { formatDate } from "@utils/date-utils.js";
 
+const FILTER_KEY_DATA = {
+    code: 'Kode',
+    name: 'Nama'
+};
+const ITEM_PER_PAGE_OPTIONS = [5, 10, 25, 50];
+
 export default function ItemCategoryList() {
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const {
@@ -52,61 +58,52 @@ export default function ItemCategoryList() {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const [selectedDeleteTarget, setSelectedDeleteTarget] = useState({});
-    const [filters, setFilters] = useState('');
-    const [selectedFilterKey, setSelectedFilterKey] = useState('code');
-    const filterKeyData = {
-        "code": "Kode",
-        "name": "Nama"
-    }
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemPerPage, setItemPerPage] = useState(10);
-    const itemPerPageOptions = [5, 10, 25, 50]
+    const [filters, setFilters] = useState(() => searchParams.get('q') || '');
+    const [debouncedFilters, setDebouncedFilters] = useState(() => searchParams.get('q') || '');
+    const [selectedFilterKey, setSelectedFilterKey] = useState(() => (
+        Object.hasOwn(FILTER_KEY_DATA, searchParams.get('key')) ? searchParams.get('key') : 'code'
+    ));
+    const [currentPage, setCurrentPage] = useState(() => (
+        Math.max(Number(searchParams.get('page')) || 1, 1)
+    ));
+    const [itemPerPage, setItemPerPage] = useState(() => {
+        const requestedSize = Number(searchParams.get('itemPerPage'));
+        return ITEM_PER_PAGE_OPTIONS.includes(requestedSize) ? requestedSize : 10;
+    });
+    const [refreshVersion, setRefreshVersion] = useState(0);
     const [isLoadingTable, setLoadingTable] = useState(true);
     const [isLoadingItemCount, setIsLoadingItemCount] = useState('');
     const [isDeactivating, setIsDeactivating] = useState(false);
     const [listError, setListError] = useState('');
+    const [itemCountError, setItemCountError] = useState({});
     const [deactivationError, setDeactivationError] = useState('');
-    const [messageAlertData, setMessageAlertData] = useState({});
+    const [messageAlertData, setMessageAlertData] = useState(() => ({
+        show: searchParams.has('message'),
+        message: searchParams.get('message'),
+        type: searchParams.get('messageType') || 'info'
+    }));
     const deactivationInProgressRef = useRef(false);
     const deactivationTriggerRef = useRef(null);
+    const focusAfterRefreshRef = useRef(false);
+    const isMountedRef = useRef(false);
+    const itemCountAlertRef = useRef(null);
+    const itemCountRequestRef = useRef(null);
     const listHeadingRef = useRef(null);
 
     const handleFilterKeyChange = e => {
         setSelectedFilterKey(e.target.value);
+        setFilters('');
+        setDebouncedFilters('');
         setCurrentPage(1);
     }
     const handleFilterChange = e => {
         setFilters(e.target.value);
-        setCurrentPage(1);
     }
     const handleFilterClear = () => {
         setFilters('')
+        setDebouncedFilters('');
         setSelectedFilterKey('code');
-    }
-
-    const filterItemCategoryList = async (page = currentPage, signal) => {
-        setLoadingTable(true);
-        setListError('');
-        const payload = {
-            signal,
-            params: {
-                page,
-                size: itemPerPage,
-                [selectedFilterKey]: filters
-            }
-        }
-
-        try {
-            await getItemCategoryList(payload)
-        } catch (error) {
-            if (!signal?.aborted) {
-                setListError(error?.message || 'Daftar kategori gagal dimuat. Silakan coba lagi.')
-            }
-        } finally {
-            if (!signal?.aborted) {
-                setLoadingTable(false);
-            }
-        }
+        setCurrentPage(1);
     }
 
     const handleItemPerPageChange = (e) => {
@@ -119,25 +116,41 @@ export default function ItemCategoryList() {
     }
 
     const openDeleteItemCategoryConfirmationModal = async (itemCategory, trigger) => {
-        if (isLoadingItemCount) {
+        if (itemCountRequestRef.current) {
             return;
         }
 
+        const controller = new AbortController();
+        itemCountRequestRef.current = controller;
         setIsLoadingItemCount(itemCategory.code);
+        setItemCountError({});
         setDeactivationError('');
-        deactivationTriggerRef.current = trigger;
+        deactivationTriggerRef.current = trigger || deactivationTriggerRef.current;
         try {
-            await getItemCategoriesItemCount(itemCategory.code)
-            setSelectedDeleteTarget(itemCategory)
+            await getItemCategoriesItemCount(itemCategory.code, { signal: controller.signal })
+            if (!controller.signal.aborted && isMountedRef.current) {
+                setSelectedDeleteTarget(itemCategory)
+            }
         } catch (error) {
-            setListError(error?.message || 'Jumlah barang kategori gagal dimuat. Silakan coba lagi.')
+            if (!controller.signal.aborted && isMountedRef.current) {
+                setItemCountError({
+                    message: error?.message || 'Jumlah barang kategori gagal dimuat. Silakan coba lagi.',
+                    target: itemCategory
+                })
+            }
         } finally {
-            setIsLoadingItemCount('');
+            if (itemCountRequestRef.current === controller) {
+                itemCountRequestRef.current = null;
+                if (isMountedRef.current) {
+                    setIsLoadingItemCount('');
+                }
+            }
         }
     }
 
     const closeDeactivationDialog = () => {
         setSelectedDeleteTarget({});
+        setDeactivationError('');
         setTimeout(() => deactivationTriggerRef.current?.focus(), 0);
     }
 
@@ -151,65 +164,104 @@ export default function ItemCategoryList() {
         setDeactivationError('');
         try {
             await deactivateItemCategory(selectedDeleteTarget.code)
+            if (!isMountedRef.current) {
+                return;
+            }
             enqueueSnackbar(
                 ITEM_CATEGORY_LIST_MESSAGES.deactivateItemCategorySuccess.message(selectedDeleteTarget.name),
                 ITEM_CATEGORY_LIST_MESSAGES.deactivateItemCategorySuccess.options
             )
             setSelectedDeleteTarget({});
-            if (currentPage === 1) {
-                await filterItemCategoryList(1)
+            focusAfterRefreshRef.current = true;
+            const targetPage = itemCategoryList.length === 1 && currentPage > 1
+                ? currentPage - 1
+                : currentPage;
+            if (targetPage === currentPage) {
+                setRefreshVersion(previous => previous + 1);
             } else {
-                setCurrentPage(1)
+                setCurrentPage(targetPage)
             }
-            setTimeout(() => listHeadingRef.current?.focus(), 0);
         } catch (error) {
-            setDeactivationError(error?.category === 'not_found'
-                ? 'Kategori ini tidak lagi tersedia. Tutup dialog lalu muat ulang daftar.'
-                : error?.message || 'Kategori gagal dinonaktifkan. Silakan coba lagi.')
+            if (isMountedRef.current) {
+                setDeactivationError(error?.category === 'not_found'
+                    ? 'Kategori ini tidak lagi tersedia. Tutup dialog lalu muat ulang daftar.'
+                    : error?.message || 'Kategori gagal dinonaktifkan. Silakan coba lagi.')
+            }
         } finally {
             deactivationInProgressRef.current = false;
-            setIsDeactivating(false);
+            if (isMountedRef.current) {
+                setIsDeactivating(false);
+            }
         }
     }
 
     useEffect(() => {
-        const controller = new AbortController();
+        if (filters === debouncedFilters) {
+            return;
+        }
+
         const timeoutId = setTimeout(() => {
-            setSearchParams({
-                page: currentPage,
-                itemPerPage,
-                q: filters,
-                key: selectedFilterKey
-            })
-            filterItemCategoryList(currentPage, controller.signal)
+            setDebouncedFilters(filters);
+            setCurrentPage(1);
         }, 500);
 
-        return () => {
-            clearTimeout(timeoutId);
-            controller.abort();
+        return () => clearTimeout(timeoutId);
+    }, [filters, debouncedFilters]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        setLoadingTable(true);
+        setListError('');
+        setSearchParams({
+            page: currentPage,
+            itemPerPage,
+            q: debouncedFilters,
+            key: selectedFilterKey
+        });
+
+        const loadItemCategories = async () => {
+            try {
+                await getItemCategoryList({
+                    signal: controller.signal,
+                    params: {
+                        page: currentPage,
+                        size: itemPerPage,
+                        [selectedFilterKey]: debouncedFilters
+                    }
+                })
+            } catch (error) {
+                if (!controller.signal.aborted) {
+                    setListError(error?.message || 'Daftar kategori gagal dimuat. Silakan coba lagi.')
+                }
+            } finally {
+                if (!controller.signal.aborted) {
+                    setLoadingTable(false);
+                    if (focusAfterRefreshRef.current) {
+                        focusAfterRefreshRef.current = false;
+                        setTimeout(() => listHeadingRef.current?.focus(), 0);
+                    }
+                }
+            }
         };
-    }, [itemPerPage, filters, currentPage, selectedFilterKey]);
+
+        loadItemCategories();
+        return () => controller.abort();
+    }, [itemPerPage, currentPage, selectedFilterKey, debouncedFilters, refreshVersion]);
 
     useEffect(() => {
-        setFilters('');
-    }, [selectedFilterKey]);
-
-    useEffect(() => {
+        isMountedRef.current = true;
         setBreadcrumbs(['Kategori Barang'])
-
-        setMessageAlertData({
-            show: searchParams.has('message'),
-            message: searchParams.get('message'),
-            type: searchParams.get('messageType') || 'info'
-        })
-        const filterQueryParameterList = ['q', 'key', 'page', 'itemPerPage']
-        if (filterQueryParameterList.some(key => searchParams.has(key))) {
-            setSelectedFilterKey(searchParams.get('key') || 'code');
-            setFilters(searchParams.get('q') || '');
-            setItemPerPage(Number(searchParams.get('itemPerPage')) || 10)
-            setCurrentPage(Number(searchParams.get('page')) || 1)
-        }
+        return () => {
+            isMountedRef.current = false;
+            itemCountRequestRef.current?.abort();
+        };
     }, []);
+
+    useEffect(() => {
+        if (itemCountError.message) {
+            itemCountAlertRef.current?.focus();
+        }
+    }, [itemCountError.message]);
 
     return (
         <div className="item-category-list">
@@ -281,13 +333,35 @@ export default function ItemCategoryList() {
                     action={
                         <Button
                             color="inherit"
-                            onClick={ () => filterItemCategoryList() }
+                            onClick={ () => setRefreshVersion(previous => previous + 1) }
                         >
                             Coba lagi
                         </Button>
                     }
                 >
                     { listError }
+                </Alert>
+            ) }
+
+            { itemCountError.message && (
+                <Alert
+                    ref={ itemCountAlertRef }
+                    className="item-category-list__alert mb-4"
+                    severity="error"
+                    tabIndex={ -1 }
+                    action={
+                        <Button
+                            color="inherit"
+                            onClick={ () => openDeleteItemCategoryConfirmationModal(
+                                itemCountError.target,
+                                deactivationTriggerRef.current
+                            ) }
+                        >
+                            Coba lagi hitung jumlah
+                        </Button>
+                    }
+                >
+                    { itemCountError.message }
                 </Alert>
             ) }
 
@@ -332,16 +406,16 @@ export default function ItemCategoryList() {
                     value={ selectedFilterKey }
                     onChange={ handleFilterKeyChange }
                 >
-                    { Object.keys(filterKeyData).map(filterKey => (
+                    { Object.keys(FILTER_KEY_DATA).map(filterKey => (
                         <MenuItem key={ filterKey } value={ filterKey }>
-                            { filterKeyData[filterKey] }
+                            { FILTER_KEY_DATA[filterKey] }
                         </MenuItem>
                     )) }
                 </TextField>
 
                 <TextField
                     className="item-category-list__filter-value flex-1 min-w-60"
-                    label={ `Cari berdasarkan ${ filterKeyData[selectedFilterKey] }` }
+                    label={ `Cari berdasarkan ${ FILTER_KEY_DATA[selectedFilterKey] }` }
                     variant="outlined"
                     size="small"
                     value={ filters }
@@ -370,7 +444,7 @@ export default function ItemCategoryList() {
                             size="small"
                             className="w-20 mr-2"
                         >
-                            { itemPerPageOptions.map(option => (
+                            { ITEM_PER_PAGE_OPTIONS.map(option => (
                                 <MenuItem key={ option } value={ option }>
                                     { option }
                                 </MenuItem>

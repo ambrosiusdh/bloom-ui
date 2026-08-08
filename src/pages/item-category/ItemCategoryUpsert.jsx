@@ -14,17 +14,48 @@ import {
     TextField
 } from "@mui/material";
 
+import { API_DOMAIN_ERROR_CODE } from "@api/error-contract.js";
 import {
     useBreadcrumbStore,
     useItemCategoryStore
 } from "@stores/index.js";
 
-const REQUIRED_FIELD_MESSAGES = {
-    code: 'Kode kategori wajib diisi.',
-    name: 'Nama kategori wajib diisi.'
+const FIELD_VALIDATION = {
+    code: {
+        required: 'Kode kategori wajib diisi.',
+        maxLength: 100,
+        maxLengthMessage: 'Kode kategori maksimal 100 karakter.'
+    },
+    name: {
+        required: 'Nama kategori wajib diisi.',
+        maxLength: 255,
+        maxLengthMessage: 'Nama kategori maksimal 255 karakter.'
+    }
 };
 
 const EMPTY_ERRORS = { code: '', name: '' };
+const EMPTY_FORM_DATA = { name: '', code: '', description: '' };
+
+const getFieldValidationMessage = (name, value) => {
+    const rule = FIELD_VALIDATION[name];
+    if (!rule) {
+        return '';
+    }
+
+    if (!value?.trim()) {
+        return rule.required;
+    }
+
+    return value.length > rule.maxLength ? rule.maxLengthMessage : '';
+};
+
+const getBackendValidationMessage = detail => {
+    if (detail.message === 'must not be blank') {
+        return FIELD_VALIDATION[detail.field].required;
+    }
+
+    return detail.message || `${ detail.field } tidak valid.`;
+};
 
 export default function ItemCategoryUpsert() {
     const navigate = useNavigate();
@@ -40,44 +71,25 @@ export default function ItemCategoryUpsert() {
     const [errorMessage, setErrorMessage] = useState("");
     const [isLoadingDetails, setIsLoadingDetails] = useState(Boolean(code));
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [formData, setFormData] = useState({
-        name: "",
-        code: "",
-        description: "",
-    })
+    const [detailRefreshVersion, setDetailRefreshVersion] = useState(0);
+    const [formData, setFormData] = useState(EMPTY_FORM_DATA)
     const [errorData, setErrorData] = useState(EMPTY_ERRORS)
     const codeInputRef = useRef(null);
     const errorAlertRef = useRef(null);
+    const isMountedRef = useRef(false);
     const nameInputRef = useRef(null);
     const submitInProgressRef = useRef(false);
 
     const handleFormChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-        setErrorData({ ...errorData, [e.target.name]: '' });
+        setFormData(previous => ({ ...previous, [e.target.name]: e.target.value }));
+        setErrorData(previous => ({ ...previous, [e.target.name]: '' }));
         setErrorMessage('');
     }
 
     const validateField = name => {
-        const message = !formData[name]?.trim() ? REQUIRED_FIELD_MESSAGES[name] : '';
+        const message = getFieldValidationMessage(name, formData[name]);
         setErrorData(previous => ({ ...previous, [name]: message }));
         return message;
-    }
-
-    const doGetItemCategoryDetails = async () => {
-        setIsLoadingDetails(true);
-        setErrorMessage('');
-        try {
-            const { data } = await getItemCategoryDetails(code)
-            setFormData({
-                name: data.name,
-                code: data.code,
-                description: data.description || ''
-            })
-        } catch (error) {
-            setErrorMessage(error?.message || 'Kategori gagal dimuat. Silakan coba lagi.')
-        } finally {
-            setIsLoadingDetails(false);
-        }
     }
 
     const submitUpsertItem = async event => {
@@ -87,8 +99,8 @@ export default function ItemCategoryUpsert() {
         }
 
         const nextErrors = {
-            code: code ? '' : (!formData.code.trim() ? REQUIRED_FIELD_MESSAGES.code : ''),
-            name: !formData.name.trim() ? REQUIRED_FIELD_MESSAGES.name : ''
+            code: code ? '' : getFieldValidationMessage('code', formData.code),
+            name: getFieldValidationMessage('name', formData.name)
         };
         setErrorData(nextErrors);
 
@@ -113,6 +125,10 @@ export default function ItemCategoryUpsert() {
                 await createItemCategory(payload)
             }
 
+            if (!isMountedRef.current) {
+                return;
+            }
+
             const params = new URLSearchParams({
                 message: code
                     ? `Kategori [${ code }] berhasil diperbarui.`
@@ -121,17 +137,21 @@ export default function ItemCategoryUpsert() {
             })
             navigate(`/item-categories?${ params.toString() }`)
         } catch (error) {
+            if (!isMountedRef.current) {
+                return;
+            }
+
             if (error?.validationErrors?.length) {
                 const backendErrors = { ...EMPTY_ERRORS };
                 error.validationErrors.forEach(detail => {
                     if (detail.field in backendErrors) {
-                        backendErrors[detail.field] = REQUIRED_FIELD_MESSAGES[detail.field];
+                        backendErrors[detail.field] = getBackendValidationMessage(detail);
                     }
                 });
                 setErrorData(backendErrors);
             }
 
-            if (error?.domainCode === 'item_category_already_exists') {
+            if (error?.domainCode === API_DOMAIN_ERROR_CODE.ITEM_CATEGORY_ALREADY_EXISTS) {
                 setErrorMessage(`Kode kategori [${ formData.code }] sudah digunakan. Gunakan kode lain.`)
             } else if (error?.category === 'not_found') {
                 setErrorMessage('Kategori ini tidak lagi tersedia. Kembali ke daftar dan muat ulang data.')
@@ -140,19 +160,60 @@ export default function ItemCategoryUpsert() {
             }
         } finally {
             submitInProgressRef.current = false;
-            setIsSubmitting(false);
+            if (isMountedRef.current) {
+                setIsSubmitting(false);
+            }
         }
     }
 
     useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
+
+    useEffect(() => {
         if (!code) {
+            setIsLoadingDetails(false);
+            setErrorMessage('');
+            setErrorData({ ...EMPTY_ERRORS });
+            setFormData({ ...EMPTY_FORM_DATA });
             setBreadcrumbs([{ to: '/item-categories', label: 'Kategori Barang' }, 'Buat baru']);
             return
         }
 
+        const controller = new AbortController();
+        setIsLoadingDetails(true);
+        setErrorMessage('');
+        setErrorData({ ...EMPTY_ERRORS });
+        setFormData({ ...EMPTY_FORM_DATA });
         setBreadcrumbs([{ to: '/item-categories', label: 'Kategori Barang' }, code]);
-        doGetItemCategoryDetails()
-    }, []);
+
+        const loadItemCategoryDetails = async () => {
+            try {
+                const { data } = await getItemCategoryDetails(code, { signal: controller.signal })
+                if (!controller.signal.aborted) {
+                    setFormData({
+                        name: data.name,
+                        code: data.code,
+                        description: data.description || ''
+                    })
+                }
+            } catch (error) {
+                if (!controller.signal.aborted) {
+                    setErrorMessage(error?.message || 'Kategori gagal dimuat. Silakan coba lagi.')
+                }
+            } finally {
+                if (!controller.signal.aborted) {
+                    setIsLoadingDetails(false);
+                }
+            }
+        };
+
+        loadItemCategoryDetails();
+        return () => controller.abort();
+    }, [code, detailRefreshVersion]);
 
     useEffect(() => {
         if (errorMessage) {
@@ -177,7 +238,7 @@ export default function ItemCategoryUpsert() {
                     action={ code && !formData.code && !isSubmitting ? (
                         <Button
                             color="inherit"
-                            onClick={ doGetItemCategoryDetails }
+                            onClick={ () => setDetailRefreshVersion(previous => previous + 1) }
                         >
                             Coba lagi
                         </Button>
@@ -187,7 +248,7 @@ export default function ItemCategoryUpsert() {
                 </Alert>
             ) }
 
-            { isLoadingDetails ? (
+            { isLoadingDetails || (code && formData.code !== code && !errorMessage) ? (
                 <div
                     className="card p-8 w-full max-w-3xl flex items-center justify-center gap-3"
                     role="status"

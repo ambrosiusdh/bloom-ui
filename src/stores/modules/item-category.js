@@ -11,13 +11,19 @@ const useItemCategoryStore = create((set) => ({
 
     getItemCategoryList: async (payload, options) => {
         const { data: response } = await api.getItemCategoryList(payload, options)
+        if (payload?.signal?.aborted) {
+            return response
+        }
         const { content, ...itemCategoryPaging } = response.data
         set({ itemCategoryList: content, itemCategoryPaging })
         return response
     },
 
-    getItemCategoryDetails: async (code, options) => {
-        const { data: response } = await api.getItemCategoryDetails(code, options)
+    getItemCategoryDetails: async (code, config, options) => {
+        const { data: response } = await api.getItemCategoryDetails(code, config, options)
+        if (config?.signal?.aborted) {
+            return response
+        }
         set({ itemCategoryDetails: response.data })
         return response
     },
@@ -28,8 +34,11 @@ const useItemCategoryStore = create((set) => ({
 
     deactivateItemCategory: (code, options) => api.deactivateItemCategory(code, options),
 
-    getItemCategoriesItemCount: async (code, options) => {
-        const { data: response } = await api.getItemCategoriesItemCount(code, options)
+    getItemCategoriesItemCount: async (code, config, options) => {
+        const { data: response } = await api.getItemCategoriesItemCount(code, config, options)
+        if (config?.signal?.aborted) {
+            return response
+        }
         set({ itemCategoriesItemCount: response.data })
         return response
     }

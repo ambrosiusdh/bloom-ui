@@ -9,10 +9,11 @@ const getItemCategoryList = async (payload, options) => {
     }, options);
 }
 
-const getItemCategoryDetails = async (code, options) => {
+const getItemCategoryDetails = async (code, config, options) => {
     return api({
         url: ITEM_CATEGORY.detail(code),
-        method: 'GET'
+        method: 'GET',
+        ...config
     }, options)
 }
 
@@ -39,10 +40,11 @@ const deactivateItemCategory = async (code, options) => {
     }, options)
 }
 
-const getItemCategoriesItemCount = async (code, options) => {
+const getItemCategoriesItemCount = async (code, config, options) => {
     return api({
         url: ITEM_CATEGORY.itemCount(code),
-        method: 'GET'
+        method: 'GET',
+        ...config
     }, options)
 }
 
