@@ -79,6 +79,7 @@ export default function ItemCategoryUpsert() {
     const errorAlertRef = useRef(null);
     const isMountedRef = useRef(false);
     const nameInputRef = useRef(null);
+    const pendingFieldFocusRef = useRef('');
     const submissionRequestRef = useRef(0);
     const submitInProgressRef = useRef(false);
     const currentRouteCodeRef = useRef(code);
@@ -114,6 +115,7 @@ export default function ItemCategoryUpsert() {
         }
 
         submitInProgressRef.current = true;
+        pendingFieldFocusRef.current = '';
         setIsSubmitting(true);
         setErrorMessage('');
         const submissionId = ++submissionRequestRef.current;
@@ -165,9 +167,7 @@ export default function ItemCategoryUpsert() {
 
             if (firstInvalidField) {
                 setErrorMessage('');
-                setTimeout(() => (
-                    firstInvalidField === 'name' ? nameInputRef : codeInputRef
-                ).current?.focus(), 0);
+                pendingFieldFocusRef.current = firstInvalidField;
                 return;
             }
 
@@ -191,11 +191,13 @@ export default function ItemCategoryUpsert() {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
+            pendingFieldFocusRef.current = '';
             submissionRequestRef.current += 1;
         };
     }, []);
 
     useEffect(() => {
+        pendingFieldFocusRef.current = '';
         submissionRequestRef.current += 1;
         submitInProgressRef.current = false;
         setIsSubmitting(false);
@@ -251,6 +253,16 @@ export default function ItemCategoryUpsert() {
             errorAlertRef.current?.focus();
         }
     }, [errorMessage]);
+
+    useEffect(() => {
+        const field = pendingFieldFocusRef.current;
+        if (isSubmitting || !field || !errorData[field]) {
+            return;
+        }
+
+        pendingFieldFocusRef.current = '';
+        (field === 'name' ? nameInputRef : codeInputRef).current?.focus();
+    }, [isSubmitting, errorData]);
 
     return (
         <div className="item-create">
