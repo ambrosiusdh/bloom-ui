@@ -131,6 +131,16 @@ describe('normalizeApiError', () => {
         });
     });
 
+    it('does not classify a printer message returned with the wrong status', () => {
+        expect(normalizeApiError(createHttpError(400, {
+            errorType: 'ResponseStatusException',
+            message: 'Printer tidak ditemukan'
+        }))).toMatchObject({
+            domainCode: null,
+            status: 400
+        });
+    });
+
     it('does not classify an unexpected status from the legacy message alone', () => {
         expect(normalizeApiError(createHttpError(500, {
             errorType: 'ResponseStatusException',

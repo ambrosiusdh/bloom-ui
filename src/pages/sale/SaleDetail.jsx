@@ -26,7 +26,7 @@ const getPrintErrorMessage = error => {
     }
 
     if (error?.category === 'network') {
-        return 'Tidak dapat menghubungi server pencetakan. Periksa koneksi lalu coba lagi.';
+        return 'Status pencetakan tidak dapat dipastikan karena koneksi ke server terputus. Periksa printer sebelum mencoba lagi.';
     }
 
     return 'Struk gagal dicetak. Penjualan tidak diubah. Periksa printer lalu coba lagi.';
@@ -47,22 +47,32 @@ const SaleDetail = () => {
     const printInFlightRef = useRef(false);
     const printAttemptRef = useRef(0);
     const printFeedbackRef = useRef(null);
-    const saleReference = code ? decodeURIComponent(code) : '';
+    const saleReference = code || '';
 
     useEffect(() => {
-        const fetchDetails = async () => {
-            if (!code) return;
+        const controller = new AbortController();
 
+        const fetchDetails = async () => {
+            if (!saleReference) return;
+
+            setError(null);
             try {
                 setBreadcrumbs([{ to: '/sales', label: 'Riwayat Penjualan' }, saleReference]);
-                await getSaleDetails(saleReference, { useLoader: true });
+                await getSaleDetails(
+                    saleReference,
+                    { signal: controller.signal },
+                    { useLoader: true }
+                );
             } catch (err) {
+                if (controller.signal.aborted) return;
                 setError(err.message || 'Gagal memuat detail penjualan');
             }
         };
 
         fetchDetails();
-    }, [code, saleReference, setBreadcrumbs, getSaleDetails]);
+
+        return () => controller.abort();
+    }, [saleReference, setBreadcrumbs, getSaleDetails]);
 
     useEffect(() => {
         if (printState.status === PRINT_STATUS.SUCCESS || printState.status === PRINT_STATUS.ERROR) {
@@ -77,6 +87,11 @@ const SaleDetail = () => {
             status: PRINT_STATUS.IDLE,
             message: ''
         });
+
+        return () => {
+            printAttemptRef.current += 1;
+            printInFlightRef.current = false;
+        };
     }, [saleReference]);
 
     const handlePrint = async () => {
@@ -112,6 +127,7 @@ const SaleDetail = () => {
     };
 
     const isPrinting = printState.status === PRINT_STATUS.PENDING;
+    const isSaleReady = saleDetails?.code === saleReference;
 
     if (error) {
         return (
@@ -145,7 +161,8 @@ const SaleDetail = () => {
                     variant="contained"
                     startIcon={ <Printer /> }
                     onClick={ handlePrint }
-                    disabled={ isPrinting }
+                    disabled={ isPrinting || !isSaleReady }
+                    aria-busy={ isPrinting }
                     aria-describedby={ printState.status === PRINT_STATUS.IDLE ? undefined : 'receipt-print-status' }
                 >
                     { isPrinting ? 'Mencetak...' : 'Cetak ulang struk' }
