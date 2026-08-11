@@ -1,5 +1,9 @@
 import axios from 'axios'
 
+import {
+    API_DOMAIN_ERROR_CODE,
+    getLegacyDomainErrorCode
+} from "@api/error-contract.js";
 import { useLoaderStore } from "@stores/index.js";
 
 export const API_ERROR_CATEGORY = Object.freeze({
@@ -32,7 +36,11 @@ const getValidationErrors = data => {
         .map(({ field, message }) => ({ field, message }));
 };
 
-const getCategory = (status, validationErrors, hasRequest, isValidationFailure) => {
+const getCategory = (status, validationErrors, hasRequest, isValidationFailure, domainCode) => {
+    if (domainCode === API_DOMAIN_ERROR_CODE.ITEM_CATEGORY_ALREADY_EXISTS) {
+        return API_ERROR_CATEGORY.CONFLICT;
+    }
+
     if (isValidationFailure || validationErrors.length || status === 422) {
         return API_ERROR_CATEGORY.VALIDATION;
     }
@@ -65,17 +73,20 @@ export const normalizeApiError = error => {
     const status = error?.response?.status ?? null;
     const responseData = error?.response?.data;
     const validationErrors = getValidationErrors(responseData);
+    const domainCode = getLegacyDomainErrorCode(status, responseData);
     const category = getCategory(
         status,
         validationErrors,
         Boolean(error?.request),
-        responseData?.errorType === 'ValidationFailed'
+        responseData?.errorType === 'ValidationFailed',
+        domainCode
     );
     const normalizedError = new Error(ERROR_MESSAGES[category]);
 
     normalizedError.name = 'ApiError';
     normalizedError.status = status;
     normalizedError.category = category;
+    normalizedError.domainCode = domainCode;
     normalizedError.validationErrors = validationErrors;
 
     return normalizedError;

@@ -1,5 +1,3 @@
-import PropTypes from "prop-types";
-
 import {
     Button,
     Dialog,
@@ -7,6 +5,8 @@ import {
     DialogContent,
     DialogTitle
 } from "@mui/material";
+import PropTypes from "prop-types";
+
 
 const propTypes = {
     onCancel: PropTypes.func.isRequired,
@@ -14,8 +14,11 @@ const propTypes = {
     title: PropTypes.string,
     confirmButtonText: PropTypes.string,
     cancelButtonText: PropTypes.string,
-    children: PropTypes.element,
-    maxWidth: PropTypes.string
+    children: PropTypes.node,
+    maxWidth: PropTypes.string,
+    isPending: PropTypes.bool,
+    confirmButtonColor: PropTypes.string,
+    focusCancel: PropTypes.bool
 }
 
 export default function BloomConfirmationModal(props) {
@@ -26,14 +29,18 @@ export default function BloomConfirmationModal(props) {
         confirmButtonText = "Submit",
         cancelButtonText = "Batal",
         children,
-        maxWidth = "xs"
+        maxWidth = "xs",
+        isPending = false,
+        confirmButtonColor = "primary",
+        focusCancel = false
     } = props;
 
     return (
         <Dialog
             className="bloom-confirmation-modal"
             open
-            onClose={ onCancel }
+            onClose={ isPending ? undefined : onCancel }
+            disableEscapeKeyDown={ isPending }
             maxWidth={ maxWidth }
             fullWidth
         >
@@ -50,6 +57,8 @@ export default function BloomConfirmationModal(props) {
                     className="bloom-confirmation-modal__actions-cancel"
                     onClick={ onCancel }
                     variant="text"
+                    disabled={ isPending }
+                    autoFocus={ focusCancel }
                 >
                     { cancelButtonText }
                 </Button>
@@ -58,7 +67,10 @@ export default function BloomConfirmationModal(props) {
                     className="bloom-confirmation-modal__actions-confirm"
                     onClick={ onConfirm }
                     variant="contained"
-                    autoFocus
+                    color={ confirmButtonColor }
+                    disabled={ isPending }
+                    aria-busy={ isPending }
+                    autoFocus={ !focusCancel }
                 >
                     { confirmButtonText }
                 </Button>

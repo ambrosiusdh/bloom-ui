@@ -23,6 +23,7 @@ vi.mock('axios', () => ({
     }
 }));
 
+import { API_DOMAIN_ERROR_CODE } from '@api/error-contract.js';
 import api, { API_ERROR_CATEGORY, normalizeApiError } from '@api/index.js';
 
 const createHttpError = (status, data = {}) => ({
@@ -93,6 +94,29 @@ describe('normalizeApiError', () => {
         expect(normalizeApiError(new Error('unexpected'))).toMatchObject({
             category: API_ERROR_CATEGORY.UNEXPECTED,
             status: null
+        });
+    });
+
+    it('maps the backend legacy duplicate-category response to a domain conflict', () => {
+        expect(normalizeApiError(createHttpError(400, {
+            errorType: 'ResponseStatusException',
+            message: 'Item Category already exists',
+            code: 400
+        }))).toMatchObject({
+            category: API_ERROR_CATEGORY.CONFLICT,
+            domainCode: API_DOMAIN_ERROR_CODE.ITEM_CATEGORY_ALREADY_EXISTS,
+            status: 400
+        });
+    });
+
+    it('does not classify an unexpected status from the legacy message alone', () => {
+        expect(normalizeApiError(createHttpError(500, {
+            errorType: 'ResponseStatusException',
+            message: 'Item Category already exists'
+        }))).toMatchObject({
+            category: API_ERROR_CATEGORY.UNEXPECTED,
+            domainCode: null,
+            status: 500
         });
     });
 });

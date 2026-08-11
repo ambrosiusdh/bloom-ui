@@ -1,18 +1,16 @@
 import {
     useEffect,
+    useRef,
     useState
 } from 'react';
-
-import { enqueueSnackbar } from "notistack"
-
 import {
     Link,
     useSearchParams
 } from "react-router-dom";
-
 import {
     Alert,
     Button,
+    CircularProgress,
     IconButton,
     MenuItem,
     Pagination,
@@ -25,81 +23,118 @@ import {
     TableRow,
     TextField,
 } from '@mui/material';
-
 import {
-    EyeIcon,
+    CircleOff,
     PencilIcon,
-    Plus,
-    TrashIcon
+    Plus
 } from "lucide-react";
-
-import {
-    useBreadcrumbStore,
-    useItemCategoryStore,
-    useItemStore
-} from "@stores/index.js";
-
-import { formatDate } from "@utils/date-utils.js";
-import { debounce } from "@utils/general-utils.js";
+import { enqueueSnackbar } from "notistack"
 
 import BloomConfirmationModal from "@components/_ui/BloomConfirmationModal.jsx";
-
-import { GENERIC_ERR_MESSAGE } from "@constants/general.js"
 import { ITEM_CATEGORY_LIST_MESSAGES } from "@constants/item-category.jsx"
+import {
+    useBreadcrumbStore,
+    useItemCategoryStore
+} from "@stores/index.js";
+import { formatDate } from "@utils/date-utils.js";
+
+const FILTER_KEY_DATA = {
+    code: 'Kode',
+    name: 'Nama'
+};
+const ITEM_PER_PAGE_OPTIONS = [5, 10, 25, 50];
+
+const getSearchState = searchParams => {
+    const requestedFilterKey = searchParams.get('key');
+    const requestedSize = Number(searchParams.get('itemPerPage'));
+
+    return {
+        filters: searchParams.get('q') || '',
+        selectedFilterKey: Object.hasOwn(FILTER_KEY_DATA, requestedFilterKey)
+            ? requestedFilterKey
+            : 'code',
+        currentPage: Math.max(Number(searchParams.get('page')) || 1, 1),
+        itemPerPage: ITEM_PER_PAGE_OPTIONS.includes(requestedSize) ? requestedSize : 10
+    };
+};
+
+const getListQueryKey = ({ currentPage, itemPerPage, selectedFilterKey, filters }) => JSON.stringify({
+    currentPage,
+    itemPerPage,
+    selectedFilterKey,
+    filters
+});
 
 export default function ItemCategoryList() {
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const {
         itemCategoryList,
         itemCategoryPaging,
-        itemCategoriesItemCount,
         getItemCategoryList,
         deactivateItemCategory,
         getItemCategoriesItemCount
     } = useItemCategoryStore();
 
     const [searchParams, setSearchParams] = useSearchParams();
+    const initialSearchState = getSearchState(searchParams);
 
     const [selectedDeleteTarget, setSelectedDeleteTarget] = useState({});
-    const [filters, setFilters] = useState('');
-    const [selectedFilterKey, setSelectedFilterKey] = useState('code');
-    const filterKeyData = {
-        "code": "Kode",
-        "name": "Nama"
-    }
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemPerPage, setItemPerPage] = useState(10);
-    const itemPerPageOptions = [5, 10, 25, 50]
-    const [isLoadingTable, setLoadingTable] = useState(false);
-    const [messageAlertData, setMessageAlertData] = useState({});
+    const [filters, setFilters] = useState(initialSearchState.filters);
+    const [debouncedFilters, setDebouncedFilters] = useState(initialSearchState.filters);
+    const [selectedFilterKey, setSelectedFilterKey] = useState(initialSearchState.selectedFilterKey);
+    const [currentPage, setCurrentPage] = useState(initialSearchState.currentPage);
+    const [itemPerPage, setItemPerPage] = useState(initialSearchState.itemPerPage);
+    const [refreshVersion, setRefreshVersion] = useState(0);
+    const [loadedQueryKey, setLoadedQueryKey] = useState('');
+    const [isLoadingTable, setLoadingTable] = useState(true);
+    const [isLoadingItemCount, setIsLoadingItemCount] = useState('');
+    const [itemCount, setItemCount] = useState(null);
+    const [isDeactivating, setIsDeactivating] = useState(false);
+    const [listError, setListError] = useState('');
+    const [itemCountError, setItemCountError] = useState({});
+    const [deactivationError, setDeactivationError] = useState('');
+    const [messageAlertData, setMessageAlertData] = useState(() => ({
+        show: searchParams.has('message'),
+        message: searchParams.get('message'),
+        type: searchParams.get('messageType') || 'info'
+    }));
+    const deactivationInProgressRef = useRef(false);
+    const deactivationTriggerRef = useRef(null);
+    const focusAfterRefreshRef = useRef(false);
+    const isMountedRef = useRef(false);
+    const itemCountAlertRef = useRef(null);
+    const itemCountRequestRef = useRef(null);
+    const listHeadingRef = useRef(null);
+    const searchParamKey = searchParams.toString();
+    const requestQueryKey = getListQueryKey({
+        currentPage,
+        itemPerPage,
+        selectedFilterKey,
+        filters: debouncedFilters
+    });
+    const visibleQueryKey = getListQueryKey({
+        currentPage,
+        itemPerPage,
+        selectedFilterKey,
+        filters
+    });
+    const hasCurrentQueryData = loadedQueryKey === visibleQueryKey;
+    const showTableLoading = isLoadingTable || (!listError && !hasCurrentQueryData);
 
     const handleFilterKeyChange = e => {
         setSelectedFilterKey(e.target.value);
+        setFilters('');
+        setDebouncedFilters('');
+        setCurrentPage(1);
     }
     const handleFilterChange = e => {
         setFilters(e.target.value);
     }
     const handleFilterClear = () => {
         setFilters('')
+        setDebouncedFilters('');
         setSelectedFilterKey('code');
-    }
-
-    const filterItemCategoryList = async (page = currentPage) => {
-        setLoadingTable(true);
-        setCurrentPage(page);
-        const payload = {
-            params: {
-                page,
-                size: itemPerPage,
-                [selectedFilterKey]: filters
-            }
-        }
-
-        try {
-            await getItemCategoryList(payload)
-        } finally {
-            setLoadingTable(false);
-        }
+        setCurrentPage(1);
     }
 
     const handleItemPerPageChange = (e) => {
@@ -111,91 +146,235 @@ export default function ItemCategoryList() {
         setCurrentPage(value);
     }
 
-    const fetchItemCategoryList = async () => {
-        setSearchParams({
-            page: currentPage,
-            itemPerPage: itemPerPage,
-            q: filters,
-            key: selectedFilterKey
-        })
-        await filterItemCategoryList();
+    const openDeleteItemCategoryConfirmationModal = async (itemCategory, trigger) => {
+        if (itemCountRequestRef.current) {
+            return;
+        }
+
+        const controller = new AbortController();
+        itemCountRequestRef.current = controller;
+        setIsLoadingItemCount(itemCategory.code);
+        setItemCount(null);
+        setItemCountError({});
+        setDeactivationError('');
+        deactivationTriggerRef.current = trigger || deactivationTriggerRef.current;
+        try {
+            const { data } = await getItemCategoriesItemCount(itemCategory.code, { signal: controller.signal })
+            if (!controller.signal.aborted && isMountedRef.current) {
+                setItemCount(data.itemCount)
+                setSelectedDeleteTarget(itemCategory)
+            }
+        } catch (error) {
+            if (!controller.signal.aborted && isMountedRef.current) {
+                setItemCountError({
+                    message: error?.message || 'Jumlah barang kategori gagal dimuat. Silakan coba lagi.',
+                    target: itemCategory
+                })
+            }
+        } finally {
+            if (itemCountRequestRef.current === controller) {
+                itemCountRequestRef.current = null;
+                if (isMountedRef.current) {
+                    setIsLoadingItemCount('');
+                }
+            }
+        }
     }
 
-    const openDeleteItemCategoryConfirmationModal = async itemCategory => {
-        try {
-            await getItemCategoriesItemCount(itemCategory.code)
-            setSelectedDeleteTarget(itemCategory)
-        } catch (error) {
-            enqueueSnackbar(JSON.stringify(error?.message) || GENERIC_ERR_MESSAGE, { variant: 'error' })
-            console.error(error)
-        }
+    const closeDeactivationDialog = () => {
+        setSelectedDeleteTarget({});
+        setItemCount(null);
+        setDeactivationError('');
+        setTimeout(() => deactivationTriggerRef.current?.focus(), 0);
     }
 
     const handleDeleteItemCategory = async () => {
+        if (deactivationInProgressRef.current) {
+            return;
+        }
+
+        deactivationInProgressRef.current = true;
+        setIsDeactivating(true);
+        setDeactivationError('');
         try {
-            await deactivateItemCategory(selectedDeleteTarget.code, {
-                useLoader: true
-            })
+            await deactivateItemCategory(selectedDeleteTarget.code)
+            if (!isMountedRef.current) {
+                return;
+            }
             enqueueSnackbar(
-                ITEM_CATEGORY_LIST_MESSAGES.deleteItemCategorySuccess.message(selectedDeleteTarget.name),
-                ITEM_CATEGORY_LIST_MESSAGES.deleteItemCategorySuccess.options
+                ITEM_CATEGORY_LIST_MESSAGES.deactivateItemCategorySuccess.message(selectedDeleteTarget.name),
+                ITEM_CATEGORY_LIST_MESSAGES.deactivateItemCategorySuccess.options
             )
             setSelectedDeleteTarget({});
-            filterItemCategoryList(1)
+            setItemCount(null);
+            focusAfterRefreshRef.current = true;
+            const targetPage = itemCategoryList.length === 1 && currentPage > 1
+                ? currentPage - 1
+                : currentPage;
+            if (targetPage === currentPage) {
+                setRefreshVersion(previous => previous + 1);
+            } else {
+                setCurrentPage(targetPage)
+            }
         } catch (error) {
-            enqueueSnackbar(JSON.stringify(error?.message) || GENERIC_ERR_MESSAGE, { variant: 'error' })
-            console.log(error)
+            if (isMountedRef.current) {
+                setDeactivationError(error?.category === 'not_found'
+                    ? 'Kategori ini tidak lagi tersedia. Tutup dialog lalu muat ulang daftar.'
+                    : error?.message || 'Kategori gagal dinonaktifkan. Silakan coba lagi.')
+            }
+        } finally {
+            deactivationInProgressRef.current = false;
+            if (isMountedRef.current) {
+                setIsDeactivating(false);
+            }
         }
     }
 
     useEffect(() => {
-        debounce(fetchItemCategoryList, 'fetchItemList', 500)
-    }, [itemPerPage, filters, currentPage]);
+        const urlState = getSearchState(searchParams);
+        setFilters(previous => previous === urlState.filters ? previous : urlState.filters);
+        setDebouncedFilters(previous => previous === urlState.filters ? previous : urlState.filters);
+        setSelectedFilterKey(previous => (
+            previous === urlState.selectedFilterKey ? previous : urlState.selectedFilterKey
+        ));
+        setCurrentPage(previous => previous === urlState.currentPage ? previous : urlState.currentPage);
+        setItemPerPage(previous => previous === urlState.itemPerPage ? previous : urlState.itemPerPage);
+    }, [searchParamKey]);
 
     useEffect(() => {
-        setFilters('');
-    }, [selectedFilterKey]);
-
-    useEffect(() => {
-        setBreadcrumbs(['Kategori Barang'])
-
-        setMessageAlertData({
-            show: searchParams.has('message'),
-            message: searchParams.get('message'),
-            type: searchParams.get('messageType') || 'info'
-        })
-        const filterQueryParameterList = ['q', 'key', 'page', 'itemPerPage']
-        if (filterQueryParameterList.some(key => searchParams.has(key))) {
-            setSelectedFilterKey(searchParams.get('key') || 'code');
-            setFilters(searchParams.get('q') || '');
-            setItemPerPage(Number(searchParams.get('itemPerPage')) || 10)
-            setCurrentPage(Number(searchParams.get('page')) || 1)
+        if (filters === debouncedFilters) {
+            return;
         }
+
+        const timeoutId = setTimeout(() => {
+            setDebouncedFilters(filters);
+            setCurrentPage(1);
+        }, 500);
+
+        return () => clearTimeout(timeoutId);
+    }, [filters, debouncedFilters]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        setLoadingTable(true);
+        setListError('');
+        setSearchParams({
+            page: currentPage,
+            itemPerPage,
+            q: debouncedFilters,
+            key: selectedFilterKey
+        }, { replace: true });
+
+        const loadItemCategories = async () => {
+            try {
+                await getItemCategoryList({
+                    signal: controller.signal,
+                    params: {
+                        page: currentPage,
+                        size: itemPerPage,
+                        [selectedFilterKey]: debouncedFilters
+                    }
+                })
+                if (!controller.signal.aborted) {
+                    setLoadedQueryKey(requestQueryKey);
+                }
+            } catch (error) {
+                if (!controller.signal.aborted) {
+                    setListError(error?.message || 'Daftar kategori gagal dimuat. Silakan coba lagi.')
+                }
+            } finally {
+                if (!controller.signal.aborted) {
+                    setLoadingTable(false);
+                    if (focusAfterRefreshRef.current) {
+                        focusAfterRefreshRef.current = false;
+                        setTimeout(() => listHeadingRef.current?.focus(), 0);
+                    }
+                }
+            }
+        };
+
+        loadItemCategories();
+        return () => controller.abort();
+    }, [itemPerPage, currentPage, selectedFilterKey, debouncedFilters, refreshVersion]);
+
+    useEffect(() => {
+        const activeItemCountRequest = itemCountRequestRef.current;
+        if (activeItemCountRequest) {
+            activeItemCountRequest.abort();
+            itemCountRequestRef.current = null;
+        }
+
+        setIsLoadingItemCount('');
+        setItemCountError({});
+        if (!deactivationInProgressRef.current) {
+            setItemCount(null);
+            setSelectedDeleteTarget({});
+            deactivationTriggerRef.current = null;
+        }
+    }, [visibleQueryKey]);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        setBreadcrumbs(['Kategori Barang'])
+        return () => {
+            isMountedRef.current = false;
+            itemCountRequestRef.current?.abort();
+        };
     }, []);
+
+    useEffect(() => {
+        if (itemCountError.message) {
+            itemCountAlertRef.current?.focus();
+        }
+    }, [itemCountError.message]);
 
     return (
         <div className="item-category-list">
             {
                 selectedDeleteTarget?.code && (
                     <BloomConfirmationModal
-                        onCancel={ () => setSelectedDeleteTarget({}) }
+                        onCancel={ closeDeactivationDialog }
                         onConfirm={ handleDeleteItemCategory }
-                        title={ `Hapus ${ selectedDeleteTarget.name }?` }
-                        confirmButtonText="Hapus">
+                        title={ `Nonaktifkan ${ selectedDeleteTarget.name }?` }
+                        confirmButtonText={ isDeactivating ? 'Menonaktifkan...' : 'Nonaktifkan' }
+                        confirmButtonColor="error"
+                        isPending={ isDeactivating }
+                        focusCancel
+                    >
                         <div className="item-category-list__delete">
                             <div className="item-category-list__delete-description">
-                                Apakah Anda yakin ingin menghapus kategori
-                                <span className="font-bold"> { selectedDeleteTarget.name }</span>?
+                                Kategori
+                                <span className="font-bold"> { selectedDeleteTarget.name } </span>
+                                akan dinonaktifkan dan tidak lagi muncul di daftar aktif.
                             </div>
 
-                            { !!itemCategoriesItemCount?.itemCount &&
+                            { itemCount > 0 &&
                                 <div className="item-category-list__delete-description">
-                                    Saat ini ada
-                                    <span className="font-bold"> { itemCategoriesItemCount?.itemCount } barang </span>
-                                    yang terikat pada kategori ini.
+                                    Tindakan ini juga menonaktifkan
+                                    <span className="font-bold"> { itemCount } barang </span>
+                                    aktif yang terikat pada kategori ini.
                                 </div>
                             }
-                            Jika dihapus, data kategori dan barang tidak bisa dikembalikan lagi.
+                            <div className="mt-2">
+                                Data tidak dihapus, tetapi tidak dapat diaktifkan kembali dari aplikasi saat ini.
+                            </div>
+                            { deactivationError && (
+                                <Alert
+                                    severity="error"
+                                    className="mt-3"
+                                >
+                                    { deactivationError }
+                                </Alert>
+                            ) }
+                            { isDeactivating && (
+                                <div
+                                    className="mt-3 flex items-center gap-2"
+                                    role="status"
+                                >
+                                    <CircularProgress size={ 18 } />
+                                    Menonaktifkan kategori...
+                                </div>
+                            ) }
                         </div>
                     </BloomConfirmationModal>
                 )
@@ -212,8 +391,53 @@ export default function ItemCategoryList() {
                 </Alert>
             ) }
 
+            { listError && (
+                <Alert
+                    className="item-category-list__alert mb-4"
+                    severity="error"
+                    action={
+                        <Button
+                            color="inherit"
+                            onClick={ () => setRefreshVersion(previous => previous + 1) }
+                        >
+                            Coba lagi
+                        </Button>
+                    }
+                >
+                    { listError }
+                </Alert>
+            ) }
+
+            { itemCountError.message && (
+                <Alert
+                    ref={ itemCountAlertRef }
+                    className="item-category-list__alert mb-4"
+                    severity="error"
+                    tabIndex={ -1 }
+                    action={
+                        <Button
+                            color="inherit"
+                            onClick={ () => openDeleteItemCategoryConfirmationModal(
+                                itemCountError.target,
+                                deactivationTriggerRef.current
+                            ) }
+                        >
+                            Coba lagi hitung jumlah
+                        </Button>
+                    }
+                >
+                    { itemCountError.message }
+                </Alert>
+            ) }
+
             <div className="item-category-list__header mb-4 flex justify-between items-center">
-                <h2 className="item-category-list__header-title font-bold text-2xl">Kategori Barang</h2>
+                <h2
+                    ref={ listHeadingRef }
+                    className="item-category-list__header-title font-bold text-2xl"
+                    tabIndex={ -1 }
+                >
+                    Kategori Barang
+                </h2>
 
                 <div className="item-category-list__header-action">
                     <Link
@@ -234,60 +458,34 @@ export default function ItemCategoryList() {
                 card
                 mb-4
                 flex
+                flex-wrap
                 items-center
                 gap-2"
             >
                 <TextField
                     select
-                    className="item-category-list__filter-key basis-1/6"
-                    label="Filter by"
+                    className="item-category-list__filter-key min-w-40"
+                    label="Filter berdasarkan"
                     variant="outlined"
                     size="small"
                     value={ selectedFilterKey }
                     onChange={ handleFilterKeyChange }
                 >
-                    { Object.keys(filterKeyData).map(filterKey => (
+                    { Object.keys(FILTER_KEY_DATA).map(filterKey => (
                         <MenuItem key={ filterKey } value={ filterKey }>
-                            { filterKeyData[filterKey] }
+                            { FILTER_KEY_DATA[filterKey] }
                         </MenuItem>
                     )) }
                 </TextField>
 
-                {
-                    selectedFilterKey === 'category'
-                        ? (
-                            <TextField
-                                select
-                                className="item-category-list__filter-value basis-1/3"
-                                label={ `Filter by ${ filterKeyData[selectedFilterKey] }` }
-                                variant="outlined"
-                                size="small"
-                                value={ filters }
-                                onChange={ handleFilterChange }
-                            >
-                                { itemCategoryList?.length ?
-                                    itemCategoryList?.map(category => (
-                                        <MenuItem key={ category.code } value={ category.code }>
-                                            { category.name }
-                                        </MenuItem>
-                                    )) :
-                                    <MenuItem value={ selectedFilterKey }>
-                                        - Pilih kategori -
-                                    </MenuItem>
-                                }
-                            </TextField>
-                        )
-                        : (
-                            <TextField
-                                className="item-category-list__filter-value basis-1/3"
-                                label={ `Filter by ${ filterKeyData[selectedFilterKey] }` }
-                                variant="outlined"
-                                size="small"
-                                value={ filters }
-                                onChange={ handleFilterChange }
-                            />
-                        )
-                }
+                <TextField
+                    className="item-category-list__filter-value flex-1 min-w-60"
+                    label={ `Cari berdasarkan ${ FILTER_KEY_DATA[selectedFilterKey] }` }
+                    variant="outlined"
+                    size="small"
+                    value={ filters }
+                    onChange={ handleFilterChange }
+                />
 
                 <Button
                     className="item-category-list__filter-clear"
@@ -311,7 +509,7 @@ export default function ItemCategoryList() {
                             size="small"
                             className="w-20 mr-2"
                         >
-                            { itemPerPageOptions.map(option => (
+                            { ITEM_PER_PAGE_OPTIONS.map(option => (
                                 <MenuItem key={ option } value={ option }>
                                     { option }
                                 </MenuItem>
@@ -319,8 +517,11 @@ export default function ItemCategoryList() {
                         </TextField>
                         <Pagination
                             page={ currentPage }
-                            count={ itemCategoryPaging?.totalPages }
+                            count={ Math.max(itemCategoryPaging?.totalPages || 1, 1) }
                             onChange={ handlePageChange }
+                            disabled={ showTableLoading
+                                || !hasCurrentQueryData
+                                || !itemCategoryPaging?.totalPages }
                         />
                     </div>
                 </div>
@@ -337,22 +538,39 @@ export default function ItemCategoryList() {
                                 <TableCell>Nama kategori</TableCell>
                                 <TableCell>Diperbarui oleh</TableCell>
                                 <TableCell>Diperbarui pada</TableCell>
-                                <TableCell></TableCell>
+                                <TableCell align="right">Aksi</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            { isLoadingTable
+                            { showTableLoading
                                 ? (
                                     <TableRow>
                                         <TableCell
                                             colSpan="5"
                                             className="!border-b-0 !text-center italic !text-gray-500"
                                         >
-                                            Loading...
+                                            <span
+                                                className="inline-flex items-center gap-2"
+                                                role="status"
+                                            >
+                                                <CircularProgress size={ 18 } />
+                                                Memuat kategori...
+                                            </span>
                                         </TableCell>
                                     </TableRow>
                                 )
-                                : itemCategoryList?.length
+                                : listError && (!hasCurrentQueryData || !itemCategoryList?.length)
+                                    ? (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan="5"
+                                                className="!border-b-0 !text-center !text-gray-500"
+                                            >
+                                                Data kategori belum dapat ditampilkan.
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                : hasCurrentQueryData && itemCategoryList?.length
                                     ? itemCategoryList?.map(((itemCategory, index) => {
                                         const isLastRow = index === itemCategoryList.length - 1
                                         const tableCellClass = isLastRow ? '!border-b-0' : ''
@@ -381,22 +599,30 @@ export default function ItemCategoryList() {
                                                     className={ `${ tableCellClass } il-content__table-row-action table-action` }>
                                                     <div
                                                         className="table-action__content flex justify-end items-center gap-1">
-                                                        <Link
+                                                        <IconButton
+                                                            component={ Link }
                                                             to={ `/item-categories/${ itemCategory.code }/edit` }
                                                             className="table-action__edit"
+                                                            size="small"
+                                                            aria-label={ `Ubah kategori ${ itemCategory.name }` }
                                                         >
-                                                            <IconButton size="small">
-                                                                <PencilIcon/>
-                                                            </IconButton>
-                                                        </Link>
+                                                            <PencilIcon/>
+                                                        </IconButton>
 
 
                                                         <IconButton
                                                             size="small"
                                                             color="error"
-                                                            onClick={ () => openDeleteItemCategoryConfirmationModal(itemCategory) }
+                                                            aria-label={ `Nonaktifkan kategori ${ itemCategory.name }` }
+                                                            disabled={ Boolean(isLoadingItemCount) }
+                                                            onClick={ event => openDeleteItemCategoryConfirmationModal(
+                                                                itemCategory,
+                                                                event.currentTarget
+                                                            ) }
                                                         >
-                                                            <TrashIcon className="table-action__delete"/>
+                                                            { isLoadingItemCount === itemCategory.code
+                                                                ? <CircularProgress size={ 18 } />
+                                                                : <CircleOff className="table-action__delete"/> }
                                                         </IconButton>
                                                     </div>
                                                 </TableCell>
@@ -409,7 +635,27 @@ export default function ItemCategoryList() {
                                                 className="!border-b-0 !text-center italic !text-gray-500"
                                                 colSpan="5"
                                             >
-                                                Data tidak ditemukan
+                                                <div className="py-6">
+                                                    <div className="font-semibold not-italic text-gray-700">
+                                                        { filters ? 'Kategori tidak ditemukan' : 'Belum ada kategori aktif' }
+                                                    </div>
+                                                    <div className="mt-1 mb-3">
+                                                        { filters
+                                                            ? 'Ubah atau hapus filter untuk mencoba lagi.'
+                                                            : 'Buat kategori agar barang dapat dikelompokkan.' }
+                                                    </div>
+                                                    { filters ? (
+                                                        <Button onClick={ handleFilterClear }>Hapus filter</Button>
+                                                    ) : (
+                                                        <Button
+                                                            component={ Link }
+                                                            to="/item-categories/new"
+                                                            variant="contained"
+                                                        >
+                                                            Buat kategori
+                                                        </Button>
+                                                    ) }
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     )
