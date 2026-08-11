@@ -24,9 +24,9 @@ import {
     TextField,
 } from '@mui/material';
 import {
+    CircleOff,
     PencilIcon,
-    Plus,
-    TrashIcon
+    Plus
 } from "lucide-react";
 import { enqueueSnackbar } from "notistack"
 
@@ -44,35 +44,51 @@ const FILTER_KEY_DATA = {
 };
 const ITEM_PER_PAGE_OPTIONS = [5, 10, 25, 50];
 
+const getSearchState = searchParams => {
+    const requestedFilterKey = searchParams.get('key');
+    const requestedSize = Number(searchParams.get('itemPerPage'));
+
+    return {
+        filters: searchParams.get('q') || '',
+        selectedFilterKey: Object.hasOwn(FILTER_KEY_DATA, requestedFilterKey)
+            ? requestedFilterKey
+            : 'code',
+        currentPage: Math.max(Number(searchParams.get('page')) || 1, 1),
+        itemPerPage: ITEM_PER_PAGE_OPTIONS.includes(requestedSize) ? requestedSize : 10
+    };
+};
+
+const getListQueryKey = ({ currentPage, itemPerPage, selectedFilterKey, filters }) => JSON.stringify({
+    currentPage,
+    itemPerPage,
+    selectedFilterKey,
+    filters
+});
+
 export default function ItemCategoryList() {
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const {
         itemCategoryList,
         itemCategoryPaging,
-        itemCategoriesItemCount,
         getItemCategoryList,
         deactivateItemCategory,
         getItemCategoriesItemCount
     } = useItemCategoryStore();
 
     const [searchParams, setSearchParams] = useSearchParams();
+    const initialSearchState = getSearchState(searchParams);
 
     const [selectedDeleteTarget, setSelectedDeleteTarget] = useState({});
-    const [filters, setFilters] = useState(() => searchParams.get('q') || '');
-    const [debouncedFilters, setDebouncedFilters] = useState(() => searchParams.get('q') || '');
-    const [selectedFilterKey, setSelectedFilterKey] = useState(() => (
-        Object.hasOwn(FILTER_KEY_DATA, searchParams.get('key')) ? searchParams.get('key') : 'code'
-    ));
-    const [currentPage, setCurrentPage] = useState(() => (
-        Math.max(Number(searchParams.get('page')) || 1, 1)
-    ));
-    const [itemPerPage, setItemPerPage] = useState(() => {
-        const requestedSize = Number(searchParams.get('itemPerPage'));
-        return ITEM_PER_PAGE_OPTIONS.includes(requestedSize) ? requestedSize : 10;
-    });
+    const [filters, setFilters] = useState(initialSearchState.filters);
+    const [debouncedFilters, setDebouncedFilters] = useState(initialSearchState.filters);
+    const [selectedFilterKey, setSelectedFilterKey] = useState(initialSearchState.selectedFilterKey);
+    const [currentPage, setCurrentPage] = useState(initialSearchState.currentPage);
+    const [itemPerPage, setItemPerPage] = useState(initialSearchState.itemPerPage);
     const [refreshVersion, setRefreshVersion] = useState(0);
+    const [loadedQueryKey, setLoadedQueryKey] = useState('');
     const [isLoadingTable, setLoadingTable] = useState(true);
     const [isLoadingItemCount, setIsLoadingItemCount] = useState('');
+    const [itemCount, setItemCount] = useState(null);
     const [isDeactivating, setIsDeactivating] = useState(false);
     const [listError, setListError] = useState('');
     const [itemCountError, setItemCountError] = useState({});
@@ -89,6 +105,21 @@ export default function ItemCategoryList() {
     const itemCountAlertRef = useRef(null);
     const itemCountRequestRef = useRef(null);
     const listHeadingRef = useRef(null);
+    const searchParamKey = searchParams.toString();
+    const requestQueryKey = getListQueryKey({
+        currentPage,
+        itemPerPage,
+        selectedFilterKey,
+        filters: debouncedFilters
+    });
+    const visibleQueryKey = getListQueryKey({
+        currentPage,
+        itemPerPage,
+        selectedFilterKey,
+        filters
+    });
+    const hasCurrentQueryData = loadedQueryKey === visibleQueryKey;
+    const showTableLoading = isLoadingTable || (!listError && !hasCurrentQueryData);
 
     const handleFilterKeyChange = e => {
         setSelectedFilterKey(e.target.value);
@@ -123,12 +154,14 @@ export default function ItemCategoryList() {
         const controller = new AbortController();
         itemCountRequestRef.current = controller;
         setIsLoadingItemCount(itemCategory.code);
+        setItemCount(null);
         setItemCountError({});
         setDeactivationError('');
         deactivationTriggerRef.current = trigger || deactivationTriggerRef.current;
         try {
-            await getItemCategoriesItemCount(itemCategory.code, { signal: controller.signal })
+            const { data } = await getItemCategoriesItemCount(itemCategory.code, { signal: controller.signal })
             if (!controller.signal.aborted && isMountedRef.current) {
+                setItemCount(data.itemCount)
                 setSelectedDeleteTarget(itemCategory)
             }
         } catch (error) {
@@ -150,6 +183,7 @@ export default function ItemCategoryList() {
 
     const closeDeactivationDialog = () => {
         setSelectedDeleteTarget({});
+        setItemCount(null);
         setDeactivationError('');
         setTimeout(() => deactivationTriggerRef.current?.focus(), 0);
     }
@@ -172,6 +206,7 @@ export default function ItemCategoryList() {
                 ITEM_CATEGORY_LIST_MESSAGES.deactivateItemCategorySuccess.options
             )
             setSelectedDeleteTarget({});
+            setItemCount(null);
             focusAfterRefreshRef.current = true;
             const targetPage = itemCategoryList.length === 1 && currentPage > 1
                 ? currentPage - 1
@@ -196,6 +231,17 @@ export default function ItemCategoryList() {
     }
 
     useEffect(() => {
+        const urlState = getSearchState(searchParams);
+        setFilters(previous => previous === urlState.filters ? previous : urlState.filters);
+        setDebouncedFilters(previous => previous === urlState.filters ? previous : urlState.filters);
+        setSelectedFilterKey(previous => (
+            previous === urlState.selectedFilterKey ? previous : urlState.selectedFilterKey
+        ));
+        setCurrentPage(previous => previous === urlState.currentPage ? previous : urlState.currentPage);
+        setItemPerPage(previous => previous === urlState.itemPerPage ? previous : urlState.itemPerPage);
+    }, [searchParamKey]);
+
+    useEffect(() => {
         if (filters === debouncedFilters) {
             return;
         }
@@ -217,7 +263,7 @@ export default function ItemCategoryList() {
             itemPerPage,
             q: debouncedFilters,
             key: selectedFilterKey
-        });
+        }, { replace: true });
 
         const loadItemCategories = async () => {
             try {
@@ -229,6 +275,9 @@ export default function ItemCategoryList() {
                         [selectedFilterKey]: debouncedFilters
                     }
                 })
+                if (!controller.signal.aborted) {
+                    setLoadedQueryKey(requestQueryKey);
+                }
             } catch (error) {
                 if (!controller.signal.aborted) {
                     setListError(error?.message || 'Daftar kategori gagal dimuat. Silakan coba lagi.')
@@ -247,6 +296,22 @@ export default function ItemCategoryList() {
         loadItemCategories();
         return () => controller.abort();
     }, [itemPerPage, currentPage, selectedFilterKey, debouncedFilters, refreshVersion]);
+
+    useEffect(() => {
+        const activeItemCountRequest = itemCountRequestRef.current;
+        if (activeItemCountRequest) {
+            activeItemCountRequest.abort();
+            itemCountRequestRef.current = null;
+        }
+
+        setIsLoadingItemCount('');
+        setItemCountError({});
+        if (!deactivationInProgressRef.current) {
+            setItemCount(null);
+            setSelectedDeleteTarget({});
+            deactivationTriggerRef.current = null;
+        }
+    }, [visibleQueryKey]);
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -283,10 +348,10 @@ export default function ItemCategoryList() {
                                 akan dinonaktifkan dan tidak lagi muncul di daftar aktif.
                             </div>
 
-                            { !!itemCategoriesItemCount?.itemCount &&
+                            { itemCount > 0 &&
                                 <div className="item-category-list__delete-description">
                                     Tindakan ini juga menonaktifkan
-                                    <span className="font-bold"> { itemCategoriesItemCount?.itemCount } barang </span>
+                                    <span className="font-bold"> { itemCount } barang </span>
                                     aktif yang terikat pada kategori ini.
                                 </div>
                             }
@@ -454,7 +519,9 @@ export default function ItemCategoryList() {
                             page={ currentPage }
                             count={ Math.max(itemCategoryPaging?.totalPages || 1, 1) }
                             onChange={ handlePageChange }
-                            disabled={ isLoadingTable || !itemCategoryPaging?.totalPages }
+                            disabled={ showTableLoading
+                                || !hasCurrentQueryData
+                                || !itemCategoryPaging?.totalPages }
                         />
                     </div>
                 </div>
@@ -475,7 +542,7 @@ export default function ItemCategoryList() {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            { isLoadingTable
+                            { showTableLoading
                                 ? (
                                     <TableRow>
                                         <TableCell
@@ -492,7 +559,7 @@ export default function ItemCategoryList() {
                                         </TableCell>
                                     </TableRow>
                                 )
-                                : listError && !itemCategoryList?.length
+                                : listError && (!hasCurrentQueryData || !itemCategoryList?.length)
                                     ? (
                                         <TableRow>
                                             <TableCell
@@ -503,7 +570,7 @@ export default function ItemCategoryList() {
                                             </TableCell>
                                         </TableRow>
                                     )
-                                : itemCategoryList?.length
+                                : hasCurrentQueryData && itemCategoryList?.length
                                     ? itemCategoryList?.map(((itemCategory, index) => {
                                         const isLastRow = index === itemCategoryList.length - 1
                                         const tableCellClass = isLastRow ? '!border-b-0' : ''
@@ -555,7 +622,7 @@ export default function ItemCategoryList() {
                                                         >
                                                             { isLoadingItemCount === itemCategory.code
                                                                 ? <CircularProgress size={ 18 } />
-                                                                : <TrashIcon className="table-action__delete"/> }
+                                                                : <CircleOff className="table-action__delete"/> }
                                                         </IconButton>
                                                     </div>
                                                 </TableCell>

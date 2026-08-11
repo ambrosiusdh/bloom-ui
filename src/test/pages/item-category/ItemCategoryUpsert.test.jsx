@@ -126,6 +126,8 @@ describe('ItemCategoryUpsert', () => {
         expect(screen.queryByText('Kode kategori wajib diisi.')).not.toBeInTheDocument();
         expect(screen.getByLabelText('Nama kategori')).toHaveValue('Kain');
         expect(screen.getByLabelText('Kode kategori')).toHaveValue('KAIN-');
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        await waitFor(() => expect(screen.getByLabelText('Kode kategori')).toHaveFocus());
     });
 
     it('shows detail loading and sends only backend-supported update fields', async () => {
@@ -169,6 +171,24 @@ describe('ItemCategoryUpsert', () => {
         await waitFor(() => {
             expect(screen.getByTestId('location')).toHaveTextContent('/item-categories');
         });
+    });
+
+    it('finishes loading when the backend returns a canonicalized category code', async () => {
+        categoryApi.getItemCategoryDetails.mockResolvedValue({
+            data: { data: { code: 'KAIN', name: 'Kain', description: '' } }
+        });
+        render(
+            <Routes>
+                <Route
+                    path="/item-categories/:code/edit"
+                    element={ <ItemCategoryUpsert /> }
+                />
+            </Routes>,
+            { route: '/item-categories/kain/edit' }
+        );
+
+        expect(await screen.findByLabelText('Nama kategori')).toHaveValue('Kain');
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
 
     it('reloads a reused edit route and ignores the previous category response arriving late', async () => {
@@ -222,5 +242,54 @@ describe('ItemCategoryUpsert', () => {
         expect(categoryApi.updateItemCategory).toHaveBeenCalledWith('MAKANAN', {
             data: { name: 'Makanan baru', description: 'Baru' }
         }, undefined);
+    });
+
+    it('ignores an old save after route reuse and disables editing while that save is pending', async () => {
+        const user = userEvent.setup();
+        const updateRequest = deferred();
+        categoryApi.getItemCategoryDetails.mockImplementation(categoryCode => Promise.resolve({
+            data: {
+                data: categoryCode === 'KAIN'
+                    ? { code: 'KAIN', name: 'Kain', description: 'Lama' }
+                    : { code: 'MAKANAN', name: 'Makanan', description: 'Baru' }
+            }
+        }));
+        categoryApi.updateItemCategory.mockReturnValue(updateRequest.promise);
+        render(
+            <Routes>
+                <Route
+                    path="/item-categories/:code/edit"
+                    element={
+                        <>
+                            <ItemCategoryUpsert />
+                            <NavigateToMakanan />
+                            <LocationDisplay />
+                        </>
+                    }
+                />
+                <Route
+                    path="/item-categories"
+                    element={ <LocationDisplay /> }
+                />
+            </Routes>,
+            { route: '/item-categories/KAIN/edit' }
+        );
+
+        const nameInput = await screen.findByLabelText('Nama kategori');
+        await user.clear(nameInput);
+        await user.type(nameInput, 'Kain baru');
+        await user.click(screen.getByRole('button', { name: 'Simpan perubahan' }));
+        expect(nameInput).toBeDisabled();
+        expect(screen.getByLabelText('Deskripsi kategori')).toBeDisabled();
+
+        await user.click(screen.getByRole('button', { name: 'Buka MAKANAN' }));
+        await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(
+            '/item-categories/MAKANAN/edit'
+        ));
+        expect(await screen.findByLabelText('Nama kategori')).toHaveValue('Makanan');
+
+        await act(async () => updateRequest.resolve({ data: { data: {} } }));
+        expect(screen.getByTestId('location')).toHaveTextContent('/item-categories/MAKANAN/edit');
+        expect(screen.getByLabelText('Nama kategori')).toHaveValue('Makanan');
     });
 });

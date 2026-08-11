@@ -1,6 +1,18 @@
 import api from "@api/index.js";
 import { ITEM_CATEGORY } from "@api/path/index.js";
 
+const getReadRequestArguments = (configOrOptions = {}, options) => {
+    const {
+        useLoader,
+        ...config
+    } = configOrOptions || {};
+
+    return {
+        config,
+        options: options ?? (useLoader === undefined ? undefined : { useLoader })
+    };
+};
+
 const getItemCategoryList = async (payload, options) => {
     return api({
         url: ITEM_CATEGORY.list,
@@ -9,12 +21,13 @@ const getItemCategoryList = async (payload, options) => {
     }, options);
 }
 
-const getItemCategoryDetails = async (code, config, options) => {
+const getItemCategoryDetails = async (code, configOrOptions, options) => {
+    const request = getReadRequestArguments(configOrOptions, options);
     return api({
         url: ITEM_CATEGORY.detail(code),
         method: 'GET',
-        ...config
-    }, options)
+        ...request.config
+    }, request.options)
 }
 
 const createItemCategory = async (payload, options) => {
@@ -40,12 +53,13 @@ const deactivateItemCategory = async (code, options) => {
     }, options)
 }
 
-const getItemCategoriesItemCount = async (code, config, options) => {
+const getItemCategoriesItemCount = async (code, configOrOptions, options) => {
+    const request = getReadRequestArguments(configOrOptions, options);
     return api({
         url: ITEM_CATEGORY.itemCount(code),
         method: 'GET',
-        ...config
-    }, options)
+        ...request.config
+    }, request.options)
 }
 
 export default {

@@ -36,4 +36,20 @@ describe('item category API', () => {
             signal: controller.signal
         });
     });
+
+    it('keeps legacy second-argument loader options compatible with read configuration', async () => {
+        const controller = new AbortController();
+
+        await itemCategoryApi.getItemCategoryDetails('KAIN', { useLoader: true });
+        await itemCategoryApi.getItemCategoriesItemCount('KAIN', {
+            signal: controller.signal,
+            useLoader: true
+        });
+
+        expect(apiRequest.mock.calls[0][0]).not.toHaveProperty('useLoader');
+        expect(apiRequest.mock.calls[0][1]).toEqual({ useLoader: true });
+        expect(apiRequest.mock.calls[1][0]).toMatchObject({ signal: controller.signal });
+        expect(apiRequest.mock.calls[1][0]).not.toHaveProperty('useLoader');
+        expect(apiRequest.mock.calls[1][1]).toEqual({ useLoader: true });
+    });
 });

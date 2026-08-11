@@ -72,13 +72,17 @@ export default function ItemCategoryUpsert() {
     const [isLoadingDetails, setIsLoadingDetails] = useState(Boolean(code));
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [detailRefreshVersion, setDetailRefreshVersion] = useState(0);
+    const [loadedCode, setLoadedCode] = useState(null);
     const [formData, setFormData] = useState(EMPTY_FORM_DATA)
     const [errorData, setErrorData] = useState(EMPTY_ERRORS)
     const codeInputRef = useRef(null);
     const errorAlertRef = useRef(null);
     const isMountedRef = useRef(false);
     const nameInputRef = useRef(null);
+    const submissionRequestRef = useRef(0);
     const submitInProgressRef = useRef(false);
+    const currentRouteCodeRef = useRef(code);
+    currentRouteCodeRef.current = code;
 
     const handleFormChange = (e) => {
         setFormData(previous => ({ ...previous, [e.target.name]: e.target.value }));
@@ -112,35 +116,42 @@ export default function ItemCategoryUpsert() {
         submitInProgressRef.current = true;
         setIsSubmitting(true);
         setErrorMessage('');
+        const submissionId = ++submissionRequestRef.current;
+        const submittedCode = code;
+        const submittedFormData = { ...formData };
         const payload = {
-            data: code
-                ? { name: formData.name, description: formData.description }
-                : { ...formData }
+            data: submittedCode
+                ? { name: submittedFormData.name, description: submittedFormData.description }
+                : submittedFormData
         }
+        const isCurrentSubmission = () => isMountedRef.current
+            && submissionRequestRef.current === submissionId
+            && currentRouteCodeRef.current === submittedCode;
 
         try {
-            if (code) {
-                await updateItemCategory(code, payload)
+            if (submittedCode) {
+                await updateItemCategory(submittedCode, payload)
             } else {
                 await createItemCategory(payload)
             }
 
-            if (!isMountedRef.current) {
+            if (!isCurrentSubmission()) {
                 return;
             }
 
             const params = new URLSearchParams({
-                message: code
-                    ? `Kategori [${ code }] berhasil diperbarui.`
-                    : `Kategori [${ formData.code }] berhasil dibuat.`,
+                message: submittedCode
+                    ? `Kategori [${ submittedCode }] berhasil diperbarui.`
+                    : `Kategori [${ submittedFormData.code }] berhasil dibuat.`,
                 messageType: 'success'
             })
             navigate(`/item-categories?${ params.toString() }`)
         } catch (error) {
-            if (!isMountedRef.current) {
+            if (!isCurrentSubmission()) {
                 return;
             }
 
+            let firstInvalidField = '';
             if (error?.validationErrors?.length) {
                 const backendErrors = { ...EMPTY_ERRORS };
                 error.validationErrors.forEach(detail => {
@@ -149,18 +160,28 @@ export default function ItemCategoryUpsert() {
                     }
                 });
                 setErrorData(backendErrors);
+                firstInvalidField = ['name', 'code'].find(field => backendErrors[field]) || '';
+            }
+
+            if (firstInvalidField) {
+                setErrorMessage('');
+                setTimeout(() => (
+                    firstInvalidField === 'name' ? nameInputRef : codeInputRef
+                ).current?.focus(), 0);
+                return;
             }
 
             if (error?.domainCode === API_DOMAIN_ERROR_CODE.ITEM_CATEGORY_ALREADY_EXISTS) {
-                setErrorMessage(`Kode kategori [${ formData.code }] sudah digunakan. Gunakan kode lain.`)
+                setErrorMessage(`Kode kategori [${ submittedFormData.code }] sudah digunakan. Gunakan kode lain.`)
             } else if (error?.category === 'not_found') {
                 setErrorMessage('Kategori ini tidak lagi tersedia. Kembali ke daftar dan muat ulang data.')
             } else {
                 setErrorMessage(error?.message || 'Kategori gagal disimpan. Silakan coba lagi.')
             }
         } finally {
-            submitInProgressRef.current = false;
-            if (isMountedRef.current) {
+            if (submissionRequestRef.current === submissionId
+                && currentRouteCodeRef.current === submittedCode) {
+                submitInProgressRef.current = false;
                 setIsSubmitting(false);
             }
         }
@@ -170,12 +191,20 @@ export default function ItemCategoryUpsert() {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
+            submissionRequestRef.current += 1;
         };
     }, []);
 
     useEffect(() => {
+        submissionRequestRef.current += 1;
+        submitInProgressRef.current = false;
+        setIsSubmitting(false);
+    }, [code]);
+
+    useEffect(() => {
         if (!code) {
             setIsLoadingDetails(false);
+            setLoadedCode(null);
             setErrorMessage('');
             setErrorData({ ...EMPTY_ERRORS });
             setFormData({ ...EMPTY_FORM_DATA });
@@ -185,6 +214,7 @@ export default function ItemCategoryUpsert() {
 
         const controller = new AbortController();
         setIsLoadingDetails(true);
+        setLoadedCode(null);
         setErrorMessage('');
         setErrorData({ ...EMPTY_ERRORS });
         setFormData({ ...EMPTY_FORM_DATA });
@@ -199,6 +229,7 @@ export default function ItemCategoryUpsert() {
                         code: data.code,
                         description: data.description || ''
                     })
+                    setLoadedCode(code)
                 }
             } catch (error) {
                 if (!controller.signal.aborted) {
@@ -248,7 +279,7 @@ export default function ItemCategoryUpsert() {
                 </Alert>
             ) }
 
-            { isLoadingDetails || (code && formData.code !== code && !errorMessage) ? (
+            { isLoadingDetails || (code && loadedCode !== code && !errorMessage) ? (
                 <div
                     className="card p-8 w-full max-w-3xl flex items-center justify-center gap-3"
                     role="status"
@@ -256,7 +287,7 @@ export default function ItemCategoryUpsert() {
                     <CircularProgress size={ 24 } />
                     Memuat kategori...
                 </div>
-            ) : (!code || formData.code) && (
+            ) : (!code || loadedCode === code) && (
                 <form
                     className="item-category-upsert__form card p-4 w-full max-w-3xl"
                     onSubmit={ submitUpsertItem }
@@ -278,6 +309,7 @@ export default function ItemCategoryUpsert() {
                                 error={ !!errorData.name }
                                 helperText={ errorData.name }
                                 inputRef={ nameInputRef }
+                                disabled={ isSubmitting }
                                 onChange={ handleFormChange }
                                 onBlur={ () => validateField('name') }
                             />
@@ -305,6 +337,7 @@ export default function ItemCategoryUpsert() {
                                     error={ !!errorData.code }
                                     helperText={ errorData.code }
                                     inputRef={ codeInputRef }
+                                    disabled={ isSubmitting }
                                     onChange={ handleFormChange }
                                     onBlur={ () => validateField('code') }
                                 />
@@ -327,6 +360,7 @@ export default function ItemCategoryUpsert() {
                                 size="small"
                                 placeholder="Deskripsi kategori"
                                 onChange={ handleFormChange }
+                                disabled={ isSubmitting }
                                 fullWidth
                             />
                         </div>

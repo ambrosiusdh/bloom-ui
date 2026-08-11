@@ -25,7 +25,6 @@ describe('item category store', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         useItemCategoryStore.setState({
-            itemCategoriesItemCount: {},
             itemCategoryDetails: {},
             itemCategoryList: [],
             itemCategoryPaging: {}
@@ -101,7 +100,7 @@ describe('item category store', () => {
         ]);
     });
 
-    it('passes mutation payloads through unchanged and stores the item count', async () => {
+    it('passes mutation payloads through unchanged and returns the item count locally', async () => {
         const payload = { data: { name: 'Kain baru', description: 'Deskripsi' } };
         categoryApi.updateItemCategory.mockResolvedValue({ data: { data: payload.data } });
         categoryApi.getItemCategoriesItemCount.mockResolvedValue({
@@ -109,10 +108,10 @@ describe('item category store', () => {
         });
 
         await useItemCategoryStore.getState().updateItemCategory('KAIN', payload);
-        await useItemCategoryStore.getState().getItemCategoriesItemCount('KAIN');
+        const itemCountResponse = await useItemCategoryStore.getState().getItemCategoriesItemCount('KAIN');
 
         expect(categoryApi.updateItemCategory).toHaveBeenCalledWith('KAIN', payload, undefined);
-        expect(useItemCategoryStore.getState().itemCategoriesItemCount).toEqual({
+        expect(itemCountResponse.data).toEqual({
             code: 'KAIN',
             itemCount: 2
         });

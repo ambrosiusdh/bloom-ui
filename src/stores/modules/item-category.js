@@ -7,7 +7,6 @@ const useItemCategoryStore = create((set) => ({
     itemCategoryList: [],
     itemCategoryPaging: {},
     itemCategoryDetails: {},
-    itemCategoriesItemCount: {},
 
     getItemCategoryList: async (payload, options) => {
         const { data: response } = await api.getItemCategoryList(payload, options)
@@ -36,10 +35,6 @@ const useItemCategoryStore = create((set) => ({
 
     getItemCategoriesItemCount: async (code, config, options) => {
         const { data: response } = await api.getItemCategoriesItemCount(code, config, options)
-        if (config?.signal?.aborted) {
-            return response
-        }
-        set({ itemCategoriesItemCount: response.data })
         return response
     }
 }));

@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -35,11 +36,15 @@ const deferred = () => {
     return { promise, resolve };
 };
 
+const HistoryBackButton = () => {
+    const navigate = useNavigate();
+    return <button onClick={ () => navigate(-1) }>Kembali</button>;
+};
+
 describe('ItemCategoryList', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         useItemCategoryStore.setState({
-            itemCategoriesItemCount: {},
             itemCategoryList: [],
             itemCategoryPaging: {}
         });
@@ -163,5 +168,81 @@ describe('ItemCategoryList', () => {
         await act(async () => kainRequest.resolve(listResponse([kainCategory])));
         expect(screen.getByText('Makanan')).toBeInTheDocument();
         expect(screen.queryByText('Kain')).not.toBeInTheDocument();
+    });
+
+    it('does not expose previous-query rows or actions when a new search fails', async () => {
+        const user = userEvent.setup();
+        const category = { code: 'KAIN', name: 'Kain', updatedAt: '2026-08-01T00:00:00Z' };
+        categoryApi.getItemCategoryList
+            .mockResolvedValueOnce(listResponse([category]))
+            .mockRejectedValueOnce(new Error('Pencarian kategori gagal dimuat.'));
+        render(<ItemCategoryList />, { route: '/item-categories' });
+
+        const searchInput = await screen.findByLabelText('Cari berdasarkan Kode');
+        expect(await screen.findByText('Kain')).toBeInTheDocument();
+        await user.type(searchInput, 'MAKANAN');
+
+        expect(await screen.findByRole('alert', {}, { timeout: 1500 })).toHaveTextContent(
+            'Pencarian kategori gagal dimuat.'
+        );
+        expect(screen.getByText('Data kategori belum dapat ditampilkan.')).toBeInTheDocument();
+        expect(screen.queryByText('Kain')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Nonaktifkan kategori Kain' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Ubah kategori Kain' })).not.toBeInTheDocument();
+    });
+
+    it('restores filters and results when browser history changes the URL', async () => {
+        const user = userEvent.setup();
+        const kainCategory = { code: 'KAIN', name: 'Kain', updatedAt: '2026-08-01T00:00:00Z' };
+        const makananCategory = { code: 'MAKANAN', name: 'Makanan', updatedAt: '2026-08-01T00:00:00Z' };
+        categoryApi.getItemCategoryList.mockImplementation(({ params }) => Promise.resolve(
+            listResponse([params.code === 'KAIN' ? kainCategory : makananCategory])
+        ));
+        render(
+            <>
+                <ItemCategoryList />
+                <HistoryBackButton />
+            </>,
+            {
+                initialEntries: [
+                    '/item-categories?page=1&itemPerPage=10&key=code&q=KAIN',
+                    '/item-categories?page=1&itemPerPage=10&key=code&q=MAKANAN'
+                ],
+                initialIndex: 1
+            }
+        );
+
+        expect(await screen.findByLabelText('Cari berdasarkan Kode')).toHaveValue('MAKANAN');
+        expect(await screen.findByText('Makanan')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Kembali' }));
+
+        await waitFor(() => expect(screen.getByLabelText('Cari berdasarkan Kode')).toHaveValue('KAIN'));
+        expect(await screen.findByText('Kain')).toBeInTheDocument();
+        expect(categoryApi.getItemCategoryList.mock.lastCall[0].params).toMatchObject({
+            page: 1,
+            size: 10,
+            code: 'KAIN'
+        });
+    });
+
+    it('aborts a pending item-count lookup when the list query changes', async () => {
+        const user = userEvent.setup();
+        const countRequest = deferred();
+        const category = { code: 'KAIN', name: 'Kain', updatedAt: '2026-08-01T00:00:00Z' };
+        categoryApi.getItemCategoryList
+            .mockResolvedValueOnce(listResponse([category]))
+            .mockResolvedValueOnce(listResponse([]));
+        categoryApi.getItemCategoriesItemCount.mockReturnValue(countRequest.promise);
+        render(<ItemCategoryList />, { route: '/item-categories' });
+
+        await user.click(await screen.findByRole('button', { name: 'Nonaktifkan kategori Kain' }));
+        const countSignal = categoryApi.getItemCategoriesItemCount.mock.calls[0][1].signal;
+        await user.type(screen.getByLabelText('Cari berdasarkan Kode'), 'MAKANAN');
+        await waitFor(() => expect(countSignal.aborted).toBe(true), { timeout: 1500 });
+
+        await act(async () => countRequest.resolve({
+            data: { data: { code: 'KAIN', itemCount: 2 } }
+        }));
+        expect(screen.queryByRole('dialog', { name: 'Nonaktifkan Kain?' })).not.toBeInTheDocument();
     });
 });
