@@ -27,8 +27,19 @@ const createSale = async (payload, options) => {
     }, options);
 }
 
+const printReceipt = async (saleCode, options) => {
+    return api({
+        url: SALE.print,
+        method: 'POST',
+        data: {
+            saleCode
+        }
+    }, options);
+}
+
 export default {
     getSaleList,
     getSaleDetails,
-    createSale
+    createSale,
+    printReceipt
 }

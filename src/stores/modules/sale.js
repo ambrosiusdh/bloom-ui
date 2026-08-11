@@ -40,6 +40,16 @@ const createSaleAction = set => ({
             console.error('Error create sale: ', error);
             throw error?.response?.data || error
         }
+    },
+
+    printReceipt: async (saleCode, options) => {
+        const { data: response } = await api.printReceipt(saleCode, options)
+
+        if (response?.data !== true) {
+            throw new Error('Backend tidak mengonfirmasi pencetakan struk.')
+        }
+
+        return response
     }
 })
 

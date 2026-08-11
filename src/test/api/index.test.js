@@ -109,6 +109,28 @@ describe('normalizeApiError', () => {
         });
     });
 
+    it.each([
+        [
+            500,
+            'Printer tidak ditemukan',
+            API_DOMAIN_ERROR_CODE.PRINTER_NOT_FOUND
+        ],
+        [
+            404,
+            'Transaksi tidak ditemukan',
+            API_DOMAIN_ERROR_CODE.SALE_NOT_FOUND
+        ]
+    ])('preserves the backend print domain error for status %s', (status, message, domainCode) => {
+        expect(normalizeApiError(createHttpError(status, {
+            errorType: 'ResponseStatusException',
+            message,
+            code: status
+        }))).toMatchObject({
+            domainCode,
+            status
+        });
+    });
+
     it('does not classify an unexpected status from the legacy message alone', () => {
         expect(normalizeApiError(createHttpError(500, {
             errorType: 'ResponseStatusException',

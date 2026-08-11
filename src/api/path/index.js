@@ -25,7 +25,8 @@ const ITEM_CATEGORY = {
 const SALE = {
     list: '/api/sales',
     detail: '/api/sales/details',
-    create: '/api/sales'
+    create: '/api/sales',
+    print: '/api/print'
 }
 
 const GOODS_RECEIPT = {

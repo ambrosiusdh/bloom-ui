@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Roadmap
 
-Last updated: 2026-08-09
+Last updated: 2026-08-11
 
 ## 1. How to use this roadmap
 
@@ -66,7 +66,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-04 | Cashier-focused layout | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-01 | `gpt-5.6-terra`, high |
 | FE-05 | Back-office navigation accessibility | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-04 | `gpt-5.6-terra`, high |
 | FE-06 | Item-category reliability | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
-| FE-07 | Backend receipt reprint | PLANNED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
+| FE-07 | Backend receipt reprint | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-08 | Current dashboard reliability | PLANNED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-09 | Item inventory read model | BLOCKED | BLOCKED | FE-02 | `gpt-5.6-terra`, high |
 | FE-10 | Item creation and opening balance | BLOCKED | BLOCKED | FE-09 | `gpt-5.6-sol`, high |
@@ -239,7 +239,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-07 — Backend receipt reprint
 
 - **Domain:** Receipt printing for existing sales.
-- **Status:** `PLANNED`.
+- **Status:** `IMPLEMENTED`.
 - **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-02.
 - **Backend gate:** Verify the implemented `POST /api/print` request/response and printer error mapping in controller/DTO/service.
