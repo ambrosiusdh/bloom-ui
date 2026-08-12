@@ -7,6 +7,7 @@ import {
     Select,
     MenuItem
 } from '@mui/material';
+import PropTypes from 'prop-types';
 import {
     AreaChart,
     Area,
@@ -54,59 +55,95 @@ const RevenueChart = ({ data, filter, onFilterChange }) => {
                 <FormControl size="small" className="w-40">
                     <InputLabel>Periode</InputLabel>
                     <Select
-                        value={filter}
+                        value={ filter }
                         label="Periode"
-                        onChange={onFilterChange}
+                        onChange={ onFilterChange }
                     >
                         <MenuItem value="week">7 Hari Terakhir</MenuItem>
                         <MenuItem value="month">Bulan Ini</MenuItem>
                     </Select>
                 </FormControl>
             </div>
-            <div className="flex-grow min-h-[350px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
+            <div
+                className="flex-grow min-w-0 min-h-[350px] w-full"
+                role="region"
+                aria-label="Data grafik pendapatan"
+            >
+                { data.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-center text-gray-500">
+                        <Typography>
+                            Belum ada data pendapatan untuk periode ini.
+                        </Typography>
+                    </div>
+                ) : (
+                    <>
+                        <ul className="sr-only">
+                            { data.map(point => (
+                                <li key={ point.name }>
+                                    { point.name }: { formatCurrency(point.revenue) }
+                                </li>
+                            )) }
+                        </ul>
+                <ResponsiveContainer
+                    width="100%"
+                    height="100%"
+                    minWidth={ 0 }
+                    minHeight={ 350 }
+                    initialDimension={ { width: 1, height: 350 } }
+                >
                     <AreaChart
-                        data={data}
-                        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                        data={ data }
+                        margin={ { top: 10, right: 10, left: 0, bottom: 0 } }
                     >
                         <defs>
                             <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor={primaryColor} stopOpacity={0.8} />
-                                <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
+                                <stop offset="5%" stopColor={ primaryColor } stopOpacity={ 0.8 } />
+                                <stop offset="95%" stopColor={ primaryColor } stopOpacity={ 0 } />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={ false } stroke="#f0f0f0" />
                         <XAxis
                             dataKey="name"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: '#6b7280', fontSize: 12 }}
-                            dy={10}
+                            axisLine={ false }
+                            tickLine={ false }
+                            tick={ { fill: '#6b7280', fontSize: 12 } }
+                            dy={ 10 }
                         />
                         <YAxis
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: '#6b7280', fontSize: 12 }}
-                            tickFormatter={formatYAxis}
+                            axisLine={ false }
+                            tickLine={ false }
+                            tick={ { fill: '#6b7280', fontSize: 12 } }
+                            tickFormatter={ formatYAxis }
                         />
                         <Tooltip
-                            formatter={(value) => [formatCurrency(value), 'Pendapatan']}
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                            formatter={ (value) => [formatCurrency(value), 'Pendapatan'] }
+                            contentStyle={ { borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' } }
                         />
                         <Area
                             type="monotone"
                             dataKey="revenue"
-                            stroke={primaryColor}
-                            fillOpacity={1}
+                            stroke={ primaryColor }
+                            fillOpacity={ 1 }
                             fill="url(#colorRevenue)"
-                            strokeWidth={3}
-                            activeDot={{ r: 6, strokeWidth: 0 }}
+                            strokeWidth={ 3 }
+                            activeDot={ { r: 6, strokeWidth: 0 } }
                         />
                     </AreaChart>
                 </ResponsiveContainer>
+                    </>
+                ) }
             </div>
         </Paper>
     );
+};
+
+RevenueChart.propTypes = {
+    data: PropTypes.arrayOf(PropTypes.shape({
+        name: PropTypes.string.isRequired,
+        revenue: PropTypes.number.isRequired
+    })).isRequired,
+    filter: PropTypes.oneOf(['month', 'week']).isRequired,
+    onFilterChange: PropTypes.func.isRequired
 };
 
 export default RevenueChart;

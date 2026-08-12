@@ -1,33 +1,31 @@
-import { useEffect, useRef, useCallback } from 'react';
-
-import PropTypes from 'prop-types';
-
-import { Link } from "react-router-dom"
-
 import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
+    useCallback,
+    useEffect,
+    useRef
+} from 'react';
+import { Link } from "react-router-dom"
+import {
     Button,
-    Typography,
+    Chip,
     CircularProgress,
-    List,
-    ListItem,
-    ListItemText,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     Divider,
     IconButton,
-    Chip
+    List,
+    ListItem,
+    Typography
 } from '@mui/material';
-
 import {
-    X,
     ArrowRight,
-    SquareArrowOutUpRightIcon
+    SquareArrowOutUpRightIcon,
+    X
 } from 'lucide-react';
+import PropTypes from 'prop-types';
 
 import { useItemStore } from '@stores/index.js';
-
 import { formatDate } from '@utils/date-utils';
 
 const propTypes = {
@@ -40,7 +38,7 @@ const ItemAuditLogModal = (props) => {
         onClose,
         sku
     } = props
-    
+
     const {
         auditLogs,
         auditLogPaging,
@@ -88,19 +86,45 @@ const ItemAuditLogModal = (props) => {
 
     const getSourceChipAttributes = (source) => {
         switch (source) {
-            case 'GOODS_RECEIPT': return { color: 'primary', label: 'Penerimaan barang' };
-            case 'SALE': return { color: 'success', label: 'Penjualan' };
-            case 'STOCK_ADJUSTMENT': return { color: 'warning', label: 'Penyesuaian Stok' };
-            default: return { color: 'default', label: source };
+            case 'OPENING_BALANCE':
+                return { color: 'default', label: 'Stok Awal' };
+
+            case 'GOODS_RECEIPT':
+                return { color: 'success', label: 'Penerimaan Barang' };
+
+            case 'SALE':
+                return { color: 'primary', label: 'Penjualan' };
+
+            case 'STOCK_ADJUSTMENT':
+                return { color: 'warning', label: 'Penyesuaian Stok' };
+
+            case 'STOCK_OPNAME':
+                return { color: 'info', label: 'Stok Opname' };
+
+            case 'PURCHASE':
+                return { color: 'success', label: 'Pembelian' };
+
+            case 'RETURN':
+                return { color: 'secondary', label: 'Retur Barang' };
+
+            case 'TRANSFER':
+                return { color: 'info', label: 'Transfer Stok' };
+
+            default:
+                return { color: 'default', label: source ?? '-' };
         }
     };
 
     const getReferenceLink = (source, referenceNo) => {
         switch (source) {
-            case 'GOODS_RECEIPT': return `/goods-receipts/${encodeURIComponent(referenceNo)}`;
-            case 'SALE': return `/sales/${encodeURIComponent(referenceNo)}`;
-            case 'STOCK_ADJUSTMENT': return `/stock-adjustments/${encodeURIComponent(referenceNo)}`;
-            default: return '#';
+            case 'GOODS_RECEIPT':
+                return `/goods-receipts/${ encodeURIComponent(referenceNo) }`;
+            case 'SALE':
+                return `/sales/${ encodeURIComponent(referenceNo) }`;
+            case 'STOCK_ADJUSTMENT':
+                return `/stock-adjustments/${ encodeURIComponent(referenceNo) }`;
+            default:
+                return '#';
         }
     }
 
@@ -117,7 +141,7 @@ const ItemAuditLogModal = (props) => {
                     Riwayat Stok: <span className="text-primary-main">{ sku }</span>
                 </Typography>
                 <IconButton onClick={ onClose } size="small">
-                    <X />
+                    <X/>
                 </IconButton>
             </DialogTitle>
 
@@ -129,8 +153,9 @@ const ItemAuditLogModal = (props) => {
                         const isLastElement = auditLogs.length === index + 1;
 
                         return (
-                            <div key={ `${log.id}-${index}` } ref={ isLastElement ? lastLogElementRef : null }>
-                                <ListItem className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between py-4 px-6 hover:bg-gray-50 transition-colors">
+                            <div key={ `${ log.id }-${ index }` } ref={ isLastElement ? lastLogElementRef : null }>
+                                <ListItem
+                                    className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between py-4 px-6 hover:bg-gray-50 transition-colors">
                                     <div className="flex-1 space-y-1">
                                         <div className="flex items-center gap-2">
                                             <Typography variant="subtitle2" className="font-bold">
@@ -143,7 +168,9 @@ const ItemAuditLogModal = (props) => {
                                                 { ...getSourceChipAttributes(log.source) }
                                             />
                                         </div>
-                                        <Typography variant="body2" color="textSecondary" className="flex items-center gap-1">
+                                        <Typography variant="body2"
+color="textSecondary"
+                                                    className="flex items-center gap-1">
                                             Ref:
                                             <Link
                                                 to={ getReferenceLink(log.source, log.referenceNo) }
@@ -159,26 +186,28 @@ const ItemAuditLogModal = (props) => {
                                         </Typography>
                                     </div>
 
-                                    <div className="flex items-center gap-4 bg-white p-2 rounded-lg border border-gray-100 shadow-sm min-w-[200px] justify-center">
+                                    <div
+                                        className="flex items-center gap-4 bg-white p-2 rounded-lg border border-gray-100 shadow-sm min-w-[200px] justify-center">
                                         <div className="text-center">
                                             <Typography variant="caption" color="textSecondary">Awal</Typography>
                                             <Typography variant="body2" className="font-medium text-gray-600">
                                                 { log.qtyBefore }
                                             </Typography>
                                         </div>
-                                        <ArrowRight size={ 16 } className="text-gray-300" />
+                                        <ArrowRight size={ 16 } className="text-gray-300"/>
                                         <div className="text-center">
                                             <Typography variant="caption" color="textSecondary">Akhir</Typography>
                                             <Typography variant="body2" className="font-bold text-gray-800">
                                                 { log.qtyAfter }
                                             </Typography>
                                         </div>
-                                        <div className={ `ml-2 font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}` }>
+                                        <div
+                                            className={ `ml-2 font-bold ${ isPositive ? 'text-green-600' : 'text-red-600' }` }>
                                             { isPositive ? '+' : '' }{ diff }
                                         </div>
                                     </div>
                                 </ListItem>
-                                <Divider component="li" />
+                                <Divider component="li"/>
                             </div>
                         );
                     }) }
@@ -186,7 +215,7 @@ const ItemAuditLogModal = (props) => {
 
                 { isFetchingAuditLogs && (
                     <div className="flex justify-center p-4">
-                        <CircularProgress size={ 24 } />
+                        <CircularProgress size={ 24 }/>
                     </div>
                 ) }
 
