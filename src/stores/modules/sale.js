@@ -21,13 +21,20 @@ const createSaleAction = set => ({
         }
     },
 
-    getSaleDetails: async (code, options) => {
+    getSaleDetails: async (code, config, options) => {
+        set({ saleDetails: {} })
+
         try {
-            const { data: response } = await api.getSaleDetails(code, options)
+            const { data: response } = await api.getSaleDetails(code, config, options)
+            if (config?.signal?.aborted) {
+                return response
+            }
             set({ saleDetails: response.data })
             return response
         } catch (error) {
-            console.error('Error getting sale details: ', error);
+            if (!config?.signal?.aborted) {
+                console.error('Error getting sale details: ', error);
+            }
             throw error?.response?.data || error
         }
     },
@@ -40,6 +47,22 @@ const createSaleAction = set => ({
             console.error('Error create sale: ', error);
             throw error?.response?.data || error
         }
+    },
+
+    printReceipt: async (saleCode, options) => {
+        const { data: response } = await api.printReceipt(saleCode, options)
+
+        if (response?.data !== true) {
+            const contractError = new Error('Backend tidak mengonfirmasi pencetakan struk.')
+            contractError.name = 'ApiError'
+            contractError.category = 'unexpected'
+            contractError.status = null
+            contractError.domainCode = null
+            contractError.validationErrors = []
+            throw contractError
+        }
+
+        return response
     }
 })
 
