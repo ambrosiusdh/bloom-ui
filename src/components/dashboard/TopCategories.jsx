@@ -31,7 +31,7 @@ const TopCategories = ({ data }) => {
             <div className="flex-grow min-w-0 min-h-[300px] w-full relative">
                 { data.length === 0 ? (
                     <div className="h-full flex items-center justify-center text-center text-gray-500">
-                        <Typography role="status">
+                        <Typography>
                             Belum ada data kategori penjualan.
                         </Typography>
                     </div>
@@ -85,7 +85,7 @@ const TopCategories = ({ data }) => {
 TopCategories.propTypes = {
     data: PropTypes.arrayOf(PropTypes.shape({
         name: PropTypes.string.isRequired,
-        value: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired
+        value: PropTypes.number.isRequired
     })).isRequired
 };
 

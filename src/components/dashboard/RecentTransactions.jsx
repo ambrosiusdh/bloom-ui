@@ -41,7 +41,7 @@ const RecentTransactions = ({ data }) => {
                         { data.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={ 3 } align="center">
-                                    <Typography role="status" className="py-6 text-gray-500">
+                                    <Typography className="py-6 text-gray-500">
                                         Belum ada transaksi penjualan.
                                     </Typography>
                                 </TableCell>

@@ -63,6 +63,7 @@ describe('Dashboard reliability', () => {
         dashboardApi.getDashboardOverview.mockReset();
         useDashboardStore.setState({
             dashboardData: null,
+            lastSuccessfulAt: null,
             error: null,
             isLoading: false
         });
@@ -87,6 +88,7 @@ describe('Dashboard reliability', () => {
         expect(screen.getByText('Belum ada data kategori penjualan.')).toBeInTheDocument();
         expect(screen.getByText('Tidak ada barang dengan stok menipis.')).toBeInTheDocument();
         expect(screen.getByText(/Terakhir diperbarui:/)).toBeInTheDocument();
+        expect(screen.queryAllByRole('status')).toHaveLength(0);
     });
 
     it('keeps old values during refresh, focuses failures, and retries successfully', async () => {
@@ -150,5 +152,28 @@ describe('Dashboard reliability', () => {
 
         await waitFor(() => expect(screen.getByText('Total Pendapatan')).toBeInTheDocument());
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('keeps the last successful timestamp consistent after remount and refresh failure', async () => {
+        dashboardApi.getDashboardOverview
+            .mockResolvedValueOnce(response(emptyOverview))
+            .mockRejectedValueOnce(Object.assign(new Error('Gagal terhubung.'), {
+                name: 'ApiError',
+                category: 'network'
+            }));
+        const firstRender = render(<Dashboard />, { route: '/dashboard' });
+
+        const firstTimestamp = await screen.findByText(/Terakhir diperbarui:/);
+        const timestampText = firstTimestamp.textContent;
+        firstRender.unmount();
+
+        render(<Dashboard />, { route: '/dashboard' });
+
+        expect(screen.getByText(timestampText)).toBeInTheDocument();
+        expect(screen.queryByText('Belum pernah diperbarui')).not.toBeInTheDocument();
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'Data terakhir yang berhasil dimuat masih ditampilkan'
+        );
+        expect(screen.getByText(timestampText)).toBeInTheDocument();
     });
 });

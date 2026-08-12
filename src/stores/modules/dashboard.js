@@ -2,19 +2,35 @@ import { create } from 'zustand'
 
 import api from '@api/dashboard.js'
 
+let latestDashboardRequestId = 0;
+
 const useDashboardStore = create((set) => ({
     dashboardData: null,
+    lastSuccessfulAt: null,
     isLoading: false,
     error: null,
 
     getDashboardOverview: async (options) => {
+        const requestId = ++latestDashboardRequestId;
         set({ isLoading: true, error: null });
         try {
             const { data: response } = await api.getDashboardOverview(options)
-            set({ dashboardData: response.data, isLoading: false, error: null })
+
+            if (requestId !== latestDashboardRequestId) {
+                return response
+            }
+
+            set({
+                dashboardData: response.data,
+                lastSuccessfulAt: Date.now(),
+                isLoading: false,
+                error: null
+            })
             return response
         } catch (error) {
-            set({ error, isLoading: false });
+            if (requestId === latestDashboardRequestId) {
+                set({ error, isLoading: false });
+            }
             throw error
         }
     }

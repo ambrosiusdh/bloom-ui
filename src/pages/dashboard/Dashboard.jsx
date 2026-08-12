@@ -19,13 +19,13 @@ import { useDashboardStore } from '@stores/index.js';
 
 export default function Dashboard() {
     const [revenueFilter, setRevenueFilter] = useState('week');
-    const [lastUpdated, setLastUpdated] = useState(null);
     const [refreshMessage, setRefreshMessage] = useState('');
     const errorAlertRef = useRef(null);
     const requestInFlightRef = useRef(false);
 
     const getDashboardOverview = useDashboardStore(state => state.getDashboardOverview);
     const dashboardData = useDashboardStore(state => state.dashboardData);
+    const lastSuccessfulAt = useDashboardStore(state => state.lastSuccessfulAt);
     const isLoading = useDashboardStore(state => state.isLoading);
     const error = useDashboardStore(state => state.error);
     const hasDashboardData = dashboardData !== null;
@@ -37,12 +37,11 @@ export default function Dashboard() {
         setRefreshMessage('');
         try {
             await getDashboardOverview();
-            setLastUpdated(new Date());
             if (isRefresh) {
                 setRefreshMessage('Data dashboard berhasil diperbarui.');
             }
         } catch {
-            // The store exposes the normalized error for the accessible alert below.
+            // The shared API boundary supplies the normalized error used by the store.
         } finally {
             requestInFlightRef.current = false;
         }
@@ -75,10 +74,7 @@ export default function Dashboard() {
     };
 
     return (
-        <div
-            className="dashboard p-4 bg-gray-50 min-h-screen flex flex-col gap-6"
-            aria-busy={ isLoading }
-        >
+        <div className="dashboard p-4 bg-gray-50 min-h-screen flex flex-col gap-6">
             { /* Header */ }
             <div className="dashboard__header flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
                 <div>
@@ -100,8 +96,8 @@ export default function Dashboard() {
                         className="text-gray-500"
                         aria-live="polite"
                     >
-                        { lastUpdated
-                            ? `Terakhir diperbarui: ${lastUpdated.toLocaleTimeString('id-ID')}`
+                        { lastSuccessfulAt
+                            ? `Terakhir diperbarui: ${new Date(lastSuccessfulAt).toLocaleTimeString('id-ID')}`
                             : 'Belum pernah diperbarui' }
                     </Typography>
                     <Button
@@ -197,10 +193,7 @@ export default function Dashboard() {
                         ))
                     ) : (
                         <Paper className="p-6 rounded-xl shadow-md">
-                            <Typography
-                                role="status"
-                                className="text-gray-600 text-center"
-                            >
+                            <Typography className="text-gray-600 text-center">
                                 Ringkasan belum tersedia.
                             </Typography>
                         </Paper>

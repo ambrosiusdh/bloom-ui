@@ -46,7 +46,7 @@ const LowStockAlert = ({ data }) => {
                         { data.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={ 2 } align="center">
-                                    <Typography role="status" className="py-6 text-gray-500">
+                                    <Typography className="py-6 text-gray-500">
                                         Tidak ada barang dengan stok menipis.
                                     </Typography>
                                 </TableCell>
@@ -91,7 +91,7 @@ LowStockAlert.propTypes = {
         id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
         name: PropTypes.string.isRequired,
         sku: PropTypes.string.isRequired,
-        stock: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired
+        stock: PropTypes.number.isRequired
     })).isRequired
 };
 
