@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import api from '@api/dashboard.js'
 
 const useDashboardStore = create((set) => ({
-    dashboardData: {},
+    dashboardData: null,
     isLoading: false,
     error: null,
 
@@ -11,12 +11,11 @@ const useDashboardStore = create((set) => ({
         set({ isLoading: true, error: null });
         try {
             const { data: response } = await api.getDashboardOverview(options)
-            set({ dashboardData: response.data, isLoading: false })
+            set({ dashboardData: response.data, isLoading: false, error: null })
             return response
         } catch (error) {
-            console.error('Error getting dashboard overview:', error);
-            set({ error: error?.response?.data || error, isLoading: false });
-            throw error?.response?.data || error
+            set({ error, isLoading: false });
+            throw error
         }
     }
 }));

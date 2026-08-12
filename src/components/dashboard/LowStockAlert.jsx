@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import {
     Paper,
     Typography,
@@ -12,7 +13,7 @@ import {
     Button
 } from '@mui/material';
 import { AlertTriangle, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import PropTypes from 'prop-types';
 
 const LowStockAlert = ({ data }) => {
     return (
@@ -20,7 +21,7 @@ const LowStockAlert = ({ data }) => {
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center text-red-600">
                     <div className="p-2 bg-red-100 rounded-lg mr-3">
-                        <AlertTriangle size={20} />
+                        <AlertTriangle size={ 20 } aria-hidden="true" />
                     </div>
                     <div>
                         <Typography variant="h6" className="font-bold text-gray-800">
@@ -42,32 +43,40 @@ const LowStockAlert = ({ data }) => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {data.map((row) => (
-                            <TableRow key={row.id} hover className="transition-colors">
+                        { data.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={ 2 } align="center">
+                                    <Typography role="status" className="py-6 text-gray-500">
+                                        Tidak ada barang dengan stok menipis.
+                                    </Typography>
+                                </TableCell>
+                            </TableRow>
+                        ) : data.map((row) => (
+                            <TableRow key={ row.id } hover className="transition-colors">
                                 <TableCell component="th" scope="row" className="border-b border-gray-100">
-                                    <div className="font-medium text-sm text-gray-800">{row.name}</div>
-                                    <div className="text-xs text-gray-500">{row.sku}</div>
+                                    <div className="font-medium text-sm text-gray-800">{ row.name }</div>
+                                    <div className="text-xs text-gray-500">{ row.sku }</div>
                                 </TableCell>
                                 <TableCell align="right" className="border-b border-gray-100">
                                     <Chip
-                                        label={row.stock}
+                                        label={ row.stock }
                                         size="small"
-                                        color={row.stock === 0 ? "error" : "warning"}
-                                        variant={row.stock === 0 ? "filled" : "outlined"}
+                                        color={ row.stock === 0 ? "error" : "warning" }
+                                        variant={ row.stock === 0 ? "filled" : "outlined" }
                                         className="min-w-[40px] font-bold"
                                     />
                                 </TableCell>
                             </TableRow>
-                        ))}
+                        )) }
                     </TableBody>
                 </Table>
             </TableContainer>
 
             <div className="mt-4 pt-2 border-t border-gray-100 text-center">
                 <Button
-                    component={Link}
+                    component={ Link }
                     to="/items"
-                    endIcon={<ArrowRight size={16} />}
+                    endIcon={ <ArrowRight size={ 16 } /> }
                     className="text-maroon-600 hover:bg-maroon-600/5 normal-case font-bold"
                 >
                     Lihat Semua Barang
@@ -75,6 +84,15 @@ const LowStockAlert = ({ data }) => {
             </div>
         </Paper>
     );
+};
+
+LowStockAlert.propTypes = {
+    data: PropTypes.arrayOf(PropTypes.shape({
+        id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
+        name: PropTypes.string.isRequired,
+        sku: PropTypes.string.isRequired,
+        stock: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired
+    })).isRequired
 };
 
 export default LowStockAlert;

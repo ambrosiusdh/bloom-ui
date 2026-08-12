@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Roadmap
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 ## 1. How to use this roadmap
 
@@ -67,7 +67,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-05 | Back-office navigation accessibility | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-04 | `gpt-5.6-terra`, high |
 | FE-06 | Item-category reliability | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-07 | Backend receipt reprint | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
-| FE-08 | Current dashboard reliability | PLANNED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
+| FE-08 | Current dashboard reliability | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-09 | Item inventory read model | BLOCKED | BLOCKED | FE-02 | `gpt-5.6-terra`, high |
 | FE-10 | Item creation and opening balance | BLOCKED | BLOCKED | FE-09 | `gpt-5.6-sol`, high |
 | FE-11 | Item editing and movement locks | BLOCKED | BLOCKED | FE-09 | `gpt-5.6-sol`, high |
@@ -259,7 +259,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-08 — Current dashboard reliability
 
 - **Domain:** Current dashboard.
-- **Status:** `PLANNED`.
+- **Status:** `IMPLEMENTED`.
 - **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-02.
 - **Backend gate:** Existing dashboard endpoint and response verified; no target Release 1 metric may be invented.

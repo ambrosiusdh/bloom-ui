@@ -1,7 +1,5 @@
 import React from 'react';
-
 import { Link } from 'react-router-dom';
-
 import {
     Paper,
     Typography,
@@ -13,8 +11,8 @@ import {
     TableRow,
     Button
 } from '@mui/material';
-
 import { ArrowRight } from 'lucide-react';
+import PropTypes from 'prop-types';
 
 const RecentTransactions = ({ data }) => {
     return (
@@ -40,7 +38,15 @@ const RecentTransactions = ({ data }) => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        { data.map((row) => (
+                        { data.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={ 3 } align="center">
+                                    <Typography role="status" className="py-6 text-gray-500">
+                                        Belum ada transaksi penjualan.
+                                    </Typography>
+                                </TableCell>
+                            </TableRow>
+                        ) : data.map((row) => (
                             <TableRow key={ row.id } hover className="transition-colors">
                                 <TableCell className="font-medium text-gray-800">
                                     { row.id }
@@ -69,6 +75,14 @@ const RecentTransactions = ({ data }) => {
             </div>
         </Paper>
     );
+};
+
+RecentTransactions.propTypes = {
+    data: PropTypes.arrayOf(PropTypes.shape({
+        admin: PropTypes.string.isRequired,
+        id: PropTypes.string.isRequired,
+        time: PropTypes.string.isRequired
+    })).isRequired
 };
 
 export default RecentTransactions;

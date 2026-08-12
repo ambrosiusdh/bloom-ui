@@ -1,5 +1,9 @@
 import React from 'react';
-
+import {
+    Paper,
+    Typography
+} from '@mui/material';
+import PropTypes from 'prop-types';
 import {
     PieChart,
     Pie,
@@ -9,11 +13,6 @@ import {
     Legend
 } from 'recharts';
 
-import {
-    Paper,
-    Typography,
-    Box
-} from '@mui/material';
 
 const TopCategories = ({ data }) => {
     const COLORS = ['#A72828', '#D97706', '#2563EB', '#10B981', '#8B5CF6'];
@@ -29,8 +28,29 @@ const TopCategories = ({ data }) => {
                 </Typography>
             </div>
 
-            <div className="flex-grow min-h-[300px] w-full relative">
-                <ResponsiveContainer width="100%" height="100%">
+            <div className="flex-grow min-w-0 min-h-[300px] w-full relative">
+                { data.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-center text-gray-500">
+                        <Typography role="status">
+                            Belum ada data kategori penjualan.
+                        </Typography>
+                    </div>
+                ) : (
+                    <>
+                        <ul className="sr-only">
+                            { data.map(category => (
+                                <li key={ category.name }>
+                                    { category.name }: { category.value }
+                                </li>
+                            )) }
+                        </ul>
+                <ResponsiveContainer
+                    width="100%"
+                    height="100%"
+                    minWidth={ 0 }
+                    minHeight={ 300 }
+                    initialDimension={ { width: 1, height: 300 } }
+                >
                     <PieChart>
                         <Pie
                             data={ data }
@@ -55,9 +75,18 @@ const TopCategories = ({ data }) => {
                         />
                     </PieChart>
                 </ResponsiveContainer>
+                    </>
+                ) }
             </div>
         </Paper>
     );
+};
+
+TopCategories.propTypes = {
+    data: PropTypes.arrayOf(PropTypes.shape({
+        name: PropTypes.string.isRequired,
+        value: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired
+    })).isRequired
 };
 
 export default TopCategories;
