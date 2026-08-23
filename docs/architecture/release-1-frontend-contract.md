@@ -35,6 +35,7 @@ Bloom UI is currently a JavaScript React application:
 - FE-07 backend receipt reprint is implemented: sale detail calls the backend print endpoint for the existing sale reference with pending, duplicate-click prevention, success, failure, and same-reference retry behavior.
 - FE-08 current dashboard reliability is implemented: the existing backend overview metrics have explicit accessible loading, error/retry, zero/empty, refresh, and last-successful-data behavior without frontend aggregation.
 - FE-10 item creation is implemented: `/items/new` sends item metadata, the Release 1 UOM/fractional policy, and optional decimal STORE/WAREHOUSE openings through the backend's single atomic create operation, with explicit category, validation, pending, conflict, failure-recovery, success, and focus behavior.
+- FE-11 item editing is implemented: `/items/:sku/edit` separates editable metadata from backend-reported UOM/fraction locks, excludes stock mutation, and covers explicit loading, validation, pending, conflict-refresh, success, duplicate-submit, focus, and responsive behavior.
 
 Release 1 work must preserve this baseline unless a narrowly scoped PR proves that a dependency change is necessary for its immediate domain. TypeScript migration, TanStack Query adoption, global store replacement, router restructuring, and a global design-system rewrite are not Release 1 prerequisites.
 
@@ -54,6 +55,17 @@ Release 1 adds or aligns these domains:
 - Suppliers, goods receipts, supplier debt, and partial supplier payments.
 
 The target must be delivered incrementally. Existing routes and reusable components remain in place unless a domain PR has a concrete reason to change them.
+
+### 2.4 Local integration verification
+
+For the seeded local development environment only:
+
+- Frontend origin: `http://localhost:5173`.
+- Backend API: `http://localhost:8080`.
+- Username: `admin`.
+- Password: `admin`.
+
+These credentials are test fixtures for local development and browser verification. They must not be reused as production credentials or copied into frontend runtime code.
 
 ## 3. Confirmed product direction
 
@@ -355,7 +367,7 @@ The following must be verified or completed before their dependent frontend PRs 
 
 - Decimal quantity DTOs and services across item, sale, receipt, adjustment, transfer, and movement APIs.
 - Removal or explicit deprecation plan for legacy aggregate `stockQuantity`.
-- Item `baseUom`, `fractionalQuantityAllowed`, and backend-reported/enforced immutability after first movement.
+- UOM vocabulary alignment: the current backend enum also exposes `GRAM`, `MILLILITER`, `CENTIMETER`, and `ROLL`, while the confirmed Release 1 frontend vocabulary remains `PIECE`, `METER`, `KILOGRAM`, and `LITER`.
 - Atomic item opening-balance contract.
 - Stock movement history endpoint/read model.
 - Stock transfer endpoint and atomic behavior.

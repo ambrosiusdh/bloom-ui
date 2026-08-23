@@ -52,7 +52,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 - Existing Axios, Zustand, React Router, Material UI, and shared components are preserved.
 - Vitest, React Testing Library, jsdom, and the shared render helper are available.
 - Current frontend implementations still contain legacy `stockQuantity`, integer-only quantity handling, local sale-total/payment assumptions, and incomplete async/error behavior.
-- Current backend code does not yet expose all Release 1 item/UOM, decimal quantity, movement, transfer, cash-session, supplier, payable/payment, expense, sale-idempotency, and dashboard contracts.
+- Current backend code does not yet expose all Release 1 movement, transfer, cash-session, supplier, payable/payment, expense, sale-idempotency, and dashboard contracts.
 - A backend print controller exists, so reprinting an already-created sale can proceed independently after its current contract is verified. Automatic post-checkout printing remains gated by the target checkout flow.
 
 ## 4. Delivery overview
@@ -70,7 +70,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-08 | Current dashboard reliability | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-09 | Item inventory read model | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-10 | Item creation and opening balance | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-09 | `gpt-5.6-sol`, high |
-| FE-11 | Item editing and movement locks | BLOCKED | BLOCKED | FE-09 | `gpt-5.6-sol`, high |
+| FE-11 | Item editing and movement locks | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-09 | `gpt-5.6-sol`, high |
 | FE-12 | Stock movement history | BLOCKED | BLOCKED | FE-09 | `gpt-5.6-terra`, high |
 | FE-13 | Stock adjustment | BLOCKED | BLOCKED | FE-12 | `gpt-5.6-sol`, high |
 | FE-14 | Stock transfer | BLOCKED | BLOCKED | FE-12 | `gpt-5.6-sol`, high |
@@ -319,8 +319,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-11 — Item editing and movement locks
 
 - **Domain:** Item editing.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `PLAN_RECOMMENDED`.
+- **Status:** `IMPLEMENTED`.
+- **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-09.
 - **Backend gate:** Update response/request identifies or enforces UOM/fraction immutability after first movement and excludes direct stock editing.
 - **User-visible change:** Editable metadata is clear; UOM/fraction fields become visibly locked with an explanation after movement history exists.

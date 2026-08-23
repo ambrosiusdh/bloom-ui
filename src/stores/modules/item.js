@@ -39,9 +39,9 @@ const createItemAction = (set, get) => ({
     updateItem: async (sku, payload, options) => {
         try {
             const { data: response } = await api.updateItem(sku, payload, options)
+            set({ itemDetails: response.data })
             return response
         } catch (error) {
-            console.error('Error udpating item:', error);
             throw error?.response?.data || error
         }
     },
