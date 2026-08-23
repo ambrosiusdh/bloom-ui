@@ -1,7 +1,5 @@
 import React, { Suspense, lazy } from "react";
-
 import { createBrowserRouter, Navigate } from "react-router-dom";
-
 import CircularProgress from "@mui/material/CircularProgress";
 
 import App from "@/App.jsx";
@@ -9,6 +7,7 @@ import App from "@/App.jsx";
 const Cashier = lazy(() => import("@pages/cashier/Cashier.jsx"));
 const Dashboard = lazy(() => import("@pages/dashboard/Dashboard.jsx"));
 const ItemList = lazy(() => import("@pages/item/ItemList.jsx"));
+const ItemCreate = lazy(() => import("@pages/item/ItemCreate.jsx"));
 const ItemUpsert = lazy(() => import("@pages/item/ItemUpsert.jsx"));
 const ItemCategoryList = lazy(() => import("@pages/item-category/ItemCategoryList.jsx"));
 const ItemCategoryUpsert = lazy(() => import("@pages/item-category/ItemCategoryUpsert.jsx"));
@@ -66,7 +65,7 @@ const router = createBrowserRouter([
             },
             {
                 path: "items/new",
-                element: withSuspense(<ItemUpsert />)
+                element: withSuspense(<ItemCreate />)
             },
             {
                 path: "items/:sku/edit",

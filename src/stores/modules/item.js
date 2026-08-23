@@ -25,15 +25,7 @@ const createItemAction = (set, get) => ({
         return response
     },
 
-    createItem: async (payload, options) => {
-        try {
-            const { data: response } = await api.createItem(payload, options)
-            return response
-        } catch (error) {
-            console.error('Error creating item:', error);
-            throw error?.response?.data || error
-        }
-    },
+    createItem: (payload, options) => api.createItem(payload, options),
 
     getItemDetails: async (sku, config, options) => {
         const { data: response } = await api.getItemDetails(sku, config, options)

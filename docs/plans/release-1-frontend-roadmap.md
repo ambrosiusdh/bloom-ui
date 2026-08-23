@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Roadmap
 
-Last updated: 2026-08-12
+Last updated: 2026-08-23
 
 ## 1. How to use this roadmap
 
@@ -69,7 +69,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-07 | Backend receipt reprint | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-08 | Current dashboard reliability | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-09 | Item inventory read model | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
-| FE-10 | Item creation and opening balance | BLOCKED | BLOCKED | FE-09 | `gpt-5.6-sol`, high |
+| FE-10 | Item creation and opening balance | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-09 | `gpt-5.6-sol`, high |
 | FE-11 | Item editing and movement locks | BLOCKED | BLOCKED | FE-09 | `gpt-5.6-sol`, high |
 | FE-12 | Stock movement history | BLOCKED | BLOCKED | FE-09 | `gpt-5.6-terra`, high |
 | FE-13 | Stock adjustment | BLOCKED | BLOCKED | FE-12 | `gpt-5.6-sol`, high |
@@ -299,8 +299,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-10 — Item creation and opening balance
 
 - **Domain:** Item creation.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `PLAN_RECOMMENDED`.
+- **Status:** `IMPLEMENTED`.
+- **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-09.
 - **Backend gate:** Atomic create-item contract accepts UOM/fraction policy and optional decimal STORE/WAREHOUSE opening quantities and creates `OPENING_BALANCE` movements; validation/error response is stable.
 - **User-visible change:** A user can create an item and optional opening inventory without unsafe multi-request stock setup.
