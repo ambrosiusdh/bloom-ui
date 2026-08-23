@@ -74,6 +74,7 @@ describe('back-office navigation', () => {
             '/item-categories',
             '/goods-receipts',
             '/stock-adjustments',
+            '/stock-movements',
             '/sales'
         ]);
         expect(screen.getByRole('link', { name: 'Kasir' })).toHaveAttribute('href', '/cashier');

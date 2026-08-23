@@ -33,7 +33,6 @@ import {
 import { enqueueSnackbar } from 'notistack';
 
 import BloomConfirmationModal from '@components/_ui/BloomConfirmationModal.jsx';
-import ItemAuditLogModal from '@components/item/ItemAuditLogModal.jsx';
 import ItemBarcodeModal from '@components/item/ItemBarcodeModal.jsx';
 import ItemDetailModal from '@components/item/ItemDetailModal.jsx';
 import { GENERIC_ERR_MESSAGE } from '@constants/general.js';
@@ -87,7 +86,6 @@ export default function ItemList() {
     const [selectedItemDetailSku, setSelectedItemDetailSku] = useState('');
     const [selectedItemDetailData, setSelectedItemDetailData] = useState(null);
     const [selectedDeleteTarget, setSelectedDeleteTarget] = useState({});
-    const [selectedItemAuditLogData, setSelectedItemAuditLogData] = useState({});
     const [selectedBarcodeItem, setSelectedBarcodeItem] = useState({});
     const [filters, setFilters] = useState(initialSearchState.filters);
     const [selectedFilterKey, setSelectedFilterKey] = useState(initialSearchState.selectedFilterKey);
@@ -285,13 +283,6 @@ export default function ItemList() {
                     error={ itemDetailError }
                     onClose={ handleCloseItemDetail }
                     onRetry={ () => openItemDetail(selectedItemDetailSku) }
-                />
-            ) }
-
-            { selectedItemAuditLogData?.sku && (
-                <ItemAuditLogModal
-                    sku={ selectedItemAuditLogData.sku }
-                    onClose={ () => setSelectedItemAuditLogData({}) }
                 />
             ) }
 
@@ -499,7 +490,12 @@ export default function ItemList() {
                                                 <IconButton component={ Link } to={ `/items/${item.sku}/edit` } size="small" aria-label={ `Ubah barang ${item.name}` }>
                                                     <PencilIcon className="text-gray-500" />
                                                 </IconButton>
-                                                <IconButton size="small" aria-label={ `Riwayat stok ${item.name}` } onClick={ () => setSelectedItemAuditLogData(item) }>
+                                                <IconButton
+                                                    component={ Link }
+                                                    to={ `/stock-movements?itemSku=${ encodeURIComponent(item.sku) }` }
+                                                    size="small"
+                                                    aria-label={ `Riwayat stok ${item.name}` }
+                                                >
                                                     <HistoryIcon className="text-blue-500 w-5 h-5" />
                                                 </IconButton>
                                                 <IconButton size="small" aria-label={ `Cetak barcode ${item.name}` } onClick={ () => setSelectedBarcodeItem(item) }>

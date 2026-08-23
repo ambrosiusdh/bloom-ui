@@ -43,6 +43,10 @@ const STOCK_ADJUSTMENT = {
     template: '/api/stock-adjustments/template'
 }
 
+const STOCK_MOVEMENT = {
+    list: '/api/stock-movements'
+}
+
 const DASHBOARD = {
     overview: '/api/dashboard/overview'
 }
@@ -54,5 +58,6 @@ export {
     SALE,
     GOODS_RECEIPT,
     STOCK_ADJUSTMENT,
+    STOCK_MOVEMENT,
     DASHBOARD
 }

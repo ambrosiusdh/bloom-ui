@@ -4,6 +4,7 @@ import { useMediaQuery } from "@mui/material";
 import {
     ClipboardCheckIcon,
     HandCoinsIcon,
+    HistoryIcon,
     LayoutDashboardIcon,
     LogOutIcon,
     PackageSearchIcon,
@@ -34,7 +35,8 @@ const navigationGroups = [
             { to: '/items', icon: PackageSearchIcon, label: 'Data Barang' },
             { to: '/item-categories', icon: TagsIcon, label: 'Kategori Barang' },
             { to: '/goods-receipts', icon: TruckIcon, label: 'Penerimaan Barang' },
-            { to: '/stock-adjustments', icon: ClipboardCheckIcon, label: 'Penyesuaian Stok' }
+            { to: '/stock-adjustments', icon: ClipboardCheckIcon, label: 'Penyesuaian Stok' },
+            { to: '/stock-movements', icon: HistoryIcon, label: 'Riwayat Pergerakan Stok' }
         ]
     },
     {
