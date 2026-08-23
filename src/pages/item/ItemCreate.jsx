@@ -208,9 +208,6 @@ export default function ItemCreate() {
         setIsAutoSku(nextIsAutoSku);
         setErrorData(previous => ({ ...previous, sku: '' }));
         setErrorMessage('');
-        if (!nextIsAutoSku) {
-            setTimeout(() => fieldRefs.current.sku?.focus(), 0);
-        }
     };
 
     const submitItem = async event => {
@@ -333,6 +330,12 @@ export default function ItemCreate() {
             categoryErrorRef.current?.focus();
         }
     }, [categoryError]);
+
+    useEffect(() => {
+        if (!isAutoSku) {
+            fieldRefs.current.sku?.focus();
+        }
+    }, [isAutoSku]);
 
     useEffect(() => {
         if (errorMessage) {

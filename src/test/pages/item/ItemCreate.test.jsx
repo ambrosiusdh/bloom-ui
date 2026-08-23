@@ -188,6 +188,7 @@ describe('ItemCreate', () => {
 
         await fillRequiredFields(user);
         await user.click(screen.getByLabelText('Buat SKU otomatis'));
+        await waitFor(() => expect(screen.getByLabelText('SKU')).toHaveFocus());
         await user.type(screen.getByLabelText('SKU'), 'KAIN-MANUAL');
         await user.type(screen.getByLabelText('Deskripsi barang (opsional)'), 'Input tetap ada');
         await user.click(screen.getByRole('button', { name: 'Buat barang' }));
