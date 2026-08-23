@@ -1,6 +1,18 @@
 import api from "@api/index.js";
 import { ITEM } from "@api/path/index.js";
 
+const getReadRequestArguments = (configOrOptions = {}, options) => {
+    const {
+        useLoader,
+        ...config
+    } = configOrOptions || {};
+
+    return {
+        config,
+        options: options ?? (useLoader === undefined ? undefined : { useLoader })
+    };
+};
+
 const getItemList = async (payload, options) => {
     return api({
         url: ITEM.list,
@@ -9,11 +21,13 @@ const getItemList = async (payload, options) => {
     }, options);
 }
 
-const getItemDetails = async (sku, options) => {
+const getItemDetails = async (sku, configOrOptions, options) => {
+    const request = getReadRequestArguments(configOrOptions, options);
     return api({
         url: ITEM.detail(sku),
-        method: 'GET'
-    }, options)
+        method: 'GET',
+        ...request.config
+    }, request.options)
 }
 
 const createItem = async (payload, options) => {

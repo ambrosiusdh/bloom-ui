@@ -16,15 +16,13 @@ const createItemState = () => ({
 
 const createItemAction = (set, get) => ({
     getItemList: async (payload, options) => {
-        try {
-            const { data: response } = await api.getItemList(payload, options)
-            const { content, ...itemPaging } = response.data
-            set({ itemList: content, itemPaging })
+        const { data: response } = await api.getItemList(payload, options)
+        if (payload?.signal?.aborted) {
             return response
-        } catch (error) {
-            console.error('Error getting item list:', error);
-            throw error?.response?.data || error
         }
+        const { content, ...itemPaging } = response.data
+        set({ itemList: content, itemPaging })
+        return response
     },
 
     createItem: async (payload, options) => {
@@ -37,15 +35,13 @@ const createItemAction = (set, get) => ({
         }
     },
 
-    getItemDetails: async (sku, options) => {
-        try {
-            const { data: response } = await api.getItemDetails(sku, options)
-            set({ itemDetails: response.data })
+    getItemDetails: async (sku, config, options) => {
+        const { data: response } = await api.getItemDetails(sku, config, options)
+        if (config?.signal?.aborted) {
             return response
-        } catch (error) {
-            console.error('Error getting item details:', error);
-            throw error?.response?.data || error
         }
+        set({ itemDetails: response.data })
+        return response
     },
 
     updateItem: async (sku, payload, options) => {

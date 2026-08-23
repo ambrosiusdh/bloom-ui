@@ -68,7 +68,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-06 | Item-category reliability | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-07 | Backend receipt reprint | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-08 | Current dashboard reliability | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
-| FE-09 | Item inventory read model | BLOCKED | BLOCKED | FE-02 | `gpt-5.6-terra`, high |
+| FE-09 | Item inventory read model | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-10 | Item creation and opening balance | BLOCKED | BLOCKED | FE-09 | `gpt-5.6-sol`, high |
 | FE-11 | Item editing and movement locks | BLOCKED | BLOCKED | FE-09 | `gpt-5.6-sol`, high |
 | FE-12 | Stock movement history | BLOCKED | BLOCKED | FE-09 | `gpt-5.6-terra`, high |
@@ -279,8 +279,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-09 — Item inventory read model
 
 - **Domain:** Item list/detail inventory display.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `DIRECT_IMPLEMENTATION`.
+- **Status:** `IMPLEMENTED`.
+- **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-02.
 - **Backend gate:** Item response exposes decimal `stockStore`/`stockWarehouse`, `baseUom`, `fractionalQuantityAllowed`, active state, lock/movement state, and removes or explicitly deprecates aggregate `stockQuantity`.
 - **User-visible change:** Item list/detail show correct location-specific quantities, UOM, fractional policy, and state.
