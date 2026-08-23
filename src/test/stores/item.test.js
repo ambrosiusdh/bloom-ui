@@ -72,4 +72,21 @@ describe('item store read actions', () => {
 
         expect(useItemStore.getState().itemDetails).toEqual({ sku: 'TERBARU' });
     });
+
+    it('stores the backend-confirmed item after an update', async () => {
+        const updatedItem = {
+            sku: 'KAIN-00002',
+            name: 'Kain terbaru',
+            baseUnitOfMeasureLocked: true,
+            fractionalQuantityAllowedLocked: true
+        };
+        itemApi.updateItem.mockResolvedValue({ data: { data: updatedItem } });
+
+        const response = await useItemStore.getState().updateItem('KAIN-00001', {
+            data: { name: 'Kain terbaru' }
+        });
+
+        expect(response.data).toEqual(updatedItem);
+        expect(useItemStore.getState().itemDetails).toEqual(updatedItem);
+    });
 });

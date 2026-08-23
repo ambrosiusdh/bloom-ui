@@ -40,4 +40,22 @@ describe('item API', () => {
             { useLoader: true }
         );
     });
+
+    it('sends item updates to the item PUT endpoint without changing the payload', async () => {
+        const payload = {
+            data: {
+                name: 'Kain baru',
+                sku: 'KAIN-00001',
+                description: '',
+                price: '10000.0000'
+            }
+        };
+
+        await itemApi.updateItem('KAIN-00001', payload);
+
+        expect(apiRequest).toHaveBeenCalledWith(expect.objectContaining({
+            method: 'PUT',
+            data: payload.data
+        }), undefined);
+    });
 });
