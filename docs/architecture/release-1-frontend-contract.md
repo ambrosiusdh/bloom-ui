@@ -56,6 +56,17 @@ Release 1 adds or aligns these domains:
 
 The target must be delivered incrementally. Existing routes and reusable components remain in place unless a domain PR has a concrete reason to change them.
 
+### 2.4 Local integration verification
+
+For the seeded local development environment only:
+
+- Frontend origin: `http://localhost:5173`.
+- Backend API: `http://localhost:8080`.
+- Username: `admin`.
+- Password: `admin`.
+
+These credentials are test fixtures for local development and browser verification. They must not be reused as production credentials or copied into frontend runtime code.
+
 ## 3. Confirmed product direction
 
 | Decision | Release 1 direction | Contract status |
@@ -356,6 +367,7 @@ The following must be verified or completed before their dependent frontend PRs 
 
 - Decimal quantity DTOs and services across item, sale, receipt, adjustment, transfer, and movement APIs.
 - Removal or explicit deprecation plan for legacy aggregate `stockQuantity`.
+- UOM vocabulary alignment: the current backend enum also exposes `GRAM`, `MILLILITER`, `CENTIMETER`, and `ROLL`, while the confirmed Release 1 frontend vocabulary remains `PIECE`, `METER`, `KILOGRAM`, and `LITER`.
 - Atomic item opening-balance contract.
 - Stock movement history endpoint/read model.
 - Stock transfer endpoint and atomic behavior.

@@ -2,7 +2,7 @@ import { Route, Routes, useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import ItemUpsert from '@pages/item/ItemUpsert.jsx';
+import ItemEdit from '@pages/item/ItemEdit.jsx';
 import useItemStore from '@stores/modules/item.js';
 import {
     act,
@@ -56,13 +56,13 @@ const LocationDisplay = () => {
 
 const renderEdit = () => render(
     <Routes>
-        <Route path="/items/:sku/edit" element={ <ItemUpsert /> } />
+        <Route path="/items/:sku/edit" element={ <ItemEdit /> } />
         <Route path="/items" element={ <LocationDisplay /> } />
     </Routes>,
     { route: '/items/KAIN-00001/edit' }
 );
 
-describe('ItemUpsert', () => {
+describe('ItemEdit', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         useItemStore.setState({ itemDetails: {}, itemList: [], itemPaging: {} });

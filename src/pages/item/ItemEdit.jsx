@@ -49,10 +49,10 @@ const DECIMAL_PATTERN = /^\d+(?:[.,]\d+)?$/;
 const MEASUREMENT_LOCK_ID = 'item-measurement-lock-explanation';
 const FRACTIONAL_POLICY_HELP_ID = 'item-fractional-policy-help';
 
-const normalizeDecimal = value => value.trim().replace(',', '.');
+const normalizeDecimal = value => String(value ?? '').trim().replace(',', '.');
 
 const validatePrice = value => {
-    const trimmedValue = value.trim();
+    const trimmedValue = String(value ?? '').trim();
     if (!trimmedValue) {
         return 'Harga jual wajib diisi.';
     }
@@ -137,7 +137,7 @@ const createUpdatePayload = (formData, lockState) => {
     return { data };
 };
 
-export default function ItemUpsert() {
+export default function ItemEdit() {
     const navigate = useNavigate();
     const { sku } = useParams();
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
@@ -362,7 +362,7 @@ export default function ItemUpsert() {
     const interactionDisabled = isSubmitting || isRefreshing || hasConflict;
 
     return (
-        <div className="item-upsert">
+        <div className="item-edit">
             <div className="mb-4">
                 <h2 className="font-bold text-2xl">Ubah barang { item.sku }</h2>
                 <p className="mt-1 text-slate-600">

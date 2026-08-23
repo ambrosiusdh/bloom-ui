@@ -8,7 +8,7 @@ const Cashier = lazy(() => import("@pages/cashier/Cashier.jsx"));
 const Dashboard = lazy(() => import("@pages/dashboard/Dashboard.jsx"));
 const ItemList = lazy(() => import("@pages/item/ItemList.jsx"));
 const ItemCreate = lazy(() => import("@pages/item/ItemCreate.jsx"));
-const ItemUpsert = lazy(() => import("@pages/item/ItemUpsert.jsx"));
+const ItemEdit = lazy(() => import("@pages/item/ItemEdit.jsx"));
 const ItemCategoryList = lazy(() => import("@pages/item-category/ItemCategoryList.jsx"));
 const ItemCategoryUpsert = lazy(() => import("@pages/item-category/ItemCategoryUpsert.jsx"));
 const SaleList = lazy(() => import("@pages/sale/SaleList.jsx"));
@@ -69,7 +69,7 @@ const router = createBrowserRouter([
             },
             {
                 path: "items/:sku/edit",
-                element: withSuspense(<ItemUpsert />)
+                element: withSuspense(<ItemEdit />)
             },
             {
                 path: "item-categories",
