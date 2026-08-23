@@ -12,4 +12,9 @@ describe('quantity formatting', () => {
         expect(formatQuantity('4.0000', 'PIECE')).toBe('4 pcs');
         expect(formatUnitOfMeasure('LITER')).toBe('liter');
     });
+
+    it('keeps a missing backend value visibly distinct from an actual zero', () => {
+        expect(formatQuantity(null, 'PIECE')).toBe('-');
+        expect(formatQuantity('0.0000', 'PIECE')).toBe('0 pcs');
+    });
 });

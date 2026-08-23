@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { describe, beforeEach, expect, it, vi } from 'vitest';
 
 import ItemList from '@pages/item/ItemList.jsx';
@@ -40,6 +41,11 @@ const deferred = () => {
         resolve = resolvePromise;
     });
     return { promise, resolve };
+};
+
+const HistoryBackButton = () => {
+    const navigate = useNavigate();
+    return <button onClick={ () => navigate(-1) }>Kembali</button>;
 };
 
 describe('ItemList', () => {
@@ -147,5 +153,39 @@ describe('ItemList', () => {
         }])));
 
         expect(screen.queryByText('Barang lama')).not.toBeInTheDocument();
+    });
+
+    it('restores filters and results when browser history changes the URL', async () => {
+        itemApi.getItemList.mockImplementation(({ params }) => Promise.resolve(listResponse([{
+            name: params.name === 'KAIN' ? 'Kain' : 'Makanan',
+            sku: params.name === 'KAIN' ? 'KAIN-00001' : 'MAKANAN-00001',
+            stockStore: '1',
+            stockWarehouse: '0',
+            baseUnitOfMeasure: 'PIECE',
+            active: true
+        }])));
+        render(
+            <>
+                <ItemList />
+                <HistoryBackButton />
+            </>,
+            {
+                initialEntries: [
+                    '/items?page=1&itemPerPage=10&key=name&q=KAIN',
+                    '/items?page=1&itemPerPage=10&key=name&q=MAKANAN'
+                ],
+                initialIndex: 1
+            }
+        );
+
+        const searchInput = await screen.findByRole('textbox', { name: 'Cari berdasarkan Nama barang' });
+        expect(searchInput).toHaveValue('MAKANAN');
+        expect(await screen.findByText('Makanan')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Kembali' }));
+
+        await waitFor(() => expect(searchInput).toHaveValue('KAIN'));
+        expect(await screen.findByText('Kain')).toBeInTheDocument();
+        expect(itemApi.getItemList.mock.lastCall[0].params).toMatchObject({ name: 'KAIN' });
     });
 });

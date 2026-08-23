@@ -14,7 +14,11 @@ const quantityFormatter = new Intl.NumberFormat('id-ID', {
  * stock values; STORE and WAREHOUSE remain separate backend-owned balances.
  */
 const formatQuantity = (value, unitOfMeasure) => {
-    const numericValue = Number(value ?? 0);
+    if (value === null || value === undefined || value === '') {
+        return '-';
+    }
+
+    const numericValue = Number(value);
     const formattedValue = Number.isFinite(numericValue)
         ? quantityFormatter.format(numericValue)
         : '-';

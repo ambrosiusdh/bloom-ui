@@ -105,6 +105,8 @@ export default function ItemList() {
         type: searchParams.get('messageType') || 'info'
     }));
     const detailRequestRef = useRef(null);
+    const syncingSearchParamsRef = useRef(false);
+    const searchParamKey = searchParams.toString();
 
     const queryKey = getListQueryKey({
         currentPage,
@@ -185,13 +187,48 @@ export default function ItemList() {
     }, [getItemCategoryList, setBreadcrumbs]);
 
     useEffect(() => {
+        const nextSearchState = getSearchState(searchParams);
+        const searchStateChanged = nextSearchState.filters !== filters
+            || nextSearchState.selectedFilterKey !== selectedFilterKey
+            || nextSearchState.currentPage !== currentPage
+            || nextSearchState.itemPerPage !== itemPerPage;
+
+        if (!searchStateChanged) {
+            return;
+        }
+
+        // This update came from browser Back/Forward, not from a form control.
+        // Skip the URL-writing effect once so it does not overwrite that history entry.
+        syncingSearchParamsRef.current = true;
+        setFilters(nextSearchState.filters);
+        setSelectedFilterKey(nextSearchState.selectedFilterKey);
+        setCurrentPage(nextSearchState.currentPage);
+        setItemPerPage(nextSearchState.itemPerPage);
+    }, [searchParamKey]);
+
+    useEffect(() => {
+        const currentSearchState = getSearchState(searchParams);
+        const searchParamsMatchLocalState = currentSearchState.filters === filters
+            && currentSearchState.selectedFilterKey === selectedFilterKey
+            && currentSearchState.currentPage === currentPage
+            && currentSearchState.itemPerPage === itemPerPage;
+
+        if (searchParamsMatchLocalState) {
+            return;
+        }
+
+        if (syncingSearchParamsRef.current) {
+            syncingSearchParamsRef.current = false;
+            return;
+        }
+
         setSearchParams({
             page: String(currentPage),
             itemPerPage: String(itemPerPage),
             q: filters,
             key: selectedFilterKey
         });
-    }, [currentPage, filters, itemPerPage, selectedFilterKey, setSearchParams]);
+    }, [currentPage, filters, itemPerPage, searchParamKey, selectedFilterKey, setSearchParams]);
 
     useEffect(() => {
         const controller = new AbortController();
