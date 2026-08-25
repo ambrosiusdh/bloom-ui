@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Contract
 
-Last updated: 2026-08-23
+Last updated: 2026-08-25
 
 ## 1. Purpose
 
@@ -37,6 +37,7 @@ Bloom UI is currently a JavaScript React application:
 - FE-10 item creation is implemented: `/items/new` sends item metadata, the Release 1 UOM/fractional policy, and optional decimal STORE/WAREHOUSE openings through the backend's single atomic create operation, with explicit category, validation, pending, conflict, failure-recovery, success, and focus behavior.
 - FE-11 item editing is implemented: `/items/:sku/edit` separates editable metadata from backend-reported UOM/fraction locks, excludes stock mutation, and covers explicit loading, validation, pending, conflict-refresh, success, duplicate-submit, focus, and responsive behavior.
 - FE-12 stock movement history is implemented: `/stock-movements` renders the paged backend ledger directly, supports item/direction/location filters, and has an item-scoped entry point without posting or reconstructing stock movements.
+- FE-14 stock transfer is implemented: `/stock-transfers/new` posts one single-item decimal transfer through the backend's atomic idempotent operation, renders its confirmed reference, and refreshes the affected item data without frontend stock calculations.
 
 Release 1 work must preserve this baseline unless a narrowly scoped PR proves that a dependency change is necessary for its immediate domain. TypeScript migration, TanStack Query adoption, global store replacement, router restructuring, and a global design-system rewrite are not Release 1 prerequisites.
 
@@ -371,7 +372,7 @@ The following must be verified or completed before their dependent frontend PRs 
 - UOM vocabulary alignment: the current backend enum also exposes `GRAM`, `MILLILITER`, `CENTIMETER`, and `ROLL`, while the confirmed Release 1 frontend vocabulary remains `PIECE`, `METER`, `KILOGRAM`, and `LITER`.
 - Atomic item opening-balance contract.
 - Stock movement history endpoint/read model is available at `GET /api/stock-movements`; its response includes item/UOM, decimal quantity, location, movement/source type, reference, actor, timestamp, and paging/filter semantics.
-- Stock transfer endpoint and atomic behavior.
+- Stock transfer is available at `POST /api/stock-transfers`; it atomically records source/destination movements, enforces decimal UOM/fraction and availability rules, accepts `Idempotency-Key`, and returns a stable transfer code and line result.
 - Cash-session current/open/close/history/detail endpoints and conflict semantics.
 - Sale request/response, server totals/change, payment method, cash-session enforcement, and idempotency/status-recovery contract.
 - Actual scanner model, interface, suffix/terminator, and behavior under rapid scans.
