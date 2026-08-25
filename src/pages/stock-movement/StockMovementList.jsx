@@ -111,6 +111,15 @@ function MovementSummary({ movement }) {
                     <dd>{ movement.createdBy || '-' }</dd>
                 </div>
                 <div className="col-span-2">
+                    <dt className="text-gray-600">Saldo sebelum / sesudah</dt>
+                    <dd>
+                        { formatQuantity(movement.qtyBefore, unitOfMeasure) }
+                        <span aria-hidden="true"> → </span>
+                        <span className="sr-only"> ke </span>
+                        { formatQuantity(movement.qtyAfter, unitOfMeasure) }
+                    </dd>
+                </div>
+                <div className="col-span-2">
                     <dt className="text-gray-600">Waktu</dt>
                     <dd>{ formatDate(movement.createdAt) || '-' }</dd>
                 </div>
@@ -139,6 +148,7 @@ export default function StockMovementList() {
     const location = getFilterValue(searchParams, 'location', LOCATION_OPTIONS);
     const hasFilters = Boolean(itemSku || movementType || location);
     const searchKey = searchParams.toString();
+    const [skuInput, setSkuInput] = useState(itemSku);
 
     const updateQuery = updates => {
         const nextSearchParams = new URLSearchParams(searchParams);
@@ -157,6 +167,30 @@ export default function StockMovementList() {
     useEffect(() => {
         setBreadcrumbs(['Riwayat Pergerakan Stok']);
     }, [setBreadcrumbs]);
+
+    useEffect(() => {
+        setSkuInput(itemSku);
+    }, [itemSku]);
+
+    useEffect(() => {
+        if (skuInput === itemSku) {
+            return undefined;
+        }
+
+        const timer = setTimeout(() => {
+            const nextSearchParams = new URLSearchParams(searchKey);
+
+            if (skuInput) {
+                nextSearchParams.set('itemSku', skuInput);
+            } else {
+                nextSearchParams.delete('itemSku');
+            }
+            nextSearchParams.set('page', '1');
+            setSearchParams(nextSearchParams);
+        }, 350);
+
+        return () => clearTimeout(timer);
+    }, [itemSku, searchKey, setSearchParams, skuInput]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -193,7 +227,7 @@ export default function StockMovementList() {
             });
 
         return () => controller.abort();
-    }, [itemSku, location, movementType, page, retryVersion, searchKey, size]);
+    }, [itemSku, location, movementType, page, retryVersion, size]);
 
     const clearFilters = () => updateQuery({
         itemSku: '',
@@ -224,8 +258,8 @@ export default function StockMovementList() {
                     <TextField
                         className="md:flex-1"
                         label="SKU barang"
-                        value={ itemSku }
-                        onChange={ event => updateQuery({ itemSku: event.target.value, page: 1 }) }
+                        value={ skuInput }
+                        onChange={ event => setSkuInput(event.target.value) }
                     />
                     <TextField
                         select

@@ -52,6 +52,7 @@ describe('StockMovementList', () => {
         expect(screen.getAllByText('Gudang').length).toBeGreaterThan(0);
         expect(screen.getAllByText('GR-00009').length).toBeGreaterThan(0);
         expect(screen.getAllByText('admin').length).toBeGreaterThan(0);
+        expect(screen.getByText('Saldo sebelum / sesudah')).toBeInTheDocument();
         expect(stockMovementApi.getStockMovementList).toHaveBeenCalledTimes(1);
         expect(stockMovementApi.getStockMovementList).toHaveBeenCalledWith(expect.objectContaining({
             params: expect.objectContaining({ page: 1, size: 10, itemSku: 'KAIN-00001' })
@@ -80,9 +81,10 @@ describe('StockMovementList', () => {
             target: { value: 'KAIN-00001' }
         });
 
+        expect(stockMovementApi.getStockMovementList).toHaveBeenCalledTimes(1);
         await waitFor(() => expect(stockMovementApi.getStockMovementList).toHaveBeenLastCalledWith(expect.objectContaining({
             params: expect.objectContaining({ page: 1, size: 25, itemSku: 'KAIN-00001' })
-        })));
+        })), { timeout: 1000 });
         expect(screen.getByRole('button', { name: 'Hapus filter' })).toBeEnabled();
 
         fireEvent.click(screen.getByRole('button', { name: 'Hapus filter' }));
