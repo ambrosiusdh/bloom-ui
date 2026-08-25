@@ -91,13 +91,15 @@ describe('CurrentCashSession', () => {
         const input = screen.getByLabelText(/Modal awal/);
         expect(input).toHaveFocus();
 
-        await user.type(input, '1.000.000');
+        await user.type(input, '1234567890123456');
+        expect(input).toHaveValue('1,234,567,890,123,456');
         await user.click(screen.getByRole('button', { name: 'Buka sesi' }));
-        expect(screen.getByText(/Gunakan angka tanpa pemisah ribuan/)).toBeInTheDocument();
+        expect(screen.getByText(/Maksimal 15 angka/)).toBeInTheDocument();
         expect(input).toHaveFocus();
 
         await user.clear(input);
-        await user.type(input, '500000,5000');
+        await user.type(input, '500000.5000');
+        expect(input).toHaveValue('500,000.5000');
         await user.dblClick(screen.getByRole('button', { name: 'Buka sesi' }));
 
         expect(cashSessionApi.openSession).toHaveBeenCalledTimes(1);
@@ -157,7 +159,7 @@ describe('CurrentCashSession', () => {
         await user.click(screen.getByRole('button', { name: 'Periksa status' }));
 
         await user.click(await screen.findByRole('button', { name: 'Buka sesi kas' }));
-        expect(screen.getByLabelText(/Modal awal/)).toHaveValue('250000');
+        expect(screen.getByLabelText(/Modal awal/)).toHaveValue('250,000');
         expect(cashSessionApi.getCurrentSession).toHaveBeenCalledTimes(2);
     });
 });

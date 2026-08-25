@@ -12,19 +12,18 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
-    InputAdornment,
-    Paper,
-    TextField
+    Paper
 } from '@mui/material';
 import { BanknoteIcon } from 'lucide-react';
 
 import { API_ERROR_CATEGORY } from '@api/index.js';
+import BloomMoneyField from '@components/_ui/BloomMoneyField.jsx';
 import { useCashSessionStore } from '@stores/index.js';
 import { formatDate } from '@utils/date-utils.js';
 
-const MONEY_PATTERN = /^\d+(?:[.,]\d+)?$/;
+const MONEY_PATTERN = /^\d+(?:\.\d+)?$/;
 
-const normalizeMoney = value => value.trim().replace(',', '.');
+const normalizeMoney = value => value.trim();
 
 const validateOpeningCash = value => {
     const trimmedValue = value.trim();
@@ -32,7 +31,7 @@ const validateOpeningCash = value => {
         return 'Modal awal wajib diisi.';
     }
     if (!MONEY_PATTERN.test(trimmedValue)) {
-        return 'Gunakan angka tanpa pemisah ribuan; desimal boleh memakai koma atau titik.';
+        return 'Masukkan nominal uang yang valid.';
     }
 
     const [integerPart, fractionalPart = ''] = normalizeMoney(trimmedValue).split('.');
@@ -116,8 +115,8 @@ export default function CurrentCashSession() {
         clearOpeningError();
     };
 
-    const changeOpeningCash = event => {
-        setOpeningCash(event.target.value);
+    const changeOpeningCash = value => {
+        setOpeningCash(value);
         setFieldError('');
         setSubmitError('');
     };
@@ -324,7 +323,7 @@ export default function CurrentCashSession() {
                             </Alert>
                         ) }
 
-                        <TextField
+                        <BloomMoneyField
                             id="opening-cash"
                             inputRef={ inputRef }
                             autoFocus
@@ -332,19 +331,16 @@ export default function CurrentCashSession() {
                             required
                             label="Modal awal"
                             value={ openingCash }
-                            onChange={ changeOpeningCash }
+                            onValueChange={ changeOpeningCash }
                             onBlur={ () => setFieldError(validateOpeningCash(openingCash)) }
                             error={ Boolean(fieldError) }
                             helperText={ fieldError
-                                || 'Tanpa pemisah ribuan. Contoh: 500000 atau 500000,50.' }
+                                || 'Pemisah ribuan ditambahkan otomatis. Contoh: 500,000 atau 500,000.50.' }
+                            groupSeparator=","
+                            decimalSeparator="."
+                            currencySymbol="Rp"
                             slotProps={ {
-                                input: {
-                                    startAdornment: (
-                                        <InputAdornment position="start">Rp</InputAdornment>
-                                    )
-                                },
                                 htmlInput: {
-                                    inputMode: 'decimal',
                                     'aria-describedby': 'opening-cash-description opening-cash-helper-text'
                                 }
                             } }
