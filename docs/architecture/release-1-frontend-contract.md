@@ -36,6 +36,7 @@ Bloom UI is currently a JavaScript React application:
 - FE-08 current dashboard reliability is implemented: the existing backend overview metrics have explicit accessible loading, error/retry, zero/empty, refresh, and last-successful-data behavior without frontend aggregation.
 - FE-10 item creation is implemented: `/items/new` sends item metadata, the Release 1 UOM/fractional policy, and optional decimal STORE/WAREHOUSE openings through the backend's single atomic create operation, with explicit category, validation, pending, conflict, failure-recovery, success, and focus behavior.
 - FE-11 item editing is implemented: `/items/:sku/edit` separates editable metadata from backend-reported UOM/fraction locks, excludes stock mutation, and covers explicit loading, validation, pending, conflict-refresh, success, duplicate-submit, focus, and responsive behavior.
+- FE-12 stock movement history is implemented: `/stock-movements` renders the paged backend ledger directly, supports item/direction/location filters, and has an item-scoped entry point without posting or reconstructing stock movements.
 
 Release 1 work must preserve this baseline unless a narrowly scoped PR proves that a dependency change is necessary for its immediate domain. TypeScript migration, TanStack Query adoption, global store replacement, router restructuring, and a global design-system rewrite are not Release 1 prerequisites.
 
@@ -369,7 +370,7 @@ The following must be verified or completed before their dependent frontend PRs 
 - Removal or explicit deprecation plan for legacy aggregate `stockQuantity`.
 - UOM vocabulary alignment: the current backend enum also exposes `GRAM`, `MILLILITER`, `CENTIMETER`, and `ROLL`, while the confirmed Release 1 frontend vocabulary remains `PIECE`, `METER`, `KILOGRAM`, and `LITER`.
 - Atomic item opening-balance contract.
-- Stock movement history endpoint/read model.
+- Stock movement history endpoint/read model is available at `GET /api/stock-movements`; its response includes item/UOM, decimal quantity, location, movement/source type, reference, actor, timestamp, and paging/filter semantics.
 - Stock transfer endpoint and atomic behavior.
 - Cash-session current/open/close/history/detail endpoints and conflict semantics.
 - Sale request/response, server totals/change, payment method, cash-session enforcement, and idempotency/status-recovery contract.

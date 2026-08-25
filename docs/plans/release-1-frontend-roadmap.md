@@ -71,7 +71,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-09 | Item inventory read model | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-10 | Item creation and opening balance | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-09 | `gpt-5.6-sol`, high |
 | FE-11 | Item editing and movement locks | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-09 | `gpt-5.6-sol`, high |
-| FE-12 | Stock movement history | BLOCKED | BLOCKED | FE-09 | `gpt-5.6-terra`, high |
+| FE-12 | Stock movement history | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-09 | `gpt-5.6-terra`, high |
 | FE-13 | Stock adjustment | BLOCKED | BLOCKED | FE-12 | `gpt-5.6-sol`, high |
 | FE-14 | Stock transfer | BLOCKED | BLOCKED | FE-12 | `gpt-5.6-sol`, high |
 | FE-15 | Current/open cash session | BLOCKED | BLOCKED | FE-03 | `gpt-5.6-sol`, high |
@@ -339,8 +339,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-12 — Stock movement history
 
 - **Domain:** Stock movement read model.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `DIRECT_IMPLEMENTATION`.
+- **Status:** `IMPLEMENTED`.
+- **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-09.
 - **Backend gate:** Movement list/detail endpoint exposes decimal quantity, item, type, source/destination or location, reference, actor, timestamp, paging/filter semantics.
 - **User-visible change:** Users can trace item stock changes and their source documents.
