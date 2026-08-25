@@ -1,7 +1,4 @@
 import { useEffect, useState } from "react";
-
-import { enqueueSnackbar } from "notistack";
-
 import {
     Button,
     ButtonGroup,
@@ -16,16 +13,14 @@ import {
     TableRow,
     TextField
 } from "@mui/material";
-
 import { LayoutGridIcon, LayoutListIcon, ShoppingCartIcon } from "lucide-react";
+import { enqueueSnackbar } from "notistack";
 
-import { useBreadcrumbStore, useItemCategoryStore, useItemStore } from "@stores/index.js";
-
-import { clearDebounce, debounce } from "@utils/general-utils.js";
-
+import CurrentCashSession from "@components/cash-session/CurrentCashSession.jsx";
 import CashierCart from "@components/cashier/CashierCart.jsx";
-
 import { CASHIER_ACTION_MESSAGE } from "@constants/cashier.jsx";
+import { useBreadcrumbStore, useItemCategoryStore, useItemStore } from "@stores/index.js";
+import { clearDebounce, debounce } from "@utils/general-utils.js";
 
 export default function Cashier() {
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
@@ -146,7 +141,12 @@ export default function Cashier() {
     }, [])
 
     return (
-        <div className="cashier flex flex-col gap-4 xl:flex-row">
+        <>
+            <div className="mb-4">
+                <CurrentCashSession />
+            </div>
+
+            <div className="cashier flex flex-col gap-4 xl:flex-row">
             <div className="cashier__content min-w-0 xl:basis-2/3">
                 <div className="cashier__content-filter card mb-4">
                     <TextField
@@ -315,6 +315,7 @@ export default function Cashier() {
                     onQuantityUpdate={ handleQuantityUpdate }
                 />
             </div>
-        </div>
+            </div>
+        </>
     )
 }

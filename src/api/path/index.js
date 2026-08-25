@@ -51,6 +51,11 @@ const STOCK_TRANSFER = {
     create: '/api/stock-transfers'
 }
 
+const CASH_SESSION = {
+    current: '/api/cash-sessions/current',
+    open: '/api/cash-sessions/open'
+}
+
 const DASHBOARD = {
     overview: '/api/dashboard/overview'
 }
@@ -64,5 +69,6 @@ export {
     STOCK_ADJUSTMENT,
     STOCK_MOVEMENT,
     STOCK_TRANSFER,
+    CASH_SESSION,
     DASHBOARD
 }

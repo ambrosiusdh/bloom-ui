@@ -38,6 +38,7 @@ Bloom UI is currently a JavaScript React application:
 - FE-11 item editing is implemented: `/items/:sku/edit` separates editable metadata from backend-reported UOM/fraction locks, excludes stock mutation, and covers explicit loading, validation, pending, conflict-refresh, success, duplicate-submit, focus, and responsive behavior.
 - FE-12 stock movement history is implemented: `/stock-movements` renders the paged backend ledger directly, supports item/direction/location filters, and has an item-scoped entry point without posting or reconstructing stock movements.
 - FE-14 stock transfer is implemented: `/stock-transfers/new` posts one single-item decimal transfer through the backend's atomic idempotent operation, renders its confirmed reference, and refreshes the affected item data without frontend stock calculations.
+- FE-15 current/open cash session is implemented: the cashier workspace reads the globally current session, distinguishes no-session from failure, and opens one session with backend-confirmed opening cash, identity, timestamp, status, and conflict refresh behavior.
 
 Release 1 work must preserve this baseline unless a narrowly scoped PR proves that a dependency change is necessary for its immediate domain. TypeScript migration, TanStack Query adoption, global store replacement, router restructuring, and a global design-system rewrite are not Release 1 prerequisites.
 
@@ -373,7 +374,8 @@ The following must be verified or completed before their dependent frontend PRs 
 - Atomic item opening-balance contract.
 - Stock movement history endpoint/read model is available at `GET /api/stock-movements`; its response includes item/UOM, decimal quantity, location, movement/source type, reference, actor, timestamp, and paging/filter semantics.
 - Stock transfer is available at `POST /api/stock-transfers`; it atomically records source/destination movements, enforces decimal UOM/fraction and availability rules, accepts `Idempotency-Key`, and returns a stable transfer code and line result.
-- Cash-session current/open/close/history/detail endpoints and conflict semantics.
+- Cash-session current/open endpoints are available at `GET /api/cash-sessions/current` and `POST /api/cash-sessions/open`; the backend enforces global single-open uniqueness with a transaction lock and partial unique index and maps concurrent opening to a conflict.
+- Cash-session close/history/detail frontend alignment and reconciliation conflict semantics.
 - Sale request/response, server totals/change, payment method, cash-session enforcement, and idempotency/status-recovery contract.
 - Actual scanner model, interface, suffix/terminator, and behavior under rapid scans.
 - Printer endpoint success/error semantics in the target environment.
