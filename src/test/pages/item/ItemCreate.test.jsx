@@ -60,15 +60,20 @@ const LocationDisplay = () => {
 };
 
 const selectCategory = async user => {
-    await waitFor(() => expect(itemCategoryApi.getItemCategoryList).toHaveBeenCalled());
-    await user.click(screen.getByRole('combobox', { name: 'Kategori barang' }));
+    const categorySelect = screen.getByRole('combobox', { name: 'Kategori barang' });
+    await waitFor(() => expect(categorySelect).toBeEnabled());
+    await user.click(categorySelect);
     await user.click(screen.getByRole('option', { name: '[KAIN] Kain' }));
 };
 
 const fillRequiredFields = async user => {
-    await user.type(screen.getByLabelText('Nama barang'), 'Kain katun');
+    fireEvent.change(screen.getByLabelText('Nama barang'), {
+        target: { value: 'Kain katun' }
+    });
     await selectCategory(user);
-    await user.type(screen.getByLabelText('Harga jual'), '15000,5000');
+    fireEvent.change(screen.getByLabelText('Harga jual'), {
+        target: { value: '15000,5000' }
+    });
 };
 
 describe('ItemCreate', () => {
@@ -98,6 +103,24 @@ describe('ItemCreate', () => {
         expect(screen.getByRole('button', { name: 'Buat kategori' })).toBeInTheDocument();
     });
 
+    it('aborts category loading and ignores its response after unmount', async () => {
+        const request = deferred();
+        itemCategoryApi.getItemCategoryList.mockReturnValue(request.promise);
+        const { unmount } = render(<ItemCreate />, { route: '/items/new' });
+
+        await waitFor(() => expect(itemCategoryApi.getItemCategoryList).toHaveBeenCalled());
+        const requestSignal = itemCategoryApi.getItemCategoryList.mock.calls[0][0].signal;
+        expect(requestSignal.aborted).toBe(false);
+
+        unmount();
+        expect(requestSignal.aborted).toBe(true);
+        await act(async () => request.resolve(categoriesResponse([
+            { code: 'TERLAMBAT', name: 'Respons terlambat' }
+        ])));
+
+        expect(useItemCategoryStore.getState().itemCategoryList).toEqual([]);
+    });
+
     it('focuses a category load error and retries it', async () => {
         const user = userEvent.setup();
         itemCategoryApi.getItemCategoryList
@@ -125,7 +148,9 @@ describe('ItemCreate', () => {
         expect(screen.getByText('Nilai wajib diisi.')).toBeInTheDocument();
 
         await fillRequiredFields(user);
-        await user.type(screen.getByLabelText('Stok awal STORE'), '1,5');
+        fireEvent.change(screen.getByLabelText('Stok awal STORE'), {
+            target: { value: '1,5' }
+        });
         await user.click(screen.getByRole('button', { name: 'Buat barang' }));
 
         expect(screen.getByText('Barang satuan utuh hanya menerima jumlah tanpa pecahan.'))
@@ -134,8 +159,9 @@ describe('ItemCreate', () => {
         expect(itemApi.createItem).not.toHaveBeenCalled();
 
         await user.click(screen.getByRole('checkbox', { name: 'Izinkan jumlah pecahan' }));
-        await user.clear(screen.getByLabelText('Stok awal STORE'));
-        await user.type(screen.getByLabelText('Stok awal STORE'), '1,25000');
+        fireEvent.change(screen.getByLabelText('Stok awal STORE'), {
+            target: { value: '1,25000' }
+        });
         await user.click(screen.getByRole('button', { name: 'Buat barang' }));
         expect(screen.getByText('Maksimal 4 angka di belakang tanda desimal.'))
             .toBeInTheDocument();
@@ -152,8 +178,12 @@ describe('ItemCreate', () => {
         await user.click(screen.getByRole('combobox', { name: 'Satuan dasar (UOM)' }));
         await user.click(screen.getByRole('option', { name: 'Meter' }));
         await user.click(screen.getByRole('checkbox', { name: 'Izinkan jumlah pecahan' }));
-        await user.type(screen.getByLabelText('Stok awal STORE'), '1,2500');
-        await user.type(screen.getByLabelText('Stok awal WAREHOUSE'), '2.0001');
+        fireEvent.change(screen.getByLabelText('Stok awal STORE'), {
+            target: { value: '1,2500' }
+        });
+        fireEvent.change(screen.getByLabelText('Stok awal WAREHOUSE'), {
+            target: { value: '2.0001' }
+        });
         await user.dblClick(screen.getByRole('button', { name: 'Buat barang' }));
 
         expect(itemApi.createItem).toHaveBeenCalledTimes(1);
@@ -189,8 +219,12 @@ describe('ItemCreate', () => {
         await fillRequiredFields(user);
         await user.click(screen.getByLabelText('Buat SKU otomatis'));
         await waitFor(() => expect(screen.getByLabelText('SKU')).toHaveFocus());
-        await user.type(screen.getByLabelText('SKU'), 'KAIN-MANUAL');
-        await user.type(screen.getByLabelText('Deskripsi barang (opsional)'), 'Input tetap ada');
+        fireEvent.change(screen.getByLabelText('SKU'), {
+            target: { value: 'KAIN-MANUAL' }
+        });
+        fireEvent.change(screen.getByLabelText('Deskripsi barang (opsional)'), {
+            target: { value: 'Input tetap ada' }
+        });
         await user.click(screen.getByRole('button', { name: 'Buat barang' }));
 
         const alert = await screen.findByRole('alert');
