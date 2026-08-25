@@ -4,7 +4,7 @@ import { STOCK_TRANSFER } from '@api/path/index.js';
 const createStockTransfer = (payload, requestKey, options) => api({
     url: STOCK_TRANSFER.create,
     method: 'POST',
-    ...payload,
+    data: payload?.data,
     headers: {
         ...payload?.headers,
         'Idempotency-Key': requestKey

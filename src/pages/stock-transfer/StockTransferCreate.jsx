@@ -153,6 +153,7 @@ export default function StockTransferCreate() {
     const submitErrorRef = useRef(null);
     const submitInProgressRef = useRef(false);
     const requestIdentityRef = useRef({ signature: '', key: '' });
+    const mountedRef = useRef(true);
 
     const activeItems = useMemo(
         () => itemList.filter(item => item.active !== false),
@@ -166,6 +167,13 @@ export default function StockTransferCreate() {
         setBreadcrumbs(['Persediaan', 'Transfer Stok']);
         clearLastCreatedTransfer();
     }, [clearLastCreatedTransfer, setBreadcrumbs]);
+
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+        };
+    }, []);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -273,24 +281,29 @@ export default function StockTransferCreate() {
                 confirmationPayload,
                 requestIdentityRef.current.key
             );
-            setConfirmationPayload(null);
-            setResult(response.data);
-            setForm(previous => ({
-                ...previous,
-                quantity: '',
-                description: ''
-            }));
-            setErrors(EMPTY_ERRORS);
             requestIdentityRef.current = { signature: '', key: '' };
+            if (mountedRef.current) {
+                setConfirmationPayload(null);
+                setResult(response.data);
+                setForm(previous => ({
+                    ...previous,
+                    quantity: '',
+                    description: ''
+                }));
+                setErrors(EMPTY_ERRORS);
+            }
             const refreshed = await refreshAffectedData(response.data.lines[0].itemSku);
-            if (!refreshed) {
+            if (mountedRef.current && !refreshed) {
                 setRefreshWarning(
                     'Transfer berhasil, tetapi data stok terbaru belum dapat dimuat. Muat ulang sebelum membuat transfer lain.'
                 );
             }
         } catch (error) {
-            setConfirmationPayload(null);
+            if (mountedRef.current) {
+                setConfirmationPayload(null);
+            }
             if (error?.category === API_ERROR_CATEGORY.VALIDATION) {
+                if (!mountedRef.current) return;
                 const nextErrors = { ...EMPTY_ERRORS };
                 error.validationErrors?.forEach(detail => {
                     const field = getBackendField(detail.field);
@@ -306,24 +319,32 @@ export default function StockTransferCreate() {
                     setSubmitError('Server menolak data transfer. Periksa masukan lalu coba lagi.');
                 }
             } else if (error?.category === API_ERROR_CATEGORY.CONFLICT) {
-                setConflict(true);
+                if (mountedRef.current) {
+                    setConflict(true);
+                }
                 const refreshed = await refreshAffectedData(form.itemSku);
-                setSubmitError(refreshed
-                    ? 'Stok berubah saat transfer diproses. Data barang sudah dimuat ulang; periksa stok lalu konfirmasi kembali.'
-                    : 'Stok berubah saat transfer diproses dan data terbaru belum dapat dimuat. Muat ulang data sebelum mencoba lagi.');
+                if (mountedRef.current) {
+                    setSubmitError(refreshed
+                        ? 'Stok berubah saat transfer diproses. Data barang sudah dimuat ulang; periksa stok lalu konfirmasi kembali.'
+                        : 'Stok berubah saat transfer diproses dan data terbaru belum dapat dimuat. Muat ulang data sebelum mencoba lagi.');
+                }
             } else if (error?.status === 400) {
                 await refreshAffectedData(form.itemSku);
-                setSubmitError(
-                    'Transfer ditolak server, misalnya karena stok asal tidak cukup. Data stok sudah dimuat ulang; periksa lalu coba lagi.'
-                );
-            } else {
+                if (mountedRef.current) {
+                    setSubmitError(
+                        'Transfer ditolak server, misalnya karena stok asal tidak cukup. Data stok sudah dimuat ulang; periksa lalu coba lagi.'
+                    );
+                }
+            } else if (mountedRef.current) {
                 setSubmitError(
                     error?.message || 'Transfer belum dapat dipastikan. Coba lagi memakai permintaan yang sama.'
                 );
             }
         } finally {
             submitInProgressRef.current = false;
-            setSubmitting(false);
+            if (mountedRef.current) {
+                setSubmitting(false);
+            }
         }
     };
 

@@ -154,6 +154,17 @@ describe('StockTransferCreate', () => {
         expect(stockTransferApi.createStockTransfer).not.toHaveBeenCalled();
     });
 
+    it('puts visible keyboard focus on the item selector after required validation fails', async () => {
+        const user = userEvent.setup();
+        render(<StockTransferCreate />, { route: '/stock-transfers/new' });
+        const itemSelector = await screen.findByRole('combobox', { name: 'Barang' });
+
+        await user.click(screen.getByRole('button', { name: 'Tinjau transfer' }));
+
+        expect(screen.getByText('Barang wajib dipilih.')).toBeInTheDocument();
+        expect(itemSelector).toHaveFocus();
+    });
+
     it('enforces whole-unit and four-decimal item policies without stock math', async () => {
         const user = userEvent.setup();
         render(<StockTransferCreate />, { route: '/stock-transfers/new' });
