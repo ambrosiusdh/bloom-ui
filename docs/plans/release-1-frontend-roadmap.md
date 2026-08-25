@@ -74,7 +74,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-12 | Stock movement history | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-09 | `gpt-5.6-terra`, high |
 | FE-13 | Stock adjustment | BLOCKED | BLOCKED | FE-12 | `gpt-5.6-sol`, high |
 | FE-14 | Stock transfer | IMPLEMENTED | PLAN_RECOMMENDED | FE-12 | `gpt-5.6-sol`, high |
-| FE-15 | Current/open cash session | BLOCKED | BLOCKED | FE-03 | `gpt-5.6-sol`, high |
+| FE-15 | Current/open cash session | IMPLEMENTED | PLAN_RECOMMENDED | FE-03 | `gpt-5.6-sol`, high |
 | FE-16 | Cash-session close and reconciliation | BLOCKED | BLOCKED | FE-15 | `gpt-5.6-sol`, high |
 | FE-17 | Cash-session history and detail | BLOCKED | BLOCKED | FE-16 | `gpt-5.6-terra`, high |
 | FE-18 | Cashier search and cart | BLOCKED | BLOCKED | FE-09, FE-15 | `gpt-5.6-sol`, high |
@@ -399,8 +399,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-15 — Current/open cash session
 
 - **Domain:** Cash-session status and opening.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `PLAN_RECOMMENDED`.
+- **Status:** `IMPLEMENTED`.
+- **Execution class:** `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-03.
 - **Backend gate:** Current-session and open-session endpoints enforce one globally open session and expose opening cash, identity, timestamps, status, conflict/error semantics.
 - **User-visible change:** The user sees whether the drawer is open and can open it once with confirmed opening cash.
