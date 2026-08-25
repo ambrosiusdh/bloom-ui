@@ -77,6 +77,14 @@ export default function CurrentCashSession() {
     const submitErrorRef = useRef(null);
     const inputRef = useRef(null);
     const submitInProgressRef = useRef(false);
+    const mountedRef = useRef(false);
+
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+        };
+    }, []);
 
     useEffect(() => {
         getCurrentSession().catch(() => undefined);
@@ -138,7 +146,7 @@ export default function CurrentCashSession() {
             const session = await openSession({
                 data: { openingCash: normalizeMoney(openingCash) }
             });
-            if (!session) return;
+            if (!session || !mountedRef.current) return;
 
             setDialogOpen(false);
             setOpeningCash('');
@@ -147,6 +155,8 @@ export default function CurrentCashSession() {
                 message: `Sesi kas #${ session.id } berhasil dibuka.`
             });
         } catch (error) {
+            if (!mountedRef.current) return;
+
             const backendFieldError = getOpeningFieldError(error);
             if (backendFieldError) {
                 setFieldError(backendFieldError);
@@ -176,6 +186,7 @@ export default function CurrentCashSession() {
             message: 'Memeriksa apakah sesi kas berhasil dibuka...'
         });
         getCurrentSession().then(session => {
+            if (!mountedRef.current) return;
             setNotice(session ? {
                 severity: 'info',
                 message: 'Status sesi terbaru sudah dimuat.'

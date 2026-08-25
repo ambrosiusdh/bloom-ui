@@ -91,6 +91,12 @@ describe('CurrentCashSession', () => {
         const input = screen.getByLabelText(/Modal awal/);
         expect(input).toHaveFocus();
 
+        await user.type(input, '500.50.1');
+        await user.click(screen.getByRole('button', { name: 'Buka sesi' }));
+        expect(screen.getByText('Masukkan nominal uang yang valid.')).toBeInTheDocument();
+        expect(cashSessionApi.openSession).not.toHaveBeenCalled();
+
+        await user.clear(input);
         await user.type(input, '1234567890123456');
         expect(input).toHaveValue('1,234,567,890,123,456');
         await user.click(screen.getByRole('button', { name: 'Buka sesi' }));

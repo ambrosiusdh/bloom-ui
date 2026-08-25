@@ -34,21 +34,14 @@ export const parseGroupedMoney = (
     const permittedValue = Array.from(ungroupedValue)
         .filter(character => /\d/.test(character) || character === decimalSeparator)
         .join('');
-    const decimalIndex = permittedValue.indexOf(decimalSeparator);
+    const [rawIntegerPart, ...fractionParts] = permittedValue.split(decimalSeparator);
+    const integerPart = rawIntegerPart.replace(/^0+(?=\d)/, '');
 
-    if (decimalIndex < 0) {
-        return permittedValue.replace(/^0+(?=\d)/, '');
+    if (!fractionParts.length) {
+        return integerPart;
     }
 
-    const integerPart = permittedValue
-        .slice(0, decimalIndex)
-        .replace(/^0+(?=\d)/, '');
-    const fractionPart = permittedValue
-        .slice(decimalIndex + decimalSeparator.length)
-        .split(decimalSeparator)
-        .join('');
-
-    return `${ integerPart || '0' }.${ fractionPart }`;
+    return [integerPart || '0', ...fractionParts].join('.');
 };
 
 export const formatGroupedMoney = (
@@ -59,20 +52,14 @@ export const formatGroupedMoney = (
     if (value === '') return '';
 
     const canonicalValue = String(value);
-    const decimalIndex = canonicalValue.indexOf('.');
-    const integerPart = decimalIndex < 0
-        ? canonicalValue
-        : canonicalValue.slice(0, decimalIndex);
-    const fractionPart = decimalIndex < 0
-        ? null
-        : canonicalValue.slice(decimalIndex + 1);
+    const [integerPart, ...fractionParts] = canonicalValue.split('.');
     const groupedInteger = groupSeparator
         ? integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, groupSeparator)
         : integerPart;
 
-    return fractionPart === null
+    return !fractionParts.length
         ? groupedInteger
-        : `${ groupedInteger }${ decimalSeparator }${ fractionPart }`;
+        : `${ groupedInteger }${ decimalSeparator }${ fractionParts.join(decimalSeparator) }`;
 };
 
 export default function BloomMoneyField({
@@ -82,6 +69,7 @@ export default function BloomMoneyField({
     decimalSeparator = '.',
     currencySymbol = 'Rp',
     inputRef,
+    onKeyDown,
     slotProps,
     ...textFieldProps
 }) {
@@ -122,11 +110,41 @@ export default function BloomMoneyField({
         );
     };
 
+    const handleKeyDown = event => {
+        onKeyDown?.(event);
+        if (event.defaultPrevented
+                || event.key !== 'Backspace'
+                || !groupSeparator
+                || event.target.selectionStart !== event.target.selectionEnd) {
+            return;
+        }
+
+        const caretPosition = event.target.selectionStart;
+        if (caretPosition < 2 || displayValue[caretPosition - 1] !== groupSeparator) {
+            return;
+        }
+
+        event.preventDefault();
+        const removalIndex = caretPosition - 2;
+        const nextDisplayValue = `${ displayValue.slice(0, removalIndex) }${
+            displayValue.slice(removalIndex + 1)
+        }`;
+        pendingCaretRef.current = countMeaningfulCharacters(
+            nextDisplayValue.slice(0, removalIndex),
+            groupSeparator
+        );
+        onValueChange(
+            parseGroupedMoney(nextDisplayValue, groupSeparator, decimalSeparator),
+            event
+        );
+    };
+
     return (
         <TextField
             { ...textFieldProps }
             value={ displayValue }
             onChange={ changeValue }
+            onKeyDown={ handleKeyDown }
             inputRef={ assignInputRef }
             slotProps={ {
                 ...slotProps,
@@ -151,6 +169,7 @@ BloomMoneyField.propTypes = {
     groupSeparator: PropTypes.string,
     decimalSeparator: PropTypes.string,
     currencySymbol: PropTypes.node,
+    onKeyDown: PropTypes.func,
     inputRef: PropTypes.oneOfType([
         PropTypes.func,
         PropTypes.shape({ current: PropTypes.any })

@@ -58,4 +58,30 @@ describe('BloomMoneyField', () => {
 
         expect(input).toHaveValue('1.000.000,50');
     });
+
+    it('preserves multiple decimal separators so validation cannot miss a changed amount', async () => {
+        const user = userEvent.setup();
+        const onValueChange = vi.fn();
+        render(<ControlledMoneyField onRawValue={ onValueChange } />);
+        const input = screen.getByLabelText('Nominal');
+
+        await user.type(input, '500.50.1');
+
+        expect(input).toHaveValue('500.50.1');
+        expect(onValueChange).toHaveBeenLastCalledWith('500.50.1', expect.anything());
+    });
+
+    it('deletes the preceding digit when Backspace is pressed after a group separator', async () => {
+        const user = userEvent.setup();
+        render(<ControlledMoneyField />);
+        const input = screen.getByLabelText('Nominal');
+        await user.type(input, '12345');
+        expect(input).toHaveValue('12,345');
+
+        input.setSelectionRange(3, 3);
+        await user.keyboard('{Backspace}');
+
+        expect(input).toHaveValue('1,345');
+        expect(input.selectionStart).toBe(1);
+    });
 });
