@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Roadmap
 
-Last updated: 2026-08-23
+Last updated: 2026-08-25
 
 ## 1. How to use this roadmap
 
@@ -52,7 +52,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 - Existing Axios, Zustand, React Router, Material UI, and shared components are preserved.
 - Vitest, React Testing Library, jsdom, and the shared render helper are available.
 - Current frontend implementations still contain legacy `stockQuantity`, integer-only quantity handling, local sale-total/payment assumptions, and incomplete async/error behavior.
-- Current backend code does not yet expose all Release 1 movement, transfer, cash-session, supplier, payable/payment, expense, sale-idempotency, and dashboard contracts.
+- Current backend code does not yet expose all Release 1 cash-session, supplier, payable/payment, expense, sale-idempotency, and dashboard contracts.
 - A backend print controller exists, so reprinting an already-created sale can proceed independently after its current contract is verified. Automatic post-checkout printing remains gated by the target checkout flow.
 
 ## 4. Delivery overview
@@ -73,7 +73,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-11 | Item editing and movement locks | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-09 | `gpt-5.6-sol`, high |
 | FE-12 | Stock movement history | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-09 | `gpt-5.6-terra`, high |
 | FE-13 | Stock adjustment | BLOCKED | BLOCKED | FE-12 | `gpt-5.6-sol`, high |
-| FE-14 | Stock transfer | BLOCKED | BLOCKED | FE-12 | `gpt-5.6-sol`, high |
+| FE-14 | Stock transfer | IMPLEMENTED | PLAN_RECOMMENDED | FE-12 | `gpt-5.6-sol`, high |
 | FE-15 | Current/open cash session | BLOCKED | BLOCKED | FE-03 | `gpt-5.6-sol`, high |
 | FE-16 | Cash-session close and reconciliation | BLOCKED | BLOCKED | FE-15 | `gpt-5.6-sol`, high |
 | FE-17 | Cash-session history and detail | BLOCKED | BLOCKED | FE-16 | `gpt-5.6-terra`, high |
@@ -379,8 +379,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-14 — Stock transfer
 
 - **Domain:** Stock transfer.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `PLAN_RECOMMENDED`.
+- **Status:** `IMPLEMENTED`.
+- **Execution class:** `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-12.
 - **Backend gate:** Atomic transfer endpoint supports decimal quantity, source/destination, item policy, reference/result movements, validation, and stock conflicts.
 - **User-visible change:** Users can move stock between STORE and WAREHOUSE with one confirmed operation.

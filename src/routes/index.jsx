@@ -22,6 +22,7 @@ const StockAdjustmentList = lazy(() => import("@pages/stock-adjustment/StockAdju
 const StockAdjustmentCreate = lazy(() => import("@pages/stock-adjustment/StockAdjustmentCreate.jsx"));
 const StockAdjustmentDetail = lazy(() => import("@pages/stock-adjustment/StockAdjustmentDetail.jsx"));
 const StockMovementList = lazy(() => import("@pages/stock-movement/StockMovementList.jsx"));
+const StockTransferCreate = lazy(() => import("@pages/stock-transfer/StockTransferCreate.jsx"));
 
 const Login = lazy(() => import("@pages/login/Login.jsx"));
 const NotFound = lazy(() => import("@pages/NotFound.jsx"));
@@ -119,6 +120,10 @@ const router = createBrowserRouter([
             {
                 path: "stock-movements",
                 element: withSuspense(<StockMovementList />)
+            },
+            {
+                path: "stock-transfers/new",
+                element: withSuspense(<StockTransferCreate />)
             },
             {
                 path: "*",

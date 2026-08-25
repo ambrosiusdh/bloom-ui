@@ -47,6 +47,10 @@ const STOCK_MOVEMENT = {
     list: '/api/stock-movements'
 }
 
+const STOCK_TRANSFER = {
+    create: '/api/stock-transfers'
+}
+
 const DASHBOARD = {
     overview: '/api/dashboard/overview'
 }
@@ -59,5 +63,6 @@ export {
     GOODS_RECEIPT,
     STOCK_ADJUSTMENT,
     STOCK_MOVEMENT,
+    STOCK_TRANSFER,
     DASHBOARD
 }

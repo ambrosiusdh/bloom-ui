@@ -74,6 +74,7 @@ describe('back-office navigation', () => {
             '/item-categories',
             '/goods-receipts',
             '/stock-adjustments',
+            '/stock-transfers/new',
             '/stock-movements',
             '/sales'
         ]);

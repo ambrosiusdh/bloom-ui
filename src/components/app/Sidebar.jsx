@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useMediaQuery } from "@mui/material";
 import {
     ClipboardCheckIcon,
+    ArrowLeftRightIcon,
     HandCoinsIcon,
     HistoryIcon,
     LayoutDashboardIcon,
@@ -36,6 +37,7 @@ const navigationGroups = [
             { to: '/item-categories', icon: TagsIcon, label: 'Kategori Barang' },
             { to: '/goods-receipts', icon: TruckIcon, label: 'Penerimaan Barang' },
             { to: '/stock-adjustments', icon: ClipboardCheckIcon, label: 'Penyesuaian Stok' },
+            { to: '/stock-transfers/new', icon: ArrowLeftRightIcon, label: 'Transfer Stok' },
             { to: '/stock-movements', icon: HistoryIcon, label: 'Riwayat Pergerakan Stok' }
         ]
     },
