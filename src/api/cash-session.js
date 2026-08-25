@@ -12,7 +12,26 @@ const openSession = (payload, options) => api({
     data: payload?.data
 }, options);
 
+const getSessionDetails = (sessionId, options) => api({
+    url: CASH_SESSION.detail(sessionId),
+    method: 'GET'
+}, options);
+
+const getExpectedCash = (sessionId, options) => api({
+    url: CASH_SESSION.expectedCash(sessionId),
+    method: 'GET'
+}, options);
+
+const closeSession = (sessionId, payload, options) => api({
+    url: CASH_SESSION.close(sessionId),
+    method: 'POST',
+    data: payload?.data
+}, options);
+
 export default {
     getCurrentSession,
-    openSession
+    openSession,
+    getSessionDetails,
+    getExpectedCash,
+    closeSession
 };

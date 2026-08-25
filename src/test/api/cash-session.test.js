@@ -32,4 +32,36 @@ describe('cash session API', () => {
             data: { openingCash: '500000.5000' }
         }, undefined);
     });
+
+    it('gets the server reconciliation preview for one session', async () => {
+        const options = { signal: new AbortController().signal };
+
+        await cashSessionApi.getExpectedCash(17, options);
+
+        expect(apiRequest).toHaveBeenCalledWith({
+            url: '/api/cash-sessions/17/expected-cash',
+            method: 'GET'
+        }, options);
+    });
+
+    it('posts only actual closing cash to the verified close endpoint', async () => {
+        await cashSessionApi.closeSession(17, {
+            data: { actualClosingCash: '495000.5000' }
+        });
+
+        expect(apiRequest).toHaveBeenCalledWith({
+            url: '/api/cash-sessions/17/close',
+            method: 'POST',
+            data: { actualClosingCash: '495000.5000' }
+        }, undefined);
+    });
+
+    it('gets one known session for close-conflict recovery', async () => {
+        await cashSessionApi.getSessionDetails(17);
+
+        expect(apiRequest).toHaveBeenCalledWith({
+            url: '/api/cash-sessions/17',
+            method: 'GET'
+        }, undefined);
+    });
 });
