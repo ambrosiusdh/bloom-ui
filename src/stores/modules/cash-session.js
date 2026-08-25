@@ -10,12 +10,19 @@ const useCashSessionStore = create((set, get) => ({
     currentStatus: 'idle',
     currentError: null,
     lastCheckedAt: null,
+    drawerActionsEnabled: false,
     isOpening: false,
     openingError: null,
+    isClosing: false,
+    closingError: null,
 
     getCurrentSession: async options => {
         const requestId = ++latestCurrentRequestId;
-        set({ currentStatus: 'loading', currentError: null });
+        set({
+            currentStatus: 'loading',
+            currentError: null,
+            drawerActionsEnabled: false
+        });
 
         try {
             const { data: response } = await cashSessionApi.getCurrentSession(options);
@@ -24,7 +31,8 @@ const useCashSessionStore = create((set, get) => ({
                     currentSession: response.data,
                     currentStatus: 'ready',
                     currentError: null,
-                    lastCheckedAt: Date.now()
+                    lastCheckedAt: Date.now(),
+                    drawerActionsEnabled: response.data?.status === 'OPEN'
                 });
             }
             return response.data;
@@ -33,17 +41,39 @@ const useCashSessionStore = create((set, get) => ({
                 throw error;
             }
 
-            if (error?.category === API_ERROR_CATEGORY.NOT_FOUND || error?.status === 404) {
-                set({
-                    currentSession: null,
-                    currentStatus: 'ready',
-                    currentError: null,
-                    lastCheckedAt: Date.now()
-                });
-                return null;
-            }
+            set({
+                currentStatus: 'error',
+                currentError: error,
+                drawerActionsEnabled: false
+            });
+            throw error;
+        }
+    },
 
-            set({ currentStatus: 'error', currentError: error });
+    getSessionDetails: async (sessionId, options) => {
+        latestCurrentRequestId += 1;
+        set({
+            currentStatus: 'loading',
+            currentError: null,
+            drawerActionsEnabled: false
+        });
+
+        try {
+            const { data: response } = await cashSessionApi.getSessionDetails(sessionId, options);
+            set({
+                currentSession: response.data,
+                currentStatus: 'ready',
+                currentError: null,
+                lastCheckedAt: Date.now(),
+                drawerActionsEnabled: response.data?.status === 'OPEN'
+            });
+            return response.data;
+        } catch (error) {
+            set({
+                currentStatus: 'error',
+                currentError: error,
+                drawerActionsEnabled: false
+            });
             throw error;
         }
     },
@@ -60,6 +90,7 @@ const useCashSessionStore = create((set, get) => ({
                 currentStatus: 'ready',
                 currentError: null,
                 lastCheckedAt: Date.now(),
+                drawerActionsEnabled: response.data?.status === 'OPEN',
                 openingError: null
             });
             return response.data;
@@ -71,7 +102,45 @@ const useCashSessionStore = create((set, get) => ({
         }
     },
 
-    clearOpeningError: () => set({ openingError: null })
+    closeSession: async (sessionId, payload, options) => {
+        if (get().isClosing || !get().drawerActionsEnabled) return null;
+
+        set({
+            isClosing: true,
+            closingError: null,
+            drawerActionsEnabled: false
+        });
+        try {
+            const { data: response } = await cashSessionApi.closeSession(
+                sessionId,
+                payload,
+                options
+            );
+            latestCurrentRequestId += 1;
+            set({
+                currentSession: response.data,
+                currentStatus: 'ready',
+                currentError: null,
+                lastCheckedAt: Date.now(),
+                drawerActionsEnabled: false,
+                closingError: null
+            });
+            return response.data;
+        } catch (error) {
+            set({
+                closingError: error,
+                drawerActionsEnabled: error?.category === API_ERROR_CATEGORY.VALIDATION
+                    && get().currentStatus === 'ready'
+                    && get().currentSession?.status === 'OPEN'
+            });
+            throw error;
+        } finally {
+            set({ isClosing: false });
+        }
+    },
+
+    clearOpeningError: () => set({ openingError: null }),
+    clearClosingError: () => set({ closingError: null })
 }));
 
 export default useCashSessionStore;

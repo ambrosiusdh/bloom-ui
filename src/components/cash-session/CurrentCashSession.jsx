@@ -18,41 +18,23 @@ import { BanknoteIcon } from 'lucide-react';
 
 import { API_ERROR_CATEGORY } from '@api/index.js';
 import BloomMoneyField from '@components/_ui/BloomMoneyField.jsx';
+import {
+    formatRupiah,
+    getMoneySign,
+    normalizeMoney,
+    validateCashAmount
+} from '@components/cash-session/cash-session-money.js';
+import CloseCashSessionDialog from '@components/cash-session/CloseCashSessionDialog.jsx';
 import { useCashSessionStore } from '@stores/index.js';
 import { formatDate } from '@utils/date-utils.js';
 
-const MONEY_PATTERN = /^\d+(?:\.\d+)?$/;
+const validateOpeningCash = value => validateCashAmount(value, 'Modal awal');
 
-const normalizeMoney = value => value.trim();
-
-const validateOpeningCash = value => {
-    const trimmedValue = value.trim();
-    if (!trimmedValue) {
-        return 'Modal awal wajib diisi.';
-    }
-    if (!MONEY_PATTERN.test(trimmedValue)) {
-        return 'Masukkan nominal uang yang valid.';
-    }
-
-    const [integerPart, fractionalPart = ''] = normalizeMoney(trimmedValue).split('.');
-    if (integerPart.length > 15) {
-        return 'Maksimal 15 angka sebelum tanda desimal.';
-    }
-    if (fractionalPart.length > 4) {
-        return 'Maksimal 4 angka di belakang tanda desimal.';
-    }
-    return '';
-};
-
-const formatRupiah = value => {
-    const [rawInteger = '0', rawFraction = ''] = String(value ?? '0')
-        .replace(',', '.')
-        .split('.');
-    const integer = rawInteger.replace(/^0+(?=\d)/, '') || '0';
-    const fraction = rawFraction.replace(/0+$/, '');
-    const groupedInteger = integer.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-
-    return `Rp ${ groupedInteger }${ fraction ? `,${ fraction }` : '' }`;
+const getVarianceLabel = difference => {
+    const sign = getMoneySign(difference);
+    if (sign < 0) return 'Selisih kurang';
+    if (sign > 0) return 'Selisih lebih';
+    return 'Selisih (seimbang)';
 };
 
 const getOpeningFieldError = error => error?.validationErrors
@@ -62,12 +44,14 @@ export default function CurrentCashSession() {
     const currentSession = useCashSessionStore(state => state.currentSession);
     const currentStatus = useCashSessionStore(state => state.currentStatus);
     const currentError = useCashSessionStore(state => state.currentError);
+    const drawerActionsEnabled = useCashSessionStore(state => state.drawerActionsEnabled);
     const isOpening = useCashSessionStore(state => state.isOpening);
     const getCurrentSession = useCashSessionStore(state => state.getCurrentSession);
     const openSession = useCashSessionStore(state => state.openSession);
     const clearOpeningError = useCashSessionStore(state => state.clearOpeningError);
 
     const [isDialogOpen, setDialogOpen] = useState(false);
+    const [isCloseDialogOpen, setCloseDialogOpen] = useState(false);
     const [openingCash, setOpeningCash] = useState('');
     const [fieldError, setFieldError] = useState('');
     const [submitError, setSubmitError] = useState('');
@@ -113,6 +97,11 @@ export default function CurrentCashSession() {
         setSubmitError('');
         setNotice(null);
         clearOpeningError();
+    };
+
+    const showClosingDialog = () => {
+        setCloseDialogOpen(true);
+        setNotice(null);
     };
 
     const closeOpeningDialog = () => {
@@ -198,6 +187,8 @@ export default function CurrentCashSession() {
         || (currentStatus === 'loading' && !currentSession);
     const hasVerifiedOpenSession = currentStatus === 'ready'
         && currentSession?.status === 'OPEN';
+    const hasClosedSessionResult = currentStatus === 'ready'
+        && currentSession?.status === 'CLOSED';
     const hasStaleSession = currentStatus !== 'ready' && currentSession;
 
     if (isInitialLoading) {
@@ -255,6 +246,9 @@ export default function CurrentCashSession() {
                                 { hasVerifiedOpenSession && (
                                     <Chip size="small" color="success" label="Terbuka" />
                                 ) }
+                                { hasClosedSessionResult && (
+                                    <Chip size="small" label="Ditutup" />
+                                ) }
                                 { hasStaleSession && (
                                     <Chip size="small" color="warning" label="Belum terverifikasi" />
                                 ) }
@@ -276,6 +270,43 @@ export default function CurrentCashSession() {
                                         <dt className="text-gray-500">Waktu buka</dt>
                                         <dd>{ formatDate(currentSession.openedAt, 'dd MMMM yyyy, HH:mm') }</dd>
                                     </div>
+                                    { hasClosedSessionResult && (
+                                        <>
+                                            <div className="mt-2">
+                                                <dt className="text-gray-500">Kas yang diharapkan (server)</dt>
+                                                <dd className="font-semibold">
+                                                    { formatRupiah(currentSession.expectedClosingCash) }
+                                                </dd>
+                                            </div>
+                                            <div className="mt-2">
+                                                <dt className="text-gray-500">Kas aktual (server)</dt>
+                                                <dd className="font-semibold">
+                                                    { formatRupiah(currentSession.actualClosingCash) }
+                                                </dd>
+                                            </div>
+                                            <div className="mt-2">
+                                                <dt className="text-gray-500">
+                                                    { getVarianceLabel(currentSession.difference) }
+                                                </dt>
+                                                <dd className="font-semibold">
+                                                    { formatRupiah(currentSession.difference) }
+                                                </dd>
+                                            </div>
+                                            <div className="mt-2">
+                                                <dt className="text-gray-500">Ditutup oleh</dt>
+                                                <dd>{ currentSession.closedBy || '-' }</dd>
+                                            </div>
+                                            <div className="mt-2">
+                                                <dt className="text-gray-500">Waktu tutup</dt>
+                                                <dd>
+                                                    { formatDate(
+                                                        currentSession.closedAt,
+                                                        'dd MMMM yyyy, HH:mm'
+                                                    ) }
+                                                </dd>
+                                            </div>
+                                        </>
+                                    ) }
                                 </dl>
                             ) : (
                                 <p className="mt-1 text-sm text-gray-600">
@@ -288,6 +319,16 @@ export default function CurrentCashSession() {
                     { currentStatus === 'ready' && !currentSession && (
                         <Button variant="contained" onClick={ showOpeningDialog }>
                             Buka sesi kas
+                        </Button>
+                    ) }
+                    { hasVerifiedOpenSession && (
+                        <Button
+                            color="error"
+                            variant="outlined"
+                            onClick={ showClosingDialog }
+                            disabled={ !drawerActionsEnabled }
+                        >
+                            Tutup sesi kas
                         </Button>
                     ) }
                     { currentStatus === 'loading' && currentSession && (
@@ -373,6 +414,13 @@ export default function CurrentCashSession() {
                     </DialogActions>
                 </form>
             </Dialog>
+
+            <CloseCashSessionDialog
+                open={ isCloseDialogOpen }
+                session={ currentSession }
+                onClose={ () => setCloseDialogOpen(false) }
+                onNotice={ setNotice }
+            />
         </section>
     );
 }
