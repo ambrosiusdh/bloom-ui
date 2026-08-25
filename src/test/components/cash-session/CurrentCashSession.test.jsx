@@ -282,4 +282,23 @@ describe('CurrentCashSession', () => {
         expect(screen.getByRole('button', { name: 'Konfirmasi tutup sesi' })).toBeEnabled();
         expect(cashSessionApi.getExpectedCash).toHaveBeenCalledTimes(2);
     });
+
+    it('aborts an unfinished preview request when the close dialog is dismissed', async () => {
+        const user = userEvent.setup();
+        const previewRequest = deferred();
+        cashSessionApi.getCurrentSession.mockResolvedValue({ data: { data: currentSession } });
+        cashSessionApi.getExpectedCash.mockReturnValue(previewRequest.promise);
+        render(<CurrentCashSession />);
+
+        await user.click(await screen.findByRole('button', { name: 'Tutup sesi kas' }));
+        await waitFor(() => expect(cashSessionApi.getExpectedCash).toHaveBeenCalledTimes(1));
+        const previewOptions = cashSessionApi.getExpectedCash.mock.calls[0][1];
+        expect(previewOptions.signal).toBeInstanceOf(AbortSignal);
+        expect(previewOptions.signal.aborted).toBe(false);
+
+        await user.click(screen.getByRole('button', { name: 'Batal' }));
+
+        await waitFor(() => expect(previewOptions.signal.aborted).toBe(true));
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    });
 });

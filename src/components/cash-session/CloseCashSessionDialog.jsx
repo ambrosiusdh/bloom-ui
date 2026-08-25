@@ -47,6 +47,7 @@ export default function CloseCashSessionDialog({
     const [submitError, setSubmitError] = useState('');
 
     const previewRequestIdRef = useRef(0);
+    const previewAbortControllerRef = useRef(null);
     const inputRef = useRef(null);
     const submitErrorRef = useRef(null);
     const submitInProgressRef = useRef(false);
@@ -62,25 +63,40 @@ export default function CloseCashSessionDialog({
     const loadPreview = useCallback(async () => {
         if (!session?.id) return;
 
+        previewAbortControllerRef.current?.abort();
+        const controller = new AbortController();
+        previewAbortControllerRef.current = controller;
         const requestId = ++previewRequestIdRef.current;
         setPreviewStatus('loading');
         setPreviewError('');
         try {
-            const { data: response } = await cashSessionApi.getExpectedCash(session.id);
-            if (!mountedRef.current || requestId !== previewRequestIdRef.current) return;
+            const { data: response } = await cashSessionApi.getExpectedCash(session.id, {
+                signal: controller.signal
+            });
+            if (controller.signal.aborted
+                    || !mountedRef.current
+                    || requestId !== previewRequestIdRef.current) return;
             setPreview(response.data);
             setPreviewStatus('ready');
         } catch (error) {
-            if (!mountedRef.current || requestId !== previewRequestIdRef.current) return;
+            if (controller.signal.aborted
+                    || !mountedRef.current
+                    || requestId !== previewRequestIdRef.current) return;
             setPreview(null);
             setPreviewStatus('error');
             setPreviewError(error?.message || 'Uang kas yang diharapkan gagal dimuat.');
+        } finally {
+            if (previewAbortControllerRef.current === controller) {
+                previewAbortControllerRef.current = null;
+            }
         }
     }, [session?.id]);
 
     useEffect(() => {
         if (!open) {
             previewRequestIdRef.current += 1;
+            previewAbortControllerRef.current?.abort();
+            previewAbortControllerRef.current = null;
             return;
         }
 
@@ -89,6 +105,12 @@ export default function CloseCashSessionDialog({
         setSubmitError('');
         clearClosingError();
         loadPreview();
+
+        return () => {
+            previewRequestIdRef.current += 1;
+            previewAbortControllerRef.current?.abort();
+            previewAbortControllerRef.current = null;
+        };
     }, [clearClosingError, loadPreview, open]);
 
     useEffect(() => {
