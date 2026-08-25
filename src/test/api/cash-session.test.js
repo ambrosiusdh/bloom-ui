@@ -12,6 +12,21 @@ describe('cash session API', () => {
         apiRequest.mockResolvedValue({});
     });
 
+    it('gets paginated cash-session history with supported filters', async () => {
+        const payload = {
+            params: { page: 2, size: 20, status: 'CLOSED' },
+            signal: new AbortController().signal
+        };
+
+        await cashSessionApi.getSessionHistory(payload);
+
+        expect(apiRequest).toHaveBeenCalledWith({
+            url: '/api/cash-sessions',
+            method: 'GET',
+            ...payload
+        }, undefined);
+    });
+
     it('gets the globally current cash session', async () => {
         const options = { signal: new AbortController().signal };
 
@@ -56,12 +71,14 @@ describe('cash session API', () => {
         }, undefined);
     });
 
-    it('gets one known session for close-conflict recovery', async () => {
-        await cashSessionApi.getSessionDetails(17);
+    it('gets one known session with cancellation support', async () => {
+        const options = { signal: new AbortController().signal };
+        await cashSessionApi.getSessionDetails(17, options);
 
         expect(apiRequest).toHaveBeenCalledWith({
             url: '/api/cash-sessions/17',
-            method: 'GET'
-        }, undefined);
+            method: 'GET',
+            signal: options.signal
+        }, options);
     });
 });

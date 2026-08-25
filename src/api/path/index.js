@@ -52,6 +52,7 @@ const STOCK_TRANSFER = {
 }
 
 const CASH_SESSION = {
+    list: '/api/cash-sessions',
     current: '/api/cash-sessions/current',
     open: '/api/cash-sessions/open',
     detail: sessionId => `/api/cash-sessions/${ sessionId }`,
