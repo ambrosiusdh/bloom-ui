@@ -131,27 +131,45 @@ describe('StockTransferCreate', () => {
         expect(itemApi.getItemList).toHaveBeenCalledTimes(2);
     });
 
-    it('swaps direction and prevents identical source and destination locations', async () => {
+    it('keeps locations opposite when either side changes and swaps the direction', async () => {
         const user = userEvent.setup();
         render(<StockTransferCreate />, { route: '/stock-transfers/new' });
         await screen.findByRole('combobox', { name: 'Barang' });
 
         expect(screen.getByLabelText('Lokasi asal')).toHaveTextContent('Gudang');
         expect(screen.getByLabelText('Lokasi tujuan')).toHaveTextContent('Toko');
+
+        await user.click(screen.getByRole('combobox', { name: 'Lokasi asal' }));
+        await user.click(screen.getByRole('option', { name: 'Toko (STORE)' }));
+        expect(screen.getByLabelText('Lokasi asal')).toHaveTextContent('Toko');
+        expect(screen.getByLabelText('Lokasi tujuan')).toHaveTextContent('Gudang');
+
         await user.click(screen.getByRole('button', { name: 'Tukar lokasi asal dan tujuan' }));
+        expect(screen.getByLabelText('Lokasi asal')).toHaveTextContent('Gudang');
+        expect(screen.getByLabelText('Lokasi tujuan')).toHaveTextContent('Toko');
+
+        await user.click(screen.getByRole('combobox', { name: 'Lokasi tujuan' }));
+        await user.click(screen.getByRole('option', { name: 'Gudang (WAREHOUSE)' }));
         expect(screen.getByLabelText('Lokasi asal')).toHaveTextContent('Toko');
         expect(screen.getByLabelText('Lokasi tujuan')).toHaveTextContent('Gudang');
 
         await selectItem(user);
         await user.type(screen.getByLabelText('Jumlah transfer'), '1');
-        await user.click(screen.getByRole('combobox', { name: 'Lokasi asal' }));
-        await user.click(screen.getByRole('option', { name: 'Gudang (WAREHOUSE)' }));
         await user.click(screen.getByRole('button', { name: 'Tinjau transfer' }));
 
-        expect(screen.getByText('Lokasi tujuan harus berbeda dari lokasi asal.'))
-            .toBeInTheDocument();
-        expect(screen.getByLabelText('Lokasi tujuan')).toHaveFocus();
-        expect(stockTransferApi.createStockTransfer).not.toHaveBeenCalled();
+        expect(await screen.findByRole('dialog', { name: 'Konfirmasi transfer stok' }))
+            .toHaveTextContent('dari Toko (STORE) ke Gudang (WAREHOUSE)');
+    });
+
+    it('uses roomier responsive spacing around the transfer controls', async () => {
+        render(<StockTransferCreate />, { route: '/stock-transfers/new' });
+        await screen.findByRole('combobox', { name: 'Barang' });
+
+        const form = screen.getByRole('button', { name: 'Tinjau transfer' }).closest('form');
+        expect(form).toHaveClass('p-5', 'md:p-6');
+        expect(form.querySelector('fieldset')).not.toHaveClass('space-y-6');
+        expect(form.querySelector('.stock-transfer-create__fields'))
+            .toHaveClass('flex', 'flex-col', 'gap-6');
     });
 
     it('puts visible keyboard focus on the item selector after required validation fails', async () => {

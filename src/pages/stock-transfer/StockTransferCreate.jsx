@@ -53,6 +53,7 @@ const FIELD_ORDER = [
 const DECIMAL_PATTERN = /^\d+(?:[.,]\d+)?$/;
 
 const normalizeDecimal = value => value.trim().replace(',', '.');
+const getOppositeLocation = location => location === 'STORE' ? 'WAREHOUSE' : 'STORE';
 
 const validateQuantity = (value, item) => {
     const trimmedValue = value.trim();
@@ -218,16 +219,14 @@ export default function StockTransferCreate() {
         setRefreshWarning('');
     };
 
-    const blurField = name => {
-        const nextErrors = validateForm(form, selectedItem);
-        setErrors(previous => ({ ...previous, [name]: nextErrors[name] }));
-    };
-
-    const swapLocations = () => {
+    const changeLocation = event => {
+        const { name, value } = event.target;
+        const oppositeLocation = getOppositeLocation(value);
         setForm(previous => ({
             ...previous,
-            sourceLocation: previous.destinationLocation,
-            destinationLocation: previous.sourceLocation
+            [name]: value,
+            [name === 'sourceLocation' ? 'destinationLocation' : 'sourceLocation']:
+                oppositeLocation
         }));
         setErrors(previous => ({
             ...previous,
@@ -237,6 +236,34 @@ export default function StockTransferCreate() {
         setSubmitError('');
         setConflict(false);
         setResult(null);
+        setRefreshWarning('');
+    };
+
+    const blurField = name => {
+        const nextErrors = validateForm(form, selectedItem);
+        setErrors(previous => ({ ...previous, [name]: nextErrors[name] }));
+    };
+
+    const swapLocations = () => {
+        setForm(previous => {
+            const sourceLocation = previous.sourceLocation === previous.destinationLocation
+                ? getOppositeLocation(previous.sourceLocation)
+                : previous.destinationLocation;
+            return {
+                ...previous,
+                sourceLocation,
+                destinationLocation: getOppositeLocation(sourceLocation)
+            };
+        });
+        setErrors(previous => ({
+            ...previous,
+            sourceLocation: '',
+            destinationLocation: ''
+        }));
+        setSubmitError('');
+        setConflict(false);
+        setResult(null);
+        setRefreshWarning('');
     };
 
     const reviewTransfer = event => {
@@ -451,33 +478,41 @@ export default function StockTransferCreate() {
                 </Alert>
             ) }
 
-            <Paper component="form" className="p-4" onSubmit={ reviewTransfer } noValidate>
-                <fieldset disabled={ interactionDisabled || activeItems.length === 0 }>
+            <Paper
+                component="form"
+                className="p-5 md:p-6"
+                onSubmit={ reviewTransfer }
+                noValidate
+            >
+                <fieldset
+                    disabled={ interactionDisabled || activeItems.length === 0 }
+                >
                     <legend className="sr-only">Data transfer stok</legend>
 
-                    <TextField
-                        select
-                        fullWidth
-                        size="small"
-                        className="mb-4"
-                        label="Barang"
-                        name="itemSku"
-                        value={ selectedItem ? form.itemSku : '' }
-                        inputRef={ element => { fieldRefs.current.itemSku = element; } }
-                        error={ !!errors.itemSku }
-                        helperText={ errors.itemSku || 'Pilih satu barang aktif.' }
-                        onChange={ changeField }
-                        onBlur={ () => blurField('itemSku') }
-                    >
-                        { activeItems.map(item => (
-                            <MenuItem key={ item.sku } value={ item.sku }>
-                                [{ item.sku }] { item.name }
-                            </MenuItem>
-                        )) }
-                    </TextField>
+                    <div className="stock-transfer-create__fields flex flex-col gap-6">
+
+                        <TextField
+                            select
+                            fullWidth
+                            size="small"
+                            label="Barang"
+                            name="itemSku"
+                            value={ selectedItem ? form.itemSku : '' }
+                            inputRef={ element => { fieldRefs.current.itemSku = element; } }
+                            error={ !!errors.itemSku }
+                            helperText={ errors.itemSku || 'Pilih satu barang aktif.' }
+                            onChange={ changeField }
+                            onBlur={ () => blurField('itemSku') }
+                        >
+                            { activeItems.map(item => (
+                                <MenuItem key={ item.sku } value={ item.sku }>
+                                    [{ item.sku }] { item.name }
+                                </MenuItem>
+                            )) }
+                        </TextField>
 
                     { selectedItem && (
-                        <Alert severity="info" className="mb-4">
+                        <Alert severity="info">
                             <div>
                                 Satuan: <strong>{ formatUnitOfMeasure(
                                     selectedItem.baseUnitOfMeasure
@@ -497,7 +532,7 @@ export default function StockTransferCreate() {
                         </Alert>
                     ) }
 
-                    <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-[1fr_auto_1fr]">
+                    <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-[1fr_auto_1fr] md:gap-5">
                         <TextField
                             select
                             size="small"
@@ -512,7 +547,7 @@ export default function StockTransferCreate() {
                                     selectedItem.baseUnitOfMeasure
                                 ) }`
                                 : 'Pilih lokasi stok yang akan dikurangi server.') }
-                            onChange={ changeField }
+                            onChange={ changeLocation }
                             onBlur={ () => blurField('sourceLocation') }
                         >
                             { LOCATIONS.map(location => (
@@ -542,15 +577,14 @@ export default function StockTransferCreate() {
                             inputRef={ element => { fieldRefs.current.destinationLocation = element; } }
                             error={ !!errors.destinationLocation }
                             helperText={ errors.destinationLocation
-                                || 'Harus berbeda dari lokasi asal.' }
-                            onChange={ changeField }
+                                || 'Lokasi asal akan menyesuaikan otomatis.' }
+                            onChange={ changeLocation }
                             onBlur={ () => blurField('destinationLocation') }
                         >
                             { LOCATIONS.map(location => (
                                 <MenuItem
                                     key={ location }
                                     value={ location }
-                                    disabled={ location === form.sourceLocation }
                                 >
                                     { LOCATION_LABELS[location] }
                                 </MenuItem>
@@ -561,7 +595,6 @@ export default function StockTransferCreate() {
                     <TextField
                         fullWidth
                         size="small"
-                        className="mt-4"
                         label="Jumlah transfer"
                         name="quantity"
                         value={ form.quantity }
@@ -580,7 +613,6 @@ export default function StockTransferCreate() {
                         multiline
                         rows={ 3 }
                         size="small"
-                        className="mt-4"
                         label="Keterangan (opsional)"
                         name="description"
                         value={ form.description }
@@ -591,17 +623,18 @@ export default function StockTransferCreate() {
                         onBlur={ () => blurField('description') }
                     />
 
-                    <div className="mt-4 flex flex-wrap gap-2">
-                        <Button
-                            type="submit"
-                            variant="contained"
-                            disabled={ interactionDisabled || activeItems.length === 0 }
-                        >
-                            Tinjau transfer
-                        </Button>
-                        <Button type="button" variant="text" onClick={ retryItemLoad }>
-                            Muat ulang stok
-                        </Button>
+                        <div className="flex flex-wrap gap-3 pt-1">
+                            <Button
+                                type="submit"
+                                variant="contained"
+                                disabled={ interactionDisabled || activeItems.length === 0 }
+                            >
+                                Tinjau transfer
+                            </Button>
+                            <Button type="button" variant="text" onClick={ retryItemLoad }>
+                                Muat ulang stok
+                            </Button>
+                        </div>
                     </div>
                 </fieldset>
             </Paper>
