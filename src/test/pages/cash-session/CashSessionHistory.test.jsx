@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -57,6 +57,11 @@ const renderDetail = route => render(
     </Routes>,
     { route }
 );
+
+function LocationProbe() {
+    const location = useLocation();
+    return <output aria-label="Query saat ini">{ location.search }</output>;
+}
 
 describe('CashSessionHistory', () => {
     beforeEach(() => vi.clearAllMocks());
@@ -120,6 +125,25 @@ describe('CashSessionHistory', () => {
         await waitFor(() => expect(cashSessionApi.getSessionHistory).toHaveBeenLastCalledWith(expect.objectContaining({
             params: { page: 1, size: 50 }
         })));
+    });
+
+    it('replaces invalid query values before making one canonical request', async () => {
+        cashSessionApi.getSessionHistory.mockResolvedValue(historyResponse());
+        render(
+            <>
+                <CashSessionHistory />
+                <LocationProbe />
+            </>,
+            { route: '/cash-sessions?page=0&size=999&status=closed&keep=true' }
+        );
+
+        expect(await screen.findByRole('status', { name: 'Query saat ini' }))
+            .toHaveTextContent('?page=1&size=20&keep=true');
+        await screen.findByText('Tidak ada sesi kas');
+        expect(cashSessionApi.getSessionHistory).toHaveBeenCalledTimes(1);
+        expect(cashSessionApi.getSessionHistory).toHaveBeenCalledWith(expect.objectContaining({
+            params: { page: 1, size: 20 }
+        }));
     });
 });
 

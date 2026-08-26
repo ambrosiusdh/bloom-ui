@@ -19,36 +19,41 @@ import {
 import PropTypes from 'prop-types';
 
 import cashSessionApi from '@api/cash-session.js';
-import { formatRupiah, getMoneySign } from '@components/cash-session/cash-session-money.js';
+import {
+    formatRupiah,
+    getVariancePresentation
+} from '@components/cash-session/cash-session-money.js';
 import { GENERIC_ERR_MESSAGE } from '@constants/general.js';
 import { useBreadcrumbStore } from '@stores/index.js';
 import { formatDate } from '@utils/date-utils.js';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const STATUS_OPTIONS = { OPEN: 'Terbuka', CLOSED: 'Ditutup' };
-const getPage = params => Math.max(Number(params.get('page')) || 1, 1);
-const getSize = params => PAGE_SIZE_OPTIONS.includes(Number(params.get('size')))
-    ? Number(params.get('size')) : 20;
-const getStatus = params => Object.hasOwn(STATUS_OPTIONS, params.get('status'))
-    ? params.get('status') : '';
 const money = value => value == null ? '-' : formatRupiah(value);
 
-const getVariancePresentation = value => {
-    const sign = getMoneySign(value);
-    if (sign < 0) return {
-        label: 'Kurang',
-        badgeClass: 'bg-red-100 text-red-800',
-        amountClass: 'text-red-700'
-    };
-    if (sign > 0) return {
-        label: 'Lebih',
-        badgeClass: 'bg-amber-100 text-amber-900',
-        amountClass: 'text-amber-700'
-    };
+const getQueryState = params => {
+    const next = new URLSearchParams(params);
+    const rawPage = params.get('page');
+    const requestedPage = Number(rawPage);
+    const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+    if (params.has('page') && rawPage !== String(page)) next.set('page', String(page));
+
+    const rawSize = params.get('size');
+    const requestedSize = Number(rawSize);
+    const size = PAGE_SIZE_OPTIONS.includes(requestedSize) ? requestedSize : 20;
+    if (params.has('size') && rawSize !== String(size)) next.set('size', String(size));
+
+    const rawStatus = params.get('status');
+    const status = Object.hasOwn(STATUS_OPTIONS, rawStatus) ? rawStatus : '';
+    if (params.has('status') && !status) next.delete('status');
+
+    const canonicalSearch = next.toString();
     return {
-        label: 'Seimbang',
-        badgeClass: 'bg-green-100 text-green-800',
-        amountClass: 'text-green-700'
+        page,
+        size,
+        status,
+        canonicalSearch,
+        needsSanitization: canonicalSearch !== params.toString()
     };
 };
 
@@ -69,12 +74,12 @@ StatusChip.propTypes = { status: PropTypes.string };
 function ClosingResult({ session }) {
     if (session.status !== 'CLOSED') return <span className="text-gray-600">Belum ditutup</span>;
     const presentation = getVariancePresentation(session.difference);
-    const amount = `${ getMoneySign(session.difference) > 0 ? '+' : '' }${ money(session.difference) }`;
+    const amount = `${ presentation.sign > 0 ? '+' : '' }${ money(session.difference) }`;
 
     return (
         <div className="inline-flex flex-col items-start gap-1">
             <span className={ `${ presentation.badgeClass } rounded-full px-2 py-0.5 text-xs font-bold` }>
-                { presentation.label }
+                { presentation.shortLabel }
             </span>
             <strong className={ `${ presentation.amountClass } text-sm tabular-nums` }>{ amount }</strong>
         </div>
@@ -118,9 +123,13 @@ export default function CashSessionHistory() {
     const [isLoading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [retryVersion, setRetryVersion] = useState(0);
-    const page = getPage(searchParams);
-    const size = getSize(searchParams);
-    const status = getStatus(searchParams);
+    const {
+        page,
+        size,
+        status,
+        canonicalSearch,
+        needsSanitization
+    } = getQueryState(searchParams);
     const returnTo = `${ location.pathname }${ location.search }`;
 
     const updateQuery = updates => {
@@ -133,6 +142,11 @@ export default function CashSessionHistory() {
     useEffect(() => setBreadcrumbs(['Riwayat Sesi Kas']), [setBreadcrumbs]);
 
     useEffect(() => {
+        if (needsSanitization) setSearchParams(canonicalSearch, { replace: true });
+    }, [canonicalSearch, needsSanitization, setSearchParams]);
+
+    useEffect(() => {
+        if (needsSanitization) return undefined;
         const controller = new AbortController();
         const params = { page, size, ...(status ? { status } : {}) };
         setLoading(true);
@@ -154,7 +168,7 @@ export default function CashSessionHistory() {
                 if (!controller.signal.aborted) setLoading(false);
             });
         return () => controller.abort();
-    }, [page, retryVersion, size, status]);
+    }, [needsSanitization, page, retryVersion, size, status]);
 
     return (
         <div className="space-y-4">

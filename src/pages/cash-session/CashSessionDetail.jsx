@@ -4,14 +4,15 @@ import { Alert, Button, Chip, CircularProgress, Paper } from '@mui/material';
 import { ArrowLeft } from 'lucide-react';
 
 import cashSessionApi from '@api/cash-session.js';
-import { formatRupiah, getMoneySign } from '@components/cash-session/cash-session-money.js';
+import {
+    formatRupiah,
+    getVariancePresentation
+} from '@components/cash-session/cash-session-money.js';
 import { GENERIC_ERR_MESSAGE } from '@constants/general.js';
 import { useBreadcrumbStore } from '@stores/index.js';
 import { formatDate } from '@utils/date-utils.js';
 
 const money = value => value == null ? '-' : formatRupiah(value);
-const varianceLabel = value => getMoneySign(value) < 0
-    ? 'Selisih kurang' : getMoneySign(value) > 0 ? 'Selisih lebih' : 'Seimbang';
 
 export default function CashSessionDetail() {
     const { sessionId } = useParams();
@@ -73,6 +74,7 @@ export default function CashSessionDetail() {
 
     const closed = session.status === 'CLOSED';
     const statusLabel = closed ? 'Ditutup' : 'Terbuka';
+    const variance = closed ? getVariancePresentation(session.difference) : null;
 
     return (
         <div className="space-y-4 pb-8">
@@ -100,7 +102,7 @@ export default function CashSessionDetail() {
                         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div><dt className="text-sm text-gray-600">Kas diharapkan</dt><dd className="font-semibold">{ money(session.expectedClosingCash) }</dd></div>
                             <div><dt className="text-sm text-gray-600">Kas aktual</dt><dd className="font-semibold">{ money(session.actualClosingCash) }</dd></div>
-                            <div><dt className="text-sm text-gray-600">{ varianceLabel(session.difference) }</dt><dd className="text-xl font-bold">{ money(session.difference) }</dd></div>
+                            <div><dt className="text-sm text-gray-600">{ variance.label }</dt><dd className="text-xl font-bold">{ money(session.difference) }</dd></div>
                             <div><dt className="text-sm text-gray-600">Ditutup oleh</dt><dd>{ session.closedBy || '-' }</dd></div>
                             <div className="sm:col-span-2"><dt className="text-sm text-gray-600">Waktu tutup</dt><dd>{ formatDate(session.closedAt) || '-' }</dd></div>
                         </dl>

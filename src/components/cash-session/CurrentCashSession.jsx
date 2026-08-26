@@ -20,7 +20,7 @@ import { API_ERROR_CATEGORY } from '@api/index.js';
 import BloomMoneyField from '@components/_ui/BloomMoneyField.jsx';
 import {
     formatRupiah,
-    getMoneySign,
+    getVariancePresentation,
     normalizeMoney,
     validateCashAmount
 } from '@components/cash-session/cash-session-money.js';
@@ -29,13 +29,6 @@ import { useCashSessionStore } from '@stores/index.js';
 import { formatDate } from '@utils/date-utils.js';
 
 const validateOpeningCash = value => validateCashAmount(value, 'Modal awal');
-
-const getVarianceLabel = difference => {
-    const sign = getMoneySign(difference);
-    if (sign < 0) return 'Selisih kurang';
-    if (sign > 0) return 'Selisih lebih';
-    return 'Selisih (seimbang)';
-};
 
 const getOpeningFieldError = error => error?.validationErrors
     ?.find(detail => detail.field === 'openingCash')?.message || '';
@@ -286,7 +279,7 @@ export default function CurrentCashSession() {
                                             </div>
                                             <div className="mt-2">
                                                 <dt className="text-gray-500">
-                                                    { getVarianceLabel(currentSession.difference) }
+                                                    { getVariancePresentation(currentSession.difference).label }
                                                 </dt>
                                                 <dd className="font-semibold">
                                                     { formatRupiah(currentSession.difference) }
