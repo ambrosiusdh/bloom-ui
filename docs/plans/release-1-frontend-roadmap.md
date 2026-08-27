@@ -78,7 +78,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-16 | Cash-session close and reconciliation | IMPLEMENTED | PLAN_RECOMMENDED | FE-15 | `gpt-5.6-sol`, high |
 | FE-17 | Cash-session history and detail | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-16 | `gpt-5.6-terra`, high |
 | FE-18 | Cashier search and cart | IMPLEMENTED | PLAN_RECOMMENDED | FE-09, FE-15 | `gpt-5.6-sol`, high |
-| FE-19 | Physical scanner integration | BLOCKED | BLOCKED | FE-18 | `gpt-5.6-sol`, high |
+| FE-19 | Physical scanner integration | IN_PROGRESS | PLAN_RECOMMENDED | FE-18 | `gpt-5.6-sol`, high |
 | FE-20 | Sale checkout submission | BLOCKED | BLOCKED | FE-18 | `gpt-5.6-sol`, xhigh |
 | FE-21 | Post-checkout print and recovery | BLOCKED | BLOCKED | FE-20, FE-07 | `gpt-5.6-sol`, high |
 | FE-22 | Sales history target alignment | BLOCKED | BLOCKED | FE-20 | `gpt-5.6-terra`, high |
@@ -480,8 +480,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-19 — Physical scanner integration
 
 - **Domain:** Barcode scanner input.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after hardware verification, `PLAN_RECOMMENDED`.
+- **Status:** `IN_PROGRESS`; E81W workstation observations are recorded and implementation may proceed, while store-laptop physical verification remains required.
+- **Execution class:** `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-18.
 - **Backend gate:** Item barcode lookup contract stable; actual scanner model/interface, character timing, prefix/suffix, terminator, and rapid-scan behavior verified on the store laptop.
 - **User-visible change:** Physical scans add or focus matching items with immediate success/not-found feedback while manual search remains available.
