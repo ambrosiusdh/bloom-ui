@@ -351,6 +351,7 @@ The physical Release 1 scanner was observed on 2026-08-27 before FE-19 implement
 - The measurements were captured on the `VR-PC` workstation. Store-laptop CPU/RAM specifications are not an FE-19 input, but the same physical-input, focus, browser, and rapid-scan checks must still pass on the store laptop before FE-19 is marked fully verified.
 - A live `/cashier` check on `VR-PC` confirmed that the physical E81W sequence uses the exact item-detail lookup, renders normalized not-found feedback for unregistered `8998824554842`, preserves the focused manual-search field, leaves the cart unchanged, and exposes no checkout action.
 - After registering active zero-stock test item `8998824554842` (`Tes Scanner E81W`), five consecutive physical scans on `VR-PC` produced one cart line at quantity `5`, announced the FE-18 duplicate increment rule, kept search focused and empty, rendered STORE zero only as advisory availability, and exposed no checkout action.
+- Recognized scans are queued in physical order before the item-detail lookup and FE-18 add path, so a slow lookup for one distinct SKU cannot make later cart lines appear first.
 
 The adapter may use a 30 ms maximum inter-key gap for this Release 1 device profile. This is a device-informed tolerance above the observed 13.223 ms maximum, not a value inferred from the seller's unrelated `100 scans/sec` decoding specification. Supporting a different transport or device profile requires new observations rather than widening this threshold speculatively.
 

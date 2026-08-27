@@ -55,6 +55,7 @@ export default function Cashier() {
     const hasVerifiedOpenSessionRef = useRef(false);
     const mountedRef = useRef(true);
     const scanItemRef = useRef(null);
+    const scanQueueRef = useRef(Promise.resolve());
 
     const hasVerifiedOpenSession = currentStatus === 'ready'
         && currentSession?.status === 'OPEN'
@@ -196,7 +197,11 @@ export default function Cashier() {
         if (!hasVerifiedOpenSession) return undefined;
 
         const scanner = createKeyboardWedgeScanner({
-            onScan: value => scanItemRef.current?.(value)
+            onScan: value => {
+                scanQueueRef.current = scanQueueRef.current
+                    .catch(() => undefined)
+                    .then(() => scanItemRef.current?.(value));
+            }
         });
         const handleKeyDown = event => scanner.handleKeyDown(event);
         document.addEventListener('keydown', handleKeyDown, true);
