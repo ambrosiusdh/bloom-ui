@@ -1,11 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconButton, TextField } from '@mui/material';
-import { ShoppingBasketIcon, Trash2Icon } from 'lucide-react';
+import {
+    MinusIcon,
+    PlusIcon,
+    ShoppingBasketIcon,
+    Trash2Icon
+} from 'lucide-react';
 import PropTypes from 'prop-types';
 
 import {
+    canDecrementQuantityByOne,
+    decrementQuantityByOne,
     formatQuantity,
     formatUnitOfMeasure,
+    incrementQuantityByOne,
     isQuantityAboveAvailability,
     normalizeQuantity,
     validateQuantity
@@ -39,50 +47,82 @@ function QuantityField({ item, disabled, onQuantityUpdate, onEditComplete }) {
         return true;
     };
 
+    const adjustByOne = operation => {
+        const validationError = validateQuantity(draft, item.fractionalQuantityAllowed);
+        setError(validationError);
+        if (validationError) {
+            inputRef.current?.focus();
+            return;
+        }
+
+        const nextQuantity = operation(normalizeQuantity(draft));
+        setDraft(nextQuantity);
+        onQuantityUpdate(nextQuantity, item.sku);
+    };
+
     return (
-        <TextField
-            label={ `Jumlah ${ item.name }` }
-            size="small"
-            value={ draft }
-            inputRef={ inputRef }
-            disabled={ disabled }
-            error={ Boolean(error) }
-            helperText={ error || (item.fractionalQuantityAllowed
-                ? 'Boleh pecahan, maksimal 4 desimal.'
-                : 'Hanya jumlah utuh.') }
-            onChange={ event => {
-                setDraft(event.target.value);
-                setError('');
-            } }
-            onBlur={ () => {
-                if (skipBlurRef.current) {
-                    skipBlurRef.current = false;
-                    return;
-                }
-                commit();
-            } }
-            onKeyDown={ event => {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    if (commit()) {
+        <div className="flex items-start gap-1">
+            <IconButton
+                aria-label={ `Kurangi jumlah ${ item.name } sebesar 1 ${ formatUnitOfMeasure(item.baseUnitOfMeasure) }` }
+                disabled={ disabled || !canDecrementQuantityByOne(item.quantity) }
+                onClick={ () => adjustByOne(decrementQuantityByOne) }
+            >
+                <MinusIcon aria-hidden="true" />
+            </IconButton>
+
+            <TextField
+                className="min-w-0 flex-grow"
+                label={ `Jumlah ${ item.name }` }
+                size="small"
+                value={ draft }
+                inputRef={ inputRef }
+                disabled={ disabled }
+                error={ Boolean(error) }
+                helperText={ error || (item.fractionalQuantityAllowed
+                    ? 'Boleh pecahan, maksimal 4 desimal.'
+                    : 'Hanya jumlah utuh.') }
+                onChange={ event => {
+                    setDraft(event.target.value);
+                    setError('');
+                } }
+                onBlur={ () => {
+                    if (skipBlurRef.current) {
+                        skipBlurRef.current = false;
+                        return;
+                    }
+                    commit();
+                } }
+                onKeyDown={ event => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        if (commit()) {
+                            skipBlurRef.current = true;
+                            onEditComplete();
+                        }
+                    }
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
                         skipBlurRef.current = true;
+                        setDraft(item.quantity);
+                        setError('');
                         onEditComplete();
                     }
-                }
-                if (event.key === 'Escape') {
-                    event.preventDefault();
-                    skipBlurRef.current = true;
-                    setDraft(item.quantity);
-                    setError('');
-                    onEditComplete();
-                }
-            } }
-            slotProps={ {
-                htmlInput: {
-                    inputMode: item.fractionalQuantityAllowed ? 'decimal' : 'numeric'
-                }
-            } }
-        />
+                } }
+                slotProps={ {
+                    htmlInput: {
+                        inputMode: item.fractionalQuantityAllowed ? 'decimal' : 'numeric'
+                    }
+                } }
+            />
+
+            <IconButton
+                aria-label={ `Tambah jumlah ${ item.name } sebesar 1 ${ formatUnitOfMeasure(item.baseUnitOfMeasure) }` }
+                disabled={ disabled }
+                onClick={ () => adjustByOne(incrementQuantityByOne) }
+            >
+                <PlusIcon aria-hidden="true" />
+            </IconButton>
+        </div>
     );
 }
 
@@ -105,7 +145,7 @@ export default function CashierCart({
             <h2 id="cashier-cart-title" className="text-lg font-bold">Keranjang</h2>
             <p className="mt-1 text-sm text-gray-600">
                 Menambah barang yang sama menaikkan jumlahnya tepat 1 satuan dasar.
-                Jumlah tetap dapat diedit.
+                Tombol +/− juga mengubah tepat 1; jumlah pecahan tetap dapat diketik.
             </p>
 
             { itemList.length ? (

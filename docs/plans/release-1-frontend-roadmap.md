@@ -362,6 +362,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Status:** `BLOCKED`.
 - **Execution class:** `BLOCKED`; after the gate clears, `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-12.
+- **Current implementation note:** A legacy stock-adjustment route/screen exists, but it is not the FE-13 target: it uses integer/JavaScript-number quantity handling, reads deprecated aggregate `stockQuantity`, and does not send the backend-required `stockLocation` per line.
 - **Backend gate:** Adjustment request/response uses decimal quantity, explicit location/direction semantics, reason, posted movement result, validation, and conflict handling.
 - **User-visible change:** Authorized users can post a reasoned STORE or WAREHOUSE adjustment and see the confirmed movement.
 - **Exact scope:** Align current adjustment list/create/detail to the target contract, with confirmation, pending, conflicts, success, and tests.
@@ -629,12 +630,13 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Recommended model:** `gpt-5.6-sol`, xhigh reasoning.
 - **Expected output:** One atomic receipt submission creates stock movements and financial state or fails recoverably without partial frontend orchestration.
 - **Validation:** Tests for supplier ID, decimal/UOM/location, duplicate line policy, duplicate submit, server totals/status, conflict/error preservation; keyboard/responsive; tests/build/lint.
+- **Shared quantity-component checkpoint:** Compare the verified FE-26 line-input contract with FE-18 and the FE-13 target. If their editing mechanics match, extract a decimal-string-based `BloomQuantityField` for draft preservation, comma/dot input, UOM labelling, and accessible `+`/`−` stepping. Keep zero policy, direction, location, availability, request mapping, and domain errors outside the shared control; do not reuse legacy `BloomInputNumber` unchanged.
 - **Block condition:** Backend still expects free-text supplier, integer quantity, client total, or non-atomic movement/payment calls.
 - **Split trigger:** If line editor and submission exceed the limit, extract a receipt-local line editor first with tests, then post flow; do not ship an unsafe partially wired submit.
 
 **Copy-ready implementation prompt**
 
-> After FE-26's backend gate clears, create a short interaction/request plan and implement goods-receipt creation only. Inspect the exact request/response/validation/service transaction. Use stable supplier and item identities, decimal UOM-aware quantity/purchase-price inputs, explicit location, and one atomic submit. Treat any displayed preview as non-authoritative and render server total/paid/outstanding/status on success. Cover confirmation, pending, duplicate submission, conflicts, preserved input, focus, and responsive line editing with tests. Do not invent supplier/payment contracts or send a client-authoritative total.
+> After FE-26's backend gate clears, create a short interaction/request plan and implement goods-receipt creation only. Inspect the exact request/response/validation/service transaction. Use stable supplier and item identities, decimal UOM-aware quantity/purchase-price inputs, explicit location, and one atomic submit. Treat this as the shared quantity-control checkpoint: compare the verified receipt input mechanics with FE-18 and the FE-13 target, extract a decimal-string-based `BloomQuantityField` only where mechanics genuinely match, and keep domain rules in each workflow. Treat any displayed preview as non-authoritative and render server total/paid/outstanding/status on success. Cover confirmation, pending, duplicate submission, conflicts, preserved input, focus, and responsive line editing with tests. Do not reuse legacy `BloomInputNumber` unchanged, invent supplier/payment contracts, or send a client-authoritative total.
 
 ### FE-27 — Supplier payable views
 

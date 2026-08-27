@@ -151,6 +151,8 @@ If the API lacks a required field or invariant, mark the frontend PR blocked. Do
 - Never use binary floating-point arithmetic as the authoritative quantity calculation.
 - Validation must identify the affected field and explain whether the problem is precision, range, availability, or the item's fractional policy.
 - Stock location must be explicit wherever the operation affects a location.
+- A shared quantity control may own editing-string preservation, comma/dot input, UOM display, accessible increment/decrement controls, and exact decimal stepping. The consuming workflow still owns domain rules such as whether zero is allowed, direction/action semantics, location, advisory availability, request mapping, and error copy.
+- Do not reuse the legacy `BloomInputNumber` for a Release 1 decimal workflow unless it is first replaced or rewritten to avoid binary `Number` arithmetic, digit-only sanitization, and silent clamping.
 
 ### 5.2 Quantity display
 
@@ -350,6 +352,8 @@ Preserve and improve useful existing assets where their behavior fits the contra
 - Vitest/React Testing Library render utilities.
 
 Reuse is not mandatory when an existing component encodes a legacy contract, inaccessible interaction, or unsafe transaction behavior. Prefer local extraction after a repeated pattern is proven over creating a global abstraction in advance.
+
+FE-26 is the planned reuse checkpoint for quantity entry. Once its goods-receipt line contract is verified, compare it with the implemented FE-18 cashier control and the FE-13 target behavior. If the input mechanics genuinely match, extract a shared `BloomQuantityField`; keep receipt, cashier, and adjustment business rules in their respective workflows.
 
 ## 11. Explicit Release 1 exclusions
 

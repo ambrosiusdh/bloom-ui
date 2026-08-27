@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    canDecrementQuantityByOne,
+    decrementQuantityByOne,
     formatQuantity,
     formatUnitOfMeasure,
     incrementQuantityByOne,
@@ -37,6 +39,10 @@ describe('quantity formatting', () => {
     it('increments duplicates and compares advisory availability as scaled decimal strings', () => {
         expect(incrementQuantityByOne('0.125')).toBe('1.125');
         expect(incrementQuantityByOne('999999999999999999.9999')).toBe('1000000000000000000.9999');
+        expect(decrementQuantityByOne('1.125')).toBe('0.125');
+        expect(canDecrementQuantityByOne('1.0001')).toBe(true);
+        expect(canDecrementQuantityByOne('1')).toBe(false);
+        expect(decrementQuantityByOne('0.5')).toBe('0.5');
         expect(isQuantityAboveAvailability('1.0001', '1.0000')).toBe(true);
         expect(isQuantityAboveAvailability('0.5', '0.5000')).toBe(false);
     });

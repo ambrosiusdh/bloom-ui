@@ -71,13 +71,20 @@ const toScaledQuantity = value => {
         + BigInt(fractionalPart.padEnd(4, '0'));
 };
 
-const incrementQuantityByOne = value => {
-    const scaled = toScaledQuantity(value) + 10000n;
+const fromScaledQuantity = scaled => {
     const integerPart = scaled / 10000n;
     const fractionalPart = String(scaled % 10000n).padStart(4, '0').replace(/0+$/, '');
 
     return fractionalPart ? `${ integerPart }.${ fractionalPart }` : String(integerPart);
 };
+
+const incrementQuantityByOne = value => fromScaledQuantity(toScaledQuantity(value) + 10000n);
+
+const canDecrementQuantityByOne = value => toScaledQuantity(value) > 10000n;
+
+const decrementQuantityByOne = value => canDecrementQuantityByOne(value)
+    ? fromScaledQuantity(toScaledQuantity(value) - 10000n)
+    : normalizeQuantity(value);
 
 const isQuantityAboveAvailability = (quantity, availability) => {
     if (availability === null || availability === undefined || availability === '') {
@@ -88,6 +95,8 @@ const isQuantityAboveAvailability = (quantity, availability) => {
 };
 
 export {
+    canDecrementQuantityByOne,
+    decrementQuantityByOne,
     formatQuantity,
     formatUnitOfMeasure,
     incrementQuantityByOne,

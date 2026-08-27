@@ -122,6 +122,19 @@ describe('Cashier search and cart', () => {
         expect(screen.getByText(/sudah ada; jumlah ditambah 1 meter/i)).toBeInTheDocument();
         expect(search).toHaveFocus();
 
+        const decrementButton = screen.getByRole('button', {
+            name: 'Kurangi jumlah Kain katun sebesar 1 meter'
+        });
+        await user.click(decrementButton);
+        expect(screen.getByRole('textbox', { name: 'Jumlah Kain katun' })).toHaveValue('1');
+        expect(decrementButton).toBeDisabled();
+
+        await user.click(screen.getByRole('button', {
+            name: 'Tambah jumlah Kain katun sebesar 1 meter'
+        }));
+        expect(screen.getByRole('textbox', { name: 'Jumlah Kain katun' })).toHaveValue('2');
+        expect(screen.getByText(/jumlah keranjang melebihi informasi stok saat ini/i)).toBeInTheDocument();
+
         await user.click(screen.getByRole('button', { name: 'Hapus Kain katun dari keranjang' }));
         expect(screen.queryByRole('textbox', { name: 'Jumlah Kain katun' })).not.toBeInTheDocument();
         expect(screen.getByText('Cari barang lalu tambahkan ke keranjang')).toBeInTheDocument();
@@ -151,8 +164,15 @@ describe('Cashier search and cart', () => {
 
         const fractionalInput = screen.getByRole('textbox', { name: 'Jumlah Kain katun' });
         await user.clear(fractionalInput);
-        await user.type(fractionalInput, '0,1250{Enter}');
+        await user.type(fractionalInput, '1,1250{Enter}');
+        expect(fractionalInput).toHaveValue('1.125');
+        await user.click(screen.getByRole('button', {
+            name: 'Kurangi jumlah Kain katun sebesar 1 meter'
+        }));
         expect(fractionalInput).toHaveValue('0.125');
+        expect(screen.getByRole('button', {
+            name: 'Kurangi jumlah Kain katun sebesar 1 meter'
+        })).toBeDisabled();
 
         const wholeInput = screen.getByRole('textbox', { name: 'Jumlah Jarum' });
         await user.clear(wholeInput);
