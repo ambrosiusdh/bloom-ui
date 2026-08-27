@@ -47,6 +47,13 @@ const navigationGroups = [
         items: [
             { to: '/sales', icon: ReceiptTextIcon, label: 'Riwayat Penjualan' }
         ]
+    },
+    {
+        id: 'navigation-cash',
+        label: 'Kas',
+        items: [
+            { to: '/cash-sessions', icon: HistoryIcon, label: 'Riwayat Sesi Kas' }
+        ]
     }
 ];
 

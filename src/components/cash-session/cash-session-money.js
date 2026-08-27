@@ -45,3 +45,28 @@ export const getMoneySign = value => {
     if (!digits) return 0;
     return isNegative ? -1 : 1;
 };
+
+export const getVariancePresentation = value => {
+    const sign = getMoneySign(value);
+    if (sign < 0) return {
+        sign,
+        label: 'Selisih kurang',
+        shortLabel: 'Kurang',
+        badgeClass: 'bg-red-100 text-red-800',
+        amountClass: 'text-red-700'
+    };
+    if (sign > 0) return {
+        sign,
+        label: 'Selisih lebih',
+        shortLabel: 'Lebih',
+        badgeClass: 'bg-amber-100 text-amber-900',
+        amountClass: 'text-amber-700'
+    };
+    return {
+        sign,
+        label: 'Selisih (seimbang)',
+        shortLabel: 'Seimbang',
+        badgeClass: 'bg-green-100 text-green-800',
+        amountClass: 'text-green-700'
+    };
+};

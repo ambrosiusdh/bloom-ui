@@ -76,7 +76,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-14 | Stock transfer | IMPLEMENTED | PLAN_RECOMMENDED | FE-12 | `gpt-5.6-sol`, high |
 | FE-15 | Current/open cash session | IMPLEMENTED | PLAN_RECOMMENDED | FE-03 | `gpt-5.6-sol`, high |
 | FE-16 | Cash-session close and reconciliation | IMPLEMENTED | PLAN_RECOMMENDED | FE-15 | `gpt-5.6-sol`, high |
-| FE-17 | Cash-session history and detail | BLOCKED | BLOCKED | FE-16 | `gpt-5.6-terra`, high |
+| FE-17 | Cash-session history and detail | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-16 | `gpt-5.6-terra`, high |
 | FE-18 | Cashier search and cart | BLOCKED | BLOCKED | FE-09, FE-15 | `gpt-5.6-sol`, high |
 | FE-19 | Physical scanner integration | BLOCKED | BLOCKED | FE-18 | `gpt-5.6-sol`, high |
 | FE-20 | Sale checkout submission | BLOCKED | BLOCKED | FE-18 | `gpt-5.6-sol`, xhigh |
@@ -439,8 +439,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-17 — Cash-session history and detail
 
 - **Domain:** Cash-session history.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `DIRECT_IMPLEMENTATION`.
+- **Status:** `IMPLEMENTED`.
+- **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-16.
 - **Backend gate:** Session list/detail read models expose opening, expected, actual, variance, status, actor/timestamps, paging/filter semantics.
 - **User-visible change:** Users can review prior sessions and reconciliation outcomes.

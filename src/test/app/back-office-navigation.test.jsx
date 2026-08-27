@@ -67,6 +67,7 @@ describe('back-office navigation', () => {
         expect(within(navigation).getByRole('heading', { name: 'Ringkasan' })).toBeInTheDocument();
         expect(within(navigation).getByRole('heading', { name: 'Persediaan' })).toBeInTheDocument();
         expect(within(navigation).getByRole('heading', { name: 'Penjualan' })).toBeInTheDocument();
+        expect(within(navigation).getByRole('heading', { name: 'Kas' })).toBeInTheDocument();
 
         expect(within(navigation).getAllByRole('link').map(link => link.getAttribute('href'))).toEqual([
             '/dashboard',
@@ -76,7 +77,8 @@ describe('back-office navigation', () => {
             '/stock-adjustments',
             '/stock-transfers/new',
             '/stock-movements',
-            '/sales'
+            '/sales',
+            '/cash-sessions'
         ]);
         expect(screen.getByRole('link', { name: 'Kasir' })).toHaveAttribute('href', '/cashier');
         expect(screen.getByRole('button', { name: 'Keluar' })).toHaveClass('bg-transparent', 'hover:bg-maroon-700');
