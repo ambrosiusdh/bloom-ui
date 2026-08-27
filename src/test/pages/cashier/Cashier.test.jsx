@@ -305,7 +305,7 @@ describe('Cashier search and cart', () => {
 
         scanWithObservedE81wTiming(search, scannedItem.sku);
 
-        expect(cashierMocks.getItemDetails).toHaveBeenCalledWith(scannedItem.sku);
+        await waitFor(() => expect(cashierMocks.getItemDetails).toHaveBeenCalledWith(scannedItem.sku));
         expect(cashierMocks.getItemList).not.toHaveBeenCalled();
         expect(await screen.findByRole('textbox', { name: 'Jumlah Produk pindai' })).toHaveValue('1');
         expect(search).toHaveValue('draft manual');
@@ -351,6 +351,36 @@ describe('Cashier search and cart', () => {
         expect(await screen.findByRole('textbox', { name: 'Jumlah Produk cepat' })).toHaveValue('3');
         expect(screen.getByText(/sudah ada; jumlah ditambah 1 meter/i)).toBeInTheDocument();
         expect(cashierMocks.getItemList).not.toHaveBeenCalled();
+    });
+
+    it('preserves physical scan order when the first distinct-item lookup is slow', async () => {
+        const firstRequest = deferred();
+        const secondRequest = deferred();
+        const firstItem = item({ sku: '1111111111111', name: 'Produk pertama' });
+        const secondItem = item({ sku: '2222222222222', name: 'Produk kedua' });
+        cashierMocks.getItemDetails
+            .mockReturnValueOnce(firstRequest.promise)
+            .mockReturnValueOnce(secondRequest.promise);
+        render(<Cashier />);
+
+        const search = screen.getByRole('textbox', { name: 'SKU atau nama barang' });
+        const firstEndedAt = scanWithObservedE81wTiming(search, firstItem.sku, 1_000);
+        scanWithObservedE81wTiming(search, secondItem.sku, firstEndedAt + 443.197);
+
+        await waitFor(() => expect(cashierMocks.getItemDetails).toHaveBeenCalledTimes(1));
+        expect(cashierMocks.getItemDetails).toHaveBeenNthCalledWith(1, firstItem.sku);
+
+        await act(async () => firstRequest.resolve({ data: { data: firstItem } }));
+        await waitFor(() => expect(cashierMocks.getItemDetails).toHaveBeenCalledTimes(2));
+        expect(cashierMocks.getItemDetails).toHaveBeenNthCalledWith(2, secondItem.sku);
+
+        await act(async () => secondRequest.resolve({ data: { data: secondItem } }));
+        await screen.findByRole('textbox', { name: 'Jumlah Produk kedua' });
+        expect(screen.getAllByRole('button', { name: /Hapus Produk/i })
+            .map(button => button.getAttribute('aria-label'))).toEqual([
+            'Hapus Produk pertama dari keranjang',
+            'Hapus Produk kedua dari keranjang'
+        ]);
     });
 
     it('restores quantity editing when a scan arrives there, then returns focus to search', async () => {

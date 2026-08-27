@@ -29,6 +29,13 @@ const captureTextEntry = target => {
     };
 };
 
+const getNativeValueSetter = target => {
+    const prototype = target instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement.prototype
+        : HTMLInputElement.prototype;
+    return Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
+};
+
 const restoreTextEntry = snapshot => {
     if (!snapshot?.target?.isConnected) return;
 
@@ -36,10 +43,7 @@ const restoreTextEntry = snapshot => {
     if (snapshot.type === 'contenteditable') {
         target.textContent = snapshot.textContent;
     } else {
-        const valueSetter = Object.getOwnPropertyDescriptor(
-            Object.getPrototypeOf(target),
-            'value'
-        )?.set;
+        const valueSetter = getNativeValueSetter(target);
         valueSetter?.call(target, snapshot.value);
     }
 
