@@ -1,148 +1,213 @@
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
+import { IconButton, TextField } from '@mui/material';
+import {
+    MinusIcon,
+    PlusIcon,
+    ShoppingBasketIcon,
+    Trash2Icon
+} from 'lucide-react';
+import PropTypes from 'prop-types';
 
-import PropTypes from "prop-types";
+import {
+    canDecrementQuantityByOne,
+    decrementQuantityByOne,
+    formatQuantity,
+    formatUnitOfMeasure,
+    incrementQuantityByOne,
+    isQuantityAboveAvailability,
+    normalizeQuantity,
+    validateQuantity
+} from '@utils/quantity-utils.js';
 
-import { Button, InputAdornment, TextField } from "@mui/material";
+const formatPrice = value => new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 4
+}).format(Number(value || 0));
 
-import { ShoppingBasketIcon } from "lucide-react";
+function QuantityField({ item, disabled, onQuantityUpdate, onEditComplete }) {
+    const [draft, setDraft] = useState(item.quantity);
+    const [error, setError] = useState('');
+    const inputRef = useRef(null);
+    const skipBlurRef = useRef(false);
 
-import BloomInputNumber from "@components/_ui/BloomInputNumber.jsx";
+    useEffect(() => setDraft(item.quantity), [item.quantity]);
 
-const propTypes = {
-    itemList: PropTypes.array,
-    onQuantityUpdate: PropTypes.func
-}
+    const commit = () => {
+        const validationError = validateQuantity(draft, item.fractionalQuantityAllowed);
+        setError(validationError);
+        if (validationError) {
+            inputRef.current?.focus();
+            return false;
+        }
 
-export default function CashierCart(props) {
-    const {
-        itemList,
-        onQuantityUpdate
-    } = props;
+        const normalized = normalizeQuantity(draft);
+        setDraft(normalized);
+        onQuantityUpdate(normalized, item.sku);
+        return true;
+    };
 
-    const [discount, setDiscount] = useState(0);
-    const handleDiscountChange = e => {
-        let value = +e.target.value.replace(/[^0-9]/g, '')
-        setDiscount(value > subtotal ? subtotal : value);
-    }
-    const subtotal = useMemo(
-        () => itemList.reduce((tot, item) => tot + (item.price * item.quantity), 0),
-        [itemList]
-    )
+    const adjustByOne = operation => {
+        const validationError = validateQuantity(draft, item.fractionalQuantityAllowed);
+        setError(validationError);
+        if (validationError) {
+            inputRef.current?.focus();
+            return;
+        }
+
+        const nextQuantity = operation(normalizeQuantity(draft));
+        setDraft(nextQuantity);
+        onQuantityUpdate(nextQuantity, item.sku);
+    };
 
     return (
-        <div className="cashier-cart card w-full flex flex-col gap-4">
-            <div className="cashier-cart__header mb-2">
-                <h2 className="cashier-cart__header-title text-lg font-bold">
-                    Detil pesanan
-                </h2>
-            </div>
+        <div className="flex items-start gap-1">
+            <IconButton
+                aria-label={ `Kurangi jumlah ${ item.name } sebesar 1 ${ formatUnitOfMeasure(item.baseUnitOfMeasure) }` }
+                disabled={ disabled || !canDecrementQuantityByOne(item.quantity) }
+                onClick={ () => adjustByOne(decrementQuantityByOne) }
+            >
+                <MinusIcon aria-hidden="true" />
+            </IconButton>
 
-            {
-                itemList.length ? (
-                    <>
-                        <div className="cashier-cart__content max-h-[55vh] overflow-y-auto scrollbar-thin">
-                            { itemList.map(((item, index) => (
-                                <div className="cashier-cart__content-item flex items-center gap-6 mb-4" key={ item.sku }>
-                                    <div className="cashier-cart__content-item-number text-gray-500">
-                                        { index + 1 }
-                                    </div>
+            <TextField
+                className="min-w-0 flex-grow"
+                label={ `Jumlah ${ item.name }` }
+                size="small"
+                value={ draft }
+                inputRef={ inputRef }
+                disabled={ disabled }
+                error={ Boolean(error) }
+                helperText={ error || (item.fractionalQuantityAllowed
+                    ? 'Boleh pecahan, maksimal 4 desimal.'
+                    : 'Hanya jumlah utuh.') }
+                onChange={ event => {
+                    setDraft(event.target.value);
+                    setError('');
+                } }
+                onBlur={ () => {
+                    if (skipBlurRef.current) {
+                        skipBlurRef.current = false;
+                        return;
+                    }
+                    commit();
+                } }
+                onKeyDown={ event => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        if (commit()) {
+                            skipBlurRef.current = true;
+                            onEditComplete();
+                        }
+                    }
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        skipBlurRef.current = true;
+                        setDraft(item.quantity);
+                        setError('');
+                        onEditComplete();
+                    }
+                } }
+                slotProps={ {
+                    htmlInput: {
+                        inputMode: item.fractionalQuantityAllowed ? 'decimal' : 'numeric'
+                    }
+                } }
+            />
 
-                                    <div className="cashier-cart__content-item-value cashier-cart-item flex-grow flex items-center justify-between gap-2">
-                                        <div className="cashier-cart-item__name break-all">
-                                            { item.name }
-
-                                            <div className="cashier-cart-item__details-price font-bold">
-                                                Rp. { item.price * item.quantity }
-                                            </div>
-                                        </div>
-
-                                        <div className="cashier-cart-item__details flex justify-between items-center">
-
-                                            <div className="cashier-cart-item__details-quantity">
-                                                <BloomInputNumber
-                                                    value={ item.quantity }
-                                                    onChange={ newQuantity => onQuantityUpdate(newQuantity, item.sku) }
-                                                    max={ item.stockQuantity }
-                                                    min="1"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))) }
-                        </div>
-
-                        <div className="cashier-cart__footer mt-auto">
-                            <div className="cashier-cart__footer-details cart-details card shadow-2xl border border-maroon-600 mb-4">
-                                <div className="cart-details__subtotal flex items-center justify-between mb-2">
-                                    <div className="cart-details__subtotal-name">
-                                        Subtotal:
-                                    </div>
-
-                                    <div className="cart-details__subtotal-value">
-                                        Rp. { subtotal }
-                                    </div>
-                                </div>
-
-                                <div className="cart-details__discount text-maroon-600 flex items-center justify-between mb-4">
-                                    <div className="cart-details__discount-name">
-                                        Diskon:
-                                    </div>
-
-                                    <div className="cart-details__discount-value basis-1/3">
-                                        <TextField
-                                            className="cart-details__discount-value-input"
-                                            size="small"
-                                            value={ discount }
-                                            onChange={ handleDiscountChange }
-                                            slotProps={ {
-                                                input: {
-                                                    startAdornment: <InputAdornment position="start">Rp.</InputAdornment>,
-                                                    inputProps: {
-                                                        style: { textAlign: 'right' }
-                                                    }
-                                                }
-                                            } }
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="cart-details__total font-bold border-t mx-[-16px] pt-4 px-4 flex items-center justify-between text-lg">
-                                    <div className="cart-details__total-name">
-                                        Total:
-                                    </div>
-
-                                    <div className="cart-details__total-value">
-                                        Rp. { subtotal - discount }
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="cashier-cart__footer-submit">
-                                <Button
-                                    className="cashier-cart__footer-submit-btn"
-                                    variant="contained"
-                                    fullWidth
-                                    onClick={ createSale }
-                                >
-                                    BAYAR
-                                </Button>
-                            </div>
-                        </div>
-                    </>
-                ) : (
-                    <div className="cashier-cart__empty w-full h-[55vh] flex justify-center items-center flex-col gap-4">
-                        <ShoppingBasketIcon className="cashier-cart__empty-icon w-[20vh] h-[20vh] text-gray-300"/>
-
-                        <div className="cashier-cart__empty-text text-lg text-gray-500">
-                            Masukkan barang ke dalam pesanan
-                        </div>
-                    </div>
-                )
-            }
-
+            <IconButton
+                aria-label={ `Tambah jumlah ${ item.name } sebesar 1 ${ formatUnitOfMeasure(item.baseUnitOfMeasure) }` }
+                disabled={ disabled }
+                onClick={ () => adjustByOne(incrementQuantityByOne) }
+            >
+                <PlusIcon aria-hidden="true" />
+            </IconButton>
         </div>
-    )
+    );
 }
 
-CashierCart.propTypes = propTypes
+QuantityField.propTypes = {
+    item: PropTypes.object.isRequired,
+    disabled: PropTypes.bool.isRequired,
+    onQuantityUpdate: PropTypes.func.isRequired,
+    onEditComplete: PropTypes.func.isRequired
+};
+
+export default function CashierCart({
+    itemList,
+    disabled = false,
+    onQuantityUpdate,
+    onRemove,
+    onEditComplete
+}) {
+    return (
+        <section className="cashier-cart card w-full" aria-labelledby="cashier-cart-title">
+            <h2 id="cashier-cart-title" className="text-lg font-bold">Keranjang</h2>
+            <p className="mt-1 text-sm text-gray-600">
+                Menambah barang yang sama menaikkan jumlahnya tepat 1 satuan dasar.
+                Tombol +/− juga mengubah tepat 1; jumlah pecahan tetap dapat diketik.
+            </p>
+
+            { itemList.length ? (
+                <div className="mt-4 max-h-[55vh] overflow-y-auto scrollbar-thin">
+                    { itemList.map((item, index) => {
+                        const aboveAvailability = isQuantityAboveAvailability(item.quantity, item.stockStore);
+
+                        return (
+                            <article className="mb-4 rounded border p-3" key={ item.sku }>
+                                <div className="flex items-start gap-3">
+                                    <span className="text-gray-500">{ index + 1 }</span>
+                                    <div className="min-w-0 flex-grow">
+                                        <div className="font-semibold break-words">{ item.name }</div>
+                                        <div className="text-sm text-gray-600">
+                                            { item.sku } · { formatPrice(item.price) }/{ formatUnitOfMeasure(item.baseUnitOfMeasure) }
+                                        </div>
+                                    </div>
+                                    <IconButton
+                                        aria-label={ `Hapus ${ item.name } dari keranjang` }
+                                        size="small"
+                                        color="error"
+                                        disabled={ disabled }
+                                        onClick={ () => onRemove(item.sku) }
+                                    >
+                                        <Trash2Icon aria-hidden="true" />
+                                    </IconButton>
+                                </div>
+
+                                <div className="mt-3">
+                                    <QuantityField
+                                        item={ item }
+                                        disabled={ disabled }
+                                        onQuantityUpdate={ onQuantityUpdate }
+                                        onEditComplete={ onEditComplete }
+                                    />
+                                </div>
+
+                                <p className={ `mt-2 text-sm ${ aboveAvailability ? 'text-amber-700' : 'text-gray-600' }` }>
+                                    Tersedia di STORE: { formatQuantity(item.stockStore, item.baseUnitOfMeasure) }
+                                    { aboveAvailability && ' — jumlah keranjang melebihi informasi stok saat ini.' }
+                                    { ' ' }Stok ini bersifat informasi; server memeriksa kembali saat checkout.
+                                </p>
+                            </article>
+                        );
+                    }) }
+                </div>
+            ) : (
+                <div className="flex h-[55vh] w-full flex-col items-center justify-center gap-4">
+                    <ShoppingBasketIcon className="h-[20vh] w-[20vh] text-gray-300" aria-hidden="true" />
+                    <div className="text-center text-lg text-gray-500">
+                        Cari barang lalu tambahkan ke keranjang
+                    </div>
+                </div>
+            ) }
+        </section>
+    );
+}
+
+CashierCart.propTypes = {
+    itemList: PropTypes.array.isRequired,
+    disabled: PropTypes.bool,
+    onQuantityUpdate: PropTypes.func.isRequired,
+    onRemove: PropTypes.func.isRequired,
+    onEditComplete: PropTypes.func.isRequired
+};

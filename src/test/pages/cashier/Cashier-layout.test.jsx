@@ -19,20 +19,13 @@ vi.mock('@components/cash-session/CurrentCashSession.jsx', () => ({
 }));
 vi.mock('@stores/index.js', () => ({
     useBreadcrumbStore: selector => selector({ setBreadcrumbs: cashierStore.setBreadcrumbs }),
-    useItemCategoryStore: selector => selector({
-        itemCategoryList: [],
-        getItemCategoryList: cashierStore.getItemCategoryList
-    }),
-    useItemStore: selector => selector({
-        itemList: [],
-        getItemList: cashierStore.getItemList,
-        getItemDetails: cashierStore.getItemDetails
+    useCashSessionStore: selector => selector({
+        currentSession: { id: 1, status: 'OPEN' },
+        currentStatus: 'ready',
+        drawerActionsEnabled: true
     })
 }));
-vi.mock('@utils/general-utils.js', () => ({
-    clearDebounce: vi.fn(),
-    debounce: vi.fn()
-}));
+vi.mock('@api/item.js', () => ({ default: { getItemList: cashierStore.getItemList } }));
 
 import Cashier from '@/pages/cashier/Cashier.jsx';
 import { render, screen } from '@/test/render.jsx';
