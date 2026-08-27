@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Contract
 
-Last updated: 2026-08-25
+Last updated: 2026-08-27
 
 ## 1. Purpose
 
@@ -41,6 +41,7 @@ Bloom UI is currently a JavaScript React application:
 - FE-15 current/open cash session is implemented: the cashier workspace consumes a successful `data: null` response as the verified no-session state, keeps HTTP failures separate, and opens one session with backend-confirmed opening cash, identity, timestamp, status, and conflict refresh behavior.
 - FE-16 cash-session close and reconciliation is implemented: the current-session surface previews server-calculated expected cash, posts only actual counted cash, renders the final server reconciliation, recovers already-closed conflicts, and locks shared drawer actions until session state is verified.
 - FE-17 cash-session history and detail is implemented: back-office users can page and filter the backend session read model, open one session, and review backend-stored reconciliation and audit fields without ledger aggregation or mutation.
+- FE-18 cashier search and cart is implemented: the focused cashier workspace gates interaction on a verified open session, searches the active backend item read model, handles stale results, and supports duplicate-add, remove, UOM/fraction-aware decimal quantity editing, advisory STORE availability, and deliberate keyboard focus without checkout or local totals.
 
 Release 1 work must preserve this baseline unless a narrowly scoped PR proves that a dependency change is necessary for its immediate domain. TypeScript migration, TanStack Query adoption, global store replacement, router restructuring, and a global design-system rewrite are not Release 1 prerequisites.
 

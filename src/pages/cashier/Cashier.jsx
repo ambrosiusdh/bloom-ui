@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
 import {
+    Alert,
     Button,
-    ButtonGroup,
-    Chip,
-    IconButton,
+    CircularProgress,
     Paper,
     Table,
     TableBody,
@@ -12,133 +11,133 @@ import {
     TableHead,
     TableRow,
     TextField
-} from "@mui/material";
-import { LayoutGridIcon, LayoutListIcon, ShoppingCartIcon } from "lucide-react";
-import { enqueueSnackbar } from "notistack";
+} from '@mui/material';
+import { ShoppingCartIcon } from 'lucide-react';
 
-import CurrentCashSession from "@components/cash-session/CurrentCashSession.jsx";
-import CashierCart from "@components/cashier/CashierCart.jsx";
-import { CASHIER_ACTION_MESSAGE } from "@constants/cashier.jsx";
-import { useBreadcrumbStore, useItemCategoryStore, useItemStore } from "@stores/index.js";
-import { clearDebounce, debounce } from "@utils/general-utils.js";
+import itemApi from '@api/item.js';
+import CurrentCashSession from '@components/cash-session/CurrentCashSession.jsx';
+import CashierCart from '@components/cashier/CashierCart.jsx';
+import { useBreadcrumbStore, useCashSessionStore } from '@stores/index.js';
+import {
+    formatQuantity,
+    formatUnitOfMeasure,
+    incrementQuantityByOne
+} from '@utils/quantity-utils.js';
+
+const formatPrice = value => new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 4
+}).format(Number(value || 0));
 
 export default function Cashier() {
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
-    const itemList = useItemStore(state => state.itemList);
-    const itemCategoryList = useItemCategoryStore(state => state.itemCategoryList);
-    const getItemList = useItemStore(state => state.getItemList);
-    const getItemDetails = useItemStore(state => state.getItemDetails);
-    const getItemCategoryList = useItemCategoryStore(state => state.getItemCategoryList);
+    const currentSession = useCashSessionStore(state => state.currentSession);
+    const currentStatus = useCashSessionStore(state => state.currentStatus);
+    const drawerActionsEnabled = useCashSessionStore(state => state.drawerActionsEnabled);
 
-    const [dataDisplayMode, setDataDisplayMode] = useState('list');
-    const handleDisplayModeChange = mode => {
-        setDataDisplayMode(mode);
-    }
+    const [searchValue, setSearchValue] = useState('');
+    const [submittedQuery, setSubmittedQuery] = useState('');
+    const [searchStatus, setSearchStatus] = useState('idle');
+    const [searchError, setSearchError] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [cartItems, setCartItems] = useState([]);
+    const [cartNotice, setCartNotice] = useState('');
 
-    const [categoryFilter, setCategoryFilter] = useState('');
-    const handleCategoryFilterChange = (value) => {
-        setCategoryFilter(value);
-    }
+    const searchInputRef = useRef(null);
+    const searchFeedbackRef = useRef(null);
+    const requestRef = useRef(null);
+    const sessionWasEnabledRef = useRef(false);
 
-    const [isLoadingData, setIsLoadingData] = useState(false);
-    const [localItemList, setLocalItemList] = useState([]);
-    const addItemToCart = item => {
-        setLocalItemList(prev => {
-            const existingItem = prev.find(({ sku }) => sku === item.sku);
+    const hasVerifiedOpenSession = currentStatus === 'ready'
+        && currentSession?.status === 'OPEN'
+        && drawerActionsEnabled;
+    const normalizedSearch = searchValue.trim();
+    const hasStaleResults = Boolean(submittedQuery && normalizedSearch !== submittedQuery);
 
-            if (existingItem) {
-                if (existingItem.stockQuantity === existingItem.quantity) {
-                    enqueueSnackbar(
-                        CASHIER_ACTION_MESSAGE.addItemCartWithMaxQuantity.message(existingItem.name),
-                        CASHIER_ACTION_MESSAGE.addItemCartWithMaxQuantity.options
-                    );
-                    return prev
-                }
+    useEffect(() => {
+        setBreadcrumbs(['Cashier']);
+        return () => requestRef.current?.abort();
+    }, [setBreadcrumbs]);
 
-                enqueueSnackbar(
-                    CASHIER_ACTION_MESSAGE.addItemToCartSuccess.message(existingItem.name),
-                    CASHIER_ACTION_MESSAGE.addItemToCartSuccess.options
-                );
-                return prev.map(existingItem =>
-                    existingItem.sku === item.sku
-                        ? { ...existingItem, quantity: (existingItem.quantity ?? 0) + 1 }
-                        : existingItem
-                );
-            }
+    useEffect(() => {
+        if (searchStatus === 'error') searchFeedbackRef.current?.focus();
+    }, [searchStatus]);
 
-            enqueueSnackbar(
-                CASHIER_ACTION_MESSAGE.addItemToCartSuccess.message(item.name),
-                CASHIER_ACTION_MESSAGE.addItemToCartSuccess.options
-            );
-            return [...prev, { ...item, quantity: 1 }];
-        });
-    }
-    const handleQuantityUpdate = (quantity, sku) => {
-        setLocalItemList(prevState => prevState.map(item => ({
-            ...item,
-            quantity: item.sku === sku ? quantity : item.quantity
-        })))
-    }
-
-    const [searchValue, setSearchValue] = useState("");
-    function handleSearchChange (e) {
-        setSearchValue(e.target.value);
-    }
-    async function handleSearchKeyup (e) {
-        if (e.key !== "Enter") {
-            return
+    useEffect(() => {
+        if (hasVerifiedOpenSession && !sessionWasEnabledRef.current) {
+            searchInputRef.current?.focus();
         }
+        sessionWasEnabledRef.current = hasVerifiedOpenSession;
+    }, [hasVerifiedOpenSession]);
 
-        clearDebounce('filterItemList')
+    const focusSearch = () => searchInputRef.current?.focus();
+
+    const searchItems = async event => {
+        event.preventDefault();
+        if (!hasVerifiedOpenSession || !normalizedSearch) return;
+
+        requestRef.current?.abort();
+        const controller = new AbortController();
+        requestRef.current = controller;
+        const query = normalizedSearch;
+
+        setSubmittedQuery(query);
+        setSearchStatus('loading');
+        setSearchError('');
+
         try {
-            const response = await getItemDetails(searchValue, { useLoader: true });
-            addItemToCart(response.data)
+            const { data: response } = await itemApi.getItemList({
+                signal: controller.signal,
+                params: { page: 1, size: 10, skuOrName: query }
+            });
+            if (controller.signal.aborted || requestRef.current !== controller) return;
+
+            setSearchResults(response.data?.content || []);
+            setSearchStatus('ready');
         } catch (error) {
-            enqueueSnackbar(
-                CASHIER_ACTION_MESSAGE.scanItemNotFound.message(searchValue),
-                CASHIER_ACTION_MESSAGE.scanItemNotFound.options
-            );
+            if (controller.signal.aborted || requestRef.current !== controller) return;
+            setSearchResults([]);
+            setSearchError(error?.message || 'Pencarian barang gagal. Silakan coba lagi.');
+            setSearchStatus('error');
         } finally {
-            setSearchValue("");
+            if (requestRef.current === controller) requestRef.current = null;
         }
-    }
+    };
 
-    const filterItemList = async () => {
-        setIsLoadingData(true);
-        const payload = {
-            params: {
-                page: 1,
-                size: 10,
-                category: categoryFilter,
-                skuOrName: searchValue
-            }
-        }
+    const addItemToCart = item => {
+        const duplicate = cartItems.some(cartItem => cartItem.sku === item.sku);
+        setCartItems(currentItems => duplicate
+            ? currentItems.map(cartItem => cartItem.sku === item.sku
+                ? { ...cartItem, quantity: incrementQuantityByOne(cartItem.quantity) }
+                : cartItem)
+            : [...currentItems, { ...item, quantity: '1' }]);
+        setCartNotice(duplicate
+            ? `${ item.name } sudah ada; jumlah ditambah 1 ${ formatUnitOfMeasure(item.baseUnitOfMeasure) }.`
+            : `${ item.name } ditambahkan ke keranjang.`);
+        focusSearch();
+    };
 
-        try {
-            await getItemList(payload)
-        } finally {
-            setIsLoadingData(false);
-        }
-    }
+    const updateQuantity = (quantity, sku) => {
+        setCartItems(currentItems => currentItems.map(item => item.sku === sku
+            ? { ...item, quantity }
+            : item));
+    };
 
-    const filterItemCategoryList = async () => {
-        const payload = {
-            params: {
-                page: 1,
-                size: 2000
-            }
-        }
+    const removeItem = sku => {
+        const item = cartItems.find(cartItem => cartItem.sku === sku);
+        setCartItems(currentItems => currentItems.filter(cartItem => cartItem.sku !== sku));
+        setCartNotice(`${ item?.name || 'Barang' } dihapus dari keranjang.`);
+        focusSearch();
+    };
 
-        await getItemCategoryList(payload)
-    }
-
-    useEffect(() => {
-        debounce(filterItemList, 'filterItemList', 500)
-    }, [searchValue, categoryFilter]);
-    useEffect(() => {
-        setBreadcrumbs(['Cashier'])
-        filterItemCategoryList()
-    }, [])
+    const sessionGateMessage = currentStatus === 'error'
+        ? 'Pencarian dan keranjang dikunci sampai status sesi kas berhasil dimuat ulang.'
+        : currentStatus !== 'ready'
+            ? 'Pencarian dan keranjang menunggu verifikasi sesi kas.'
+            : !hasVerifiedOpenSession
+                ? 'Buka sesi kas untuk mulai mencari dan menyusun keranjang.'
+                : '';
 
     return (
         <>
@@ -146,176 +145,137 @@ export default function Cashier() {
                 <CurrentCashSession />
             </div>
 
+            { sessionGateMessage && (
+                <Alert className="mb-4" severity="info">
+                    { sessionGateMessage }
+                </Alert>
+            ) }
+
             <div className="cashier flex flex-col gap-4 xl:flex-row">
-            <div className="cashier__content min-w-0 xl:basis-2/3">
-                <div className="cashier__content-filter card mb-4">
-                    <TextField
-                        className="cashier__content-filter-value w-full"
-                        label="Cari atau scan produk"
-                        variant="outlined"
-                        size="small"
-                        value={ searchValue }
-                        onKeyUp={ handleSearchKeyup }
-                        onChange={ handleSearchChange }
-                        autoFocus
+                <div className="cashier__content min-w-0 xl:basis-2/3">
+                    <section className="cashier__content-filter card mb-4" aria-labelledby="cashier-search-title">
+                        <h1 id="cashier-search-title" className="text-xl font-bold">Cari barang</h1>
+                        <p className="mt-1 mb-4 text-sm text-gray-600">
+                            Ketik SKU atau nama barang. Tekan Enter atau tombol Cari untuk menampilkan hasil.
+                        </p>
+                        <form className="flex flex-col gap-2 sm:flex-row" onSubmit={ searchItems }>
+                            <TextField
+                                className="cashier__content-filter-value flex-grow"
+                                label="SKU atau nama barang"
+                                size="small"
+                                value={ searchValue }
+                                inputRef={ searchInputRef }
+                                autoFocus
+                                disabled={ !hasVerifiedOpenSession }
+                                onChange={ event => setSearchValue(event.target.value) }
+                            />
+                            <Button
+                                type="submit"
+                                variant="contained"
+                                disabled={ !hasVerifiedOpenSession
+                                    || !normalizedSearch
+                                    || (searchStatus === 'loading' && normalizedSearch === submittedQuery) }
+                            >
+                                Cari
+                            </Button>
+                        </form>
+                    </section>
+
+                    <section className="cashier-products card" aria-labelledby="cashier-results-title">
+                        <h2 id="cashier-results-title" className="text-lg font-bold mb-3">Hasil pencarian</h2>
+
+                        { cartNotice && (
+                            <Alert className="mb-3" severity="success" role="status" aria-live="polite">
+                                { cartNotice }
+                            </Alert>
+                        ) }
+
+                        { hasStaleResults && searchStatus !== 'loading' && (
+                            <Alert className="mb-3" severity="info" role="status">
+                                Hasil ini untuk “{ submittedQuery }” dan tidak dapat ditambahkan. Cari lagi untuk “{ normalizedSearch }”.
+                            </Alert>
+                        ) }
+
+                        { searchStatus === 'error' && (
+                            <Alert
+                                className="mb-3"
+                                severity="error"
+                                tabIndex={ -1 }
+                                ref={ searchFeedbackRef }
+                                action={ <Button color="inherit" size="small" onClick={ searchItems }>Coba lagi</Button> }
+                            >
+                                { searchError }
+                            </Alert>
+                        ) }
+
+                        { searchStatus === 'idle' ? (
+                            <div className="py-12 text-center text-gray-500">Masukkan kata pencarian untuk mulai.</div>
+                        ) : searchStatus === 'loading' ? (
+                            <div className="py-12 text-center" role="status" aria-live="polite">
+                                <CircularProgress size={ 22 } aria-hidden="true" />
+                                <span className="ml-2">Mencari barang...</span>
+                            </div>
+                        ) : searchStatus === 'ready' && !searchResults.length ? (
+                            <div className="py-12 text-center text-gray-500">
+                                Tidak ada barang aktif untuk “{ submittedQuery }”.
+                            </div>
+                        ) : searchResults.length ? (
+                            <TableContainer component={ Paper } elevation={ 0 }>
+                                <Table aria-label="Hasil pencarian barang">
+                                    <TableHead className="bg-gray-100">
+                                        <TableRow>
+                                            <TableCell>Barang</TableCell>
+                                            <TableCell>Harga satuan</TableCell>
+                                            <TableCell>STORE (informasi)</TableCell>
+                                            <TableCell align="right">Aksi</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        { searchResults.map(item => (
+                                            <TableRow key={ item.sku }>
+                                                <TableCell>
+                                                    <div className="font-semibold">{ item.name }</div>
+                                                    <div className="text-sm text-gray-600">
+                                                        { item.sku } · { formatUnitOfMeasure(item.baseUnitOfMeasure) }
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>{ formatPrice(item.price) }</TableCell>
+                                                <TableCell>{ formatQuantity(item.stockStore, item.baseUnitOfMeasure) }</TableCell>
+                                                <TableCell align="right">
+                                                    <Button
+                                                        size="small"
+                                                        variant="outlined"
+                                                        startIcon={ <ShoppingCartIcon aria-hidden="true" /> }
+                                                        disabled={ !hasVerifiedOpenSession || hasStaleResults }
+                                                        onClick={ () => addItemToCart(item) }
+                                                        aria-label={ `Tambah ${ item.name } ke keranjang` }
+                                                    >
+                                                        Tambah
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        )) }
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                        ) : (
+                            <div className="py-12 text-center text-gray-500">
+                                Hasil pencarian belum dapat ditampilkan.
+                            </div>
+                        ) }
+                    </section>
+                </div>
+
+                <div className="cashier__cart xl:basis-1/3 xl:min-w-[20rem]">
+                    <CashierCart
+                        itemList={ cartItems }
+                        disabled={ !hasVerifiedOpenSession }
+                        onQuantityUpdate={ updateQuantity }
+                        onRemove={ removeItem }
+                        onEditComplete={ focusSearch }
                     />
                 </div>
-
-                <div className="cashier-products card">
-                    <div className="cashier-products__header flex justify-between">
-                        <h2 className="cashier-products__header-title text-lg font-bold text-black mb-4">Daftar produk</h2>
-
-                        <div className="cashier-products__header-action">
-                            <ButtonGroup
-                                className="cashier-products__header-action-buttons"
-                                size="small">
-                                <Button
-                                    className="cashier-products__header-action-list"
-                                    variant={ dataDisplayMode === 'list' ? 'contained' : 'outlined' }
-                                    onClick={ () => handleDisplayModeChange('list') }
-                                >
-                                    <LayoutListIcon/>
-                                </Button>
-
-                                <Button
-                                    className="cashier-products__header-action-grid"
-                                    variant={ dataDisplayMode === 'grid' ? 'contained' : 'outlined' }
-                                    onClick={ () => handleDisplayModeChange('grid') }
-                                >
-                                    <LayoutGridIcon/>
-                                </Button>
-                            </ButtonGroup>
-                        </div>
-                    </div>
-
-                    <div className="cashier-products__content">
-                        <div className="cashier-products__content-categories flex gap-2 overflow-x-auto scrollbar-thin mb-4">
-                            <Chip
-                                label="Semua"
-                                variant={ categoryFilter === '' ? 'contained' : 'outlined' }
-                                color="primary"
-                                clickable
-                                onClick={ () => handleCategoryFilterChange('') }
-                            />
-
-                            {
-                                itemCategoryList?.map(category => (
-                                    <Chip
-                                        key={ category.code }
-                                        label={ category.name }
-                                        variant={ categoryFilter === category.code ? "contained" : "outlined" }
-                                        color="primary"
-                                        clickable
-                                        onClick={ () => handleCategoryFilterChange(category.code) }
-                                    />
-                                ))
-                            }
-                        </div>
-
-                        {
-                            dataDisplayMode === 'list' ? (
-                                <TableContainer
-                                    component={ Paper }
-                                    elevation={ 0 }
-                                    className="cashier-product-list"
-                                >
-                                    <Table>
-                                        <TableHead className="cashier-product-list__header bg-gray-100">
-                                            <TableRow className="text-xs font-semibold tracking-wider">
-                                                <TableCell>SKU</TableCell>
-                                                <TableCell>Nama barang</TableCell>
-                                                <TableCell>Kategori</TableCell>
-                                                <TableCell>Stock</TableCell>
-                                                <TableCell>Harga</TableCell>
-                                                <TableCell></TableCell>
-                                            </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                            { isLoadingData
-                                                ? (
-                                                    <TableRow>
-                                                        <TableCell
-                                                            colSpan="5"
-                                                            className="!border-b-0 !text-center italic !text-gray-500"
-                                                        >
-                                                            Loading...
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )
-                                                : itemList?.length
-                                                    ? itemList?.map(((item, index) => {
-                                                        const isLastRow = index === itemList.length - 1
-                                                        const tableCellClass = isLastRow ? '!border-b-0' : ''
-                                                        return (
-                                                            <TableRow
-                                                                key={ item.sku }
-                                                                className={ `cashier-product-list__row ${!item.stockQuantity ? 'bg-red-100' : ''}` }
-                                                            >
-                                                                <TableCell className={ `${tableCellClass} whitespace-nowrap` }>
-                                                                    { item.sku }
-                                                                </TableCell>
-
-                                                                <TableCell className={ `${tableCellClass} w-full` }>
-                                                                    { item.name }
-                                                                </TableCell>
-
-                                                                <TableCell className={ `${tableCellClass} whitespace-nowrap` }>
-                                                                    { item.category?.name }
-                                                                </TableCell>
-
-                                                                <TableCell className={ `${tableCellClass} whitespace-nowrap ${item.stockQuantity ? '' : '!text-red-600 !font-bold'}` }>
-                                                                    { item.stockQuantity }
-                                                                </TableCell>
-
-                                                                <TableCell className={ `${tableCellClass} whitespace-nowrap` }>
-                                                                    Rp. { item.price }
-                                                                </TableCell>
-
-                                                                <TableCell className={ `${tableCellClass} cashier-product-list__row-action table-action` }>
-                                                                    <div className="table-action__content flex justify-end items-center gap-1">
-                                                                        <IconButton
-                                                                            size="small"
-                                                                            disabled={ !item.stockQuantity }
-                                                                            onClick={ () => addItemToCart(item) }
-                                                                        >
-                                                                            <ShoppingCartIcon className="table-action__content-button" />
-                                                                        </IconButton>
-                                                                    </div>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        )
-                                                    }))
-                                                    : (
-                                                        <TableRow>
-                                                            <TableCell
-                                                                className="!border-b-0 !text-center italic !text-gray-500"
-                                                                colSpan="5"
-                                                            >
-                                                                Data tidak ditemukan
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    )
-                                            }
-                                        </TableBody>
-                                    </Table>
-                                </TableContainer>
-                            ) : (
-                                <div className="cashier-products__content-grid">
-
-                                </div>
-                            )
-                        }
-                    </div>
-                </div>
-            </div>
-
-            <div className="cashier__cart xl:basis-1/3 xl:min-w-[20rem]">
-                <CashierCart
-                    itemList={ localItemList }
-                    onQuantityUpdate={ handleQuantityUpdate }
-                />
-            </div>
             </div>
         </>
-    )
+    );
 }

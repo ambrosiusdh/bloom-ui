@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Roadmap
 
-Last updated: 2026-08-25
+Last updated: 2026-08-27
 
 ## 1. How to use this roadmap
 
@@ -77,7 +77,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-15 | Current/open cash session | IMPLEMENTED | PLAN_RECOMMENDED | FE-03 | `gpt-5.6-sol`, high |
 | FE-16 | Cash-session close and reconciliation | IMPLEMENTED | PLAN_RECOMMENDED | FE-15 | `gpt-5.6-sol`, high |
 | FE-17 | Cash-session history and detail | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-16 | `gpt-5.6-terra`, high |
-| FE-18 | Cashier search and cart | BLOCKED | BLOCKED | FE-09, FE-15 | `gpt-5.6-sol`, high |
+| FE-18 | Cashier search and cart | IMPLEMENTED | PLAN_RECOMMENDED | FE-09, FE-15 | `gpt-5.6-sol`, high |
 | FE-19 | Physical scanner integration | BLOCKED | BLOCKED | FE-18 | `gpt-5.6-sol`, high |
 | FE-20 | Sale checkout submission | BLOCKED | BLOCKED | FE-18 | `gpt-5.6-sol`, xhigh |
 | FE-21 | Post-checkout print and recovery | BLOCKED | BLOCKED | FE-20, FE-07 | `gpt-5.6-sol`, high |
@@ -459,8 +459,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-18 — Cashier search and cart
 
 - **Domain:** Cashier cart interaction.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `PLAN_RECOMMENDED`.
+- **Status:** `IMPLEMENTED`.
+- **Execution class:** `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-09, FE-15.
 - **Backend gate:** Cashier item lookup/read model exposes barcode/SKU, name, price, UOM, fractional policy, STORE availability, active state; current session is discoverable.
 - **User-visible change:** Cashier can search items, build a cart, and edit/remove whole or fractional quantities with clear advisory availability.
