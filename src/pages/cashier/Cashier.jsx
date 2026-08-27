@@ -14,10 +14,12 @@ import {
 } from '@mui/material';
 import { ShoppingCartIcon } from 'lucide-react';
 
+import { API_ERROR_CATEGORY } from '@api/index.js';
 import itemApi from '@api/item.js';
 import CurrentCashSession from '@components/cash-session/CurrentCashSession.jsx';
 import CashierCart from '@components/cashier/CashierCart.jsx';
 import { useBreadcrumbStore, useCashSessionStore } from '@stores/index.js';
+import { createKeyboardWedgeScanner } from '@utils/keyboard-wedge-scanner.js';
 import {
     formatQuantity,
     formatUnitOfMeasure,
@@ -43,21 +45,31 @@ export default function Cashier() {
     const [searchResults, setSearchResults] = useState([]);
     const [cartItems, setCartItems] = useState([]);
     const [cartNotice, setCartNotice] = useState('');
+    const [scannerFeedback, setScannerFeedback] = useState(null);
 
     const searchInputRef = useRef(null);
     const searchFeedbackRef = useRef(null);
     const requestRef = useRef(null);
     const sessionWasEnabledRef = useRef(false);
+    const cartItemsRef = useRef([]);
+    const hasVerifiedOpenSessionRef = useRef(false);
+    const mountedRef = useRef(true);
+    const scanItemRef = useRef(null);
 
     const hasVerifiedOpenSession = currentStatus === 'ready'
         && currentSession?.status === 'OPEN'
         && drawerActionsEnabled;
+    hasVerifiedOpenSessionRef.current = hasVerifiedOpenSession;
     const normalizedSearch = searchValue.trim();
     const hasStaleResults = Boolean(submittedQuery && normalizedSearch !== submittedQuery);
 
     useEffect(() => {
+        mountedRef.current = true;
         setBreadcrumbs(['Cashier']);
-        return () => requestRef.current?.abort();
+        return () => {
+            mountedRef.current = false;
+            requestRef.current?.abort();
+        };
     }, [setBreadcrumbs]);
 
     useEffect(() => {
@@ -106,12 +118,14 @@ export default function Cashier() {
     };
 
     const addItemToCart = item => {
-        const duplicate = cartItems.some(cartItem => cartItem.sku === item.sku);
-        setCartItems(currentItems => duplicate
-            ? currentItems.map(cartItem => cartItem.sku === item.sku
+        const duplicate = cartItemsRef.current.some(cartItem => cartItem.sku === item.sku);
+        const nextItems = duplicate
+            ? cartItemsRef.current.map(cartItem => cartItem.sku === item.sku
                 ? { ...cartItem, quantity: incrementQuantityByOne(cartItem.quantity) }
                 : cartItem)
-            : [...currentItems, { ...item, quantity: '1' }]);
+            : [...cartItemsRef.current, { ...item, quantity: '1' }];
+        cartItemsRef.current = nextItems;
+        setCartItems(nextItems);
         setCartNotice(duplicate
             ? `${ item.name } sudah ada; jumlah ditambah 1 ${ formatUnitOfMeasure(item.baseUnitOfMeasure) }.`
             : `${ item.name } ditambahkan ke keranjang.`);
@@ -119,17 +133,79 @@ export default function Cashier() {
     };
 
     const updateQuantity = (quantity, sku) => {
-        setCartItems(currentItems => currentItems.map(item => item.sku === sku
+        const nextItems = cartItemsRef.current.map(item => item.sku === sku
             ? { ...item, quantity }
-            : item));
+            : item);
+        cartItemsRef.current = nextItems;
+        setCartItems(nextItems);
     };
 
     const removeItem = sku => {
-        const item = cartItems.find(cartItem => cartItem.sku === sku);
-        setCartItems(currentItems => currentItems.filter(cartItem => cartItem.sku !== sku));
+        const item = cartItemsRef.current.find(cartItem => cartItem.sku === sku);
+        const nextItems = cartItemsRef.current.filter(cartItem => cartItem.sku !== sku);
+        cartItemsRef.current = nextItems;
+        setCartItems(nextItems);
         setCartNotice(`${ item?.name || 'Barang' } dihapus dari keranjang.`);
         focusSearch();
     };
+
+    const lookupScannedItem = async sku => {
+        if (!hasVerifiedOpenSessionRef.current) return;
+
+        setScannerFeedback({
+            severity: 'info',
+            message: `Membaca barcode ${ sku }...`
+        });
+
+        try {
+            const { data: response } = await itemApi.getItemDetails(sku);
+            if (!mountedRef.current || !hasVerifiedOpenSessionRef.current) return;
+
+            const scannedItem = response.data;
+            if (!scannedItem?.active) {
+                setScannerFeedback({
+                    severity: 'warning',
+                    message: scannedItem
+                        ? `${ scannedItem.name } ditemukan, tetapi barang tidak aktif dan tidak ditambahkan.`
+                        : `Barcode ${ sku } tidak ditemukan.`
+                });
+                focusSearch();
+                return;
+            }
+
+            setScannerFeedback(null);
+            addItemToCart(scannedItem);
+        } catch (error) {
+            if (!mountedRef.current || !hasVerifiedOpenSessionRef.current) return;
+
+            const notFound = error?.status === 404
+                || error?.category === API_ERROR_CATEGORY.NOT_FOUND;
+            setScannerFeedback({
+                severity: notFound ? 'warning' : 'error',
+                message: notFound
+                    ? `Barcode ${ sku } tidak ditemukan.`
+                    : `Barcode ${ sku } gagal diperiksa. Silakan pindai lagi atau gunakan pencarian manual.`
+            });
+            focusSearch();
+        }
+    };
+
+    scanItemRef.current = lookupScannedItem;
+
+    useEffect(() => {
+        if (!hasVerifiedOpenSession) return undefined;
+
+        const scanner = createKeyboardWedgeScanner({
+            onScan: value => scanItemRef.current?.(value)
+        });
+        const handleKeyDown = event => scanner.handleKeyDown(event);
+        document.addEventListener('keydown', handleKeyDown, true);
+
+        return () => {
+            scanner.reset();
+            document.removeEventListener('keydown', handleKeyDown, true);
+        };
+    }, [hasVerifiedOpenSession]);
 
     const sessionGateMessage = currentStatus === 'error'
         ? 'Pencarian dan keranjang dikunci sampai status sesi kas berhasil dimuat ulang.'
@@ -158,6 +234,20 @@ export default function Cashier() {
                         <p className="mt-1 mb-4 text-sm text-gray-600">
                             Ketik SKU atau nama barang. Tekan Enter atau tombol Cari untuk menampilkan hasil.
                         </p>
+                        <p className="mb-4 text-sm text-gray-600">
+                            Pemindai barcode E81W siap saat sesi kas terbuka. Pindai menambah barang ke keranjang
+                            dan tidak pernah menjalankan pembayaran.
+                        </p>
+                        { scannerFeedback && (
+                            <Alert
+                                className="mb-4"
+                                severity={ scannerFeedback.severity }
+                                role={ scannerFeedback.severity === 'error' ? 'alert' : 'status' }
+                                aria-live={ scannerFeedback.severity === 'error' ? 'assertive' : 'polite' }
+                            >
+                                { scannerFeedback.message }
+                            </Alert>
+                        ) }
                         <form className="flex flex-col gap-2 sm:flex-row" onSubmit={ searchItems }>
                             <TextField
                                 className="cashier__content-filter-value flex-grow"

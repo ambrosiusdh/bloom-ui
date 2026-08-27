@@ -42,6 +42,7 @@ Bloom UI is currently a JavaScript React application:
 - FE-16 cash-session close and reconciliation is implemented: the current-session surface previews server-calculated expected cash, posts only actual counted cash, renders the final server reconciliation, recovers already-closed conflicts, and locks shared drawer actions until session state is verified.
 - FE-17 cash-session history and detail is implemented: back-office users can page and filter the backend session read model, open one session, and review backend-stored reconciliation and audit fields without ledger aggregation or mutation.
 - FE-18 cashier search and cart is implemented: the focused cashier workspace gates interaction on a verified open session, searches the active backend item read model, handles stale results, and supports duplicate-add, remove, UOM/fraction-aware decimal quantity editing, advisory STORE availability, and deliberate keyboard focus without checkout or local totals.
+- FE-19's E81W keyboard-wedge adapter and device-informed automated coverage are implemented, but FE-19 remains in progress until the same physical input, focus, feedback, and rapid-scan checks pass on the store laptop.
 
 Release 1 work must preserve this baseline unless a narrowly scoped PR proves that a dependency change is necessary for its immediate domain. TypeScript migration, TanStack Query adoption, global store replacement, router restructuring, and a global design-system rewrite are not Release 1 prerequisites.
 
@@ -335,6 +336,23 @@ Every touched screen or major panel must deliberately cover:
 - A scan must not trigger checkout or another destructive action.
 - Duplicate scans follow a documented cart rule and provide immediate feedback.
 - Manual search remains available when the scanner is unavailable.
+
+#### FE-19 observed Release 1 scanner profile
+
+The physical Release 1 scanner was observed on 2026-08-27 before FE-19 implementation:
+
+- Model/variant: E81W, 1D wireless, no stand, non-Bluetooth, using its USB dongle.
+- Windows identity: `SI USB`, USB `VID_0483` / `PID_0115`; the receiver exposes a HID keyboard and a serial `COM4` interface. FE-19 uses only the keyboard-wedge input.
+- Observed barcode: EAN-13 `8998824554842`; every capture delivered the complete 13 digits in order.
+- Prefix/modifiers: none observed.
+- Suffix/terminator: one `Enter` / carriage-return key after every scan; no Tab or additional suffix was observed.
+- Six captured scan durations, including the terminator, ranged from 16.825 ms to 21.651 ms. The largest observed gap between characters within a scan was 13.223 ms.
+- In the deliberate rapid-scan run, three scans remained separate and complete. The observed terminator-to-next-scan gaps were 443.197 ms and 435.157 ms.
+- The measurements were captured on the `VR-PC` workstation. Store-laptop CPU/RAM specifications are not an FE-19 input, but the same physical-input, focus, browser, and rapid-scan checks must still pass on the store laptop before FE-19 is marked fully verified.
+- A live `/cashier` check on `VR-PC` confirmed that the physical E81W sequence uses the exact item-detail lookup, renders normalized not-found feedback for unregistered `8998824554842`, preserves the focused manual-search field, leaves the cart unchanged, and exposes no checkout action.
+- After registering active zero-stock test item `8998824554842` (`Tes Scanner E81W`), five consecutive physical scans on `VR-PC` produced one cart line at quantity `5`, announced the FE-18 duplicate increment rule, kept search focused and empty, rendered STORE zero only as advisory availability, and exposed no checkout action.
+
+The adapter may use a 30 ms maximum inter-key gap for this Release 1 device profile. This is a device-informed tolerance above the observed 13.223 ms maximum, not a value inferred from the seller's unrelated `100 scans/sec` decoding specification. Supporting a different transport or device profile requires new observations rather than widening this threshold speculatively.
 
 ### 9.4 Responsive desktop behavior
 
