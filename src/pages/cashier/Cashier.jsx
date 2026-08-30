@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Alert,
     Button,
@@ -18,6 +18,7 @@ import { API_ERROR_CATEGORY } from '@api/index.js';
 import itemApi from '@api/item.js';
 import CurrentCashSession from '@components/cash-session/CurrentCashSession.jsx';
 import CashierCart from '@components/cashier/CashierCart.jsx';
+import CashierCheckout from '@components/cashier/CashierCheckout.jsx';
 import { useBreadcrumbStore, useCashSessionStore } from '@stores/index.js';
 import { createKeyboardWedgeScanner } from '@utils/keyboard-wedge-scanner.js';
 import {
@@ -46,13 +47,16 @@ export default function Cashier() {
     const [cartItems, setCartItems] = useState([]);
     const [cartNotice, setCartNotice] = useState('');
     const [scannerFeedback, setScannerFeedback] = useState(null);
+    const [checkoutLocked, setCheckoutLocked] = useState(false);
+    const [invalidQuantitySkus, setInvalidQuantitySkus] = useState(() => new Set());
 
     const searchInputRef = useRef(null);
     const searchFeedbackRef = useRef(null);
     const requestRef = useRef(null);
-    const sessionWasEnabledRef = useRef(false);
+    const interactionWasEnabledRef = useRef(false);
+    const preserveCheckoutFeedbackFocusRef = useRef(false);
     const cartItemsRef = useRef([]);
-    const hasVerifiedOpenSessionRef = useRef(false);
+    const cashierInteractionEnabledRef = useRef(false);
     const mountedRef = useRef(true);
     const scanItemRef = useRef(null);
     const scanQueueRef = useRef(Promise.resolve());
@@ -60,7 +64,8 @@ export default function Cashier() {
     const hasVerifiedOpenSession = currentStatus === 'ready'
         && currentSession?.status === 'OPEN'
         && drawerActionsEnabled;
-    hasVerifiedOpenSessionRef.current = hasVerifiedOpenSession;
+    const cashierInteractionEnabled = hasVerifiedOpenSession && !checkoutLocked;
+    cashierInteractionEnabledRef.current = cashierInteractionEnabled;
     const normalizedSearch = searchValue.trim();
     const hasStaleResults = Boolean(submittedQuery && normalizedSearch !== submittedQuery);
 
@@ -78,17 +83,21 @@ export default function Cashier() {
     }, [searchStatus]);
 
     useEffect(() => {
-        if (hasVerifiedOpenSession && !sessionWasEnabledRef.current) {
-            searchInputRef.current?.focus();
+        if (cashierInteractionEnabled && !interactionWasEnabledRef.current) {
+            if (preserveCheckoutFeedbackFocusRef.current) {
+                preserveCheckoutFeedbackFocusRef.current = false;
+            } else {
+                searchInputRef.current?.focus();
+            }
         }
-        sessionWasEnabledRef.current = hasVerifiedOpenSession;
-    }, [hasVerifiedOpenSession]);
+        interactionWasEnabledRef.current = cashierInteractionEnabled;
+    }, [cashierInteractionEnabled]);
 
-    const focusSearch = () => searchInputRef.current?.focus();
+    const focusSearch = useCallback(() => searchInputRef.current?.focus(), []);
 
     const searchItems = async event => {
         event.preventDefault();
-        if (!hasVerifiedOpenSession || !normalizedSearch) return;
+        if (!cashierInteractionEnabled || !normalizedSearch) return;
 
         requestRef.current?.abort();
         const controller = new AbortController();
@@ -119,6 +128,7 @@ export default function Cashier() {
     };
 
     const addItemToCart = item => {
+        if (!cashierInteractionEnabledRef.current) return;
         const duplicate = cartItemsRef.current.some(cartItem => cartItem.sku === item.sku);
         const nextItems = duplicate
             ? cartItemsRef.current.map(cartItem => cartItem.sku === item.sku
@@ -134,6 +144,7 @@ export default function Cashier() {
     };
 
     const updateQuantity = (quantity, sku) => {
+        if (!cashierInteractionEnabledRef.current) return;
         const nextItems = cartItemsRef.current.map(item => item.sku === sku
             ? { ...item, quantity }
             : item);
@@ -142,16 +153,22 @@ export default function Cashier() {
     };
 
     const removeItem = sku => {
+        if (!cashierInteractionEnabledRef.current) return;
         const item = cartItemsRef.current.find(cartItem => cartItem.sku === sku);
         const nextItems = cartItemsRef.current.filter(cartItem => cartItem.sku !== sku);
         cartItemsRef.current = nextItems;
         setCartItems(nextItems);
+        setInvalidQuantitySkus(previous => {
+            const next = new Set(previous);
+            next.delete(sku);
+            return next;
+        });
         setCartNotice(`${ item?.name || 'Barang' } dihapus dari keranjang.`);
         focusSearch();
     };
 
     const lookupScannedItem = async sku => {
-        if (!hasVerifiedOpenSessionRef.current) return;
+        if (!cashierInteractionEnabledRef.current) return;
 
         setScannerFeedback({
             severity: 'info',
@@ -160,7 +177,7 @@ export default function Cashier() {
 
         try {
             const { data: response } = await itemApi.getItemDetails(sku);
-            if (!mountedRef.current || !hasVerifiedOpenSessionRef.current) return;
+            if (!mountedRef.current || !cashierInteractionEnabledRef.current) return;
 
             const scannedItem = response.data;
             if (!scannedItem?.active) {
@@ -177,7 +194,7 @@ export default function Cashier() {
             setScannerFeedback(null);
             addItemToCart(scannedItem);
         } catch (error) {
-            if (!mountedRef.current || !hasVerifiedOpenSessionRef.current) return;
+            if (!mountedRef.current || !cashierInteractionEnabledRef.current) return;
 
             const notFound = error?.status === 404
                 || error?.category === API_ERROR_CATEGORY.NOT_FOUND;
@@ -194,7 +211,7 @@ export default function Cashier() {
     scanItemRef.current = lookupScannedItem;
 
     useEffect(() => {
-        if (!hasVerifiedOpenSession) return undefined;
+        if (!cashierInteractionEnabled) return undefined;
 
         const scanner = createKeyboardWedgeScanner({
             onScan: value => {
@@ -210,7 +227,27 @@ export default function Cashier() {
             scanner.reset();
             document.removeEventListener('keydown', handleKeyDown, true);
         };
-    }, [hasVerifiedOpenSession]);
+    }, [cashierInteractionEnabled]);
+
+    const updateQuantityValidity = useCallback((sku, isValid) => {
+        setInvalidQuantitySkus(previous => {
+            const next = new Set(previous);
+            if (isValid) next.delete(sku);
+            else next.add(sku);
+            return next;
+        });
+    }, []);
+
+    const completeSale = useCallback(sale => {
+        if (sale) {
+            preserveCheckoutFeedbackFocusRef.current = true;
+            cartItemsRef.current = [];
+            setCartItems([]);
+            setInvalidQuantitySkus(new Set());
+            setCartNotice(`Penjualan ${ sale.code } dikonfirmasi server.`);
+        }
+        focusSearch();
+    }, [focusSearch]);
 
     const sessionGateMessage = currentStatus === 'error'
         ? 'Pencarian dan keranjang dikunci sampai status sesi kas berhasil dimuat ulang.'
@@ -261,13 +298,13 @@ export default function Cashier() {
                                 value={ searchValue }
                                 inputRef={ searchInputRef }
                                 autoFocus
-                                disabled={ !hasVerifiedOpenSession }
+                                disabled={ !cashierInteractionEnabled }
                                 onChange={ event => setSearchValue(event.target.value) }
                             />
                             <Button
                                 type="submit"
                                 variant="contained"
-                                disabled={ !hasVerifiedOpenSession
+                                disabled={ !cashierInteractionEnabled
                                     || !normalizedSearch
                                     || (searchStatus === 'loading' && normalizedSearch === submittedQuery) }
                             >
@@ -341,7 +378,7 @@ export default function Cashier() {
                                                         size="small"
                                                         variant="outlined"
                                                         startIcon={ <ShoppingCartIcon aria-hidden="true" /> }
-                                                        disabled={ !hasVerifiedOpenSession || hasStaleResults }
+                                                        disabled={ !cashierInteractionEnabled || hasStaleResults }
                                                         onClick={ () => addItemToCart(item) }
                                                         aria-label={ `Tambah ${ item.name } ke keranjang` }
                                                     >
@@ -364,10 +401,20 @@ export default function Cashier() {
                 <div className="cashier__cart xl:basis-1/3 xl:min-w-[20rem]">
                     <CashierCart
                         itemList={ cartItems }
-                        disabled={ !hasVerifiedOpenSession }
+                        disabled={ !cashierInteractionEnabled }
                         onQuantityUpdate={ updateQuantity }
+                        onQuantityValidityChange={ updateQuantityValidity }
                         onRemove={ removeItem }
                         onEditComplete={ focusSearch }
+                    />
+                    <CashierCheckout
+                        itemList={ cartItems }
+                        disabled={ !hasVerifiedOpenSession || invalidQuantitySkus.size > 0 }
+                        disabledMessage={ invalidQuantitySkus.size > 0
+                            ? 'Perbaiki jumlah barang yang belum valid sebelum checkout.'
+                            : '' }
+                        onLockChange={ setCheckoutLocked }
+                        onSaleCompleted={ completeSale }
                     />
                 </div>
             </div>

@@ -25,7 +25,13 @@ const formatPrice = value => new Intl.NumberFormat('id-ID', {
     maximumFractionDigits: 4
 }).format(Number(value || 0));
 
-function QuantityField({ item, disabled, onQuantityUpdate, onEditComplete }) {
+function QuantityField({
+    item,
+    disabled,
+    onQuantityUpdate,
+    onValidityChange,
+    onEditComplete
+}) {
     const [draft, setDraft] = useState(item.quantity);
     const [error, setError] = useState('');
     const inputRef = useRef(null);
@@ -36,6 +42,7 @@ function QuantityField({ item, disabled, onQuantityUpdate, onEditComplete }) {
     const commit = () => {
         const validationError = validateQuantity(draft, item.fractionalQuantityAllowed);
         setError(validationError);
+        onValidityChange(item.sku, !validationError);
         if (validationError) {
             inputRef.current?.focus();
             return false;
@@ -50,6 +57,7 @@ function QuantityField({ item, disabled, onQuantityUpdate, onEditComplete }) {
     const adjustByOne = operation => {
         const validationError = validateQuantity(draft, item.fractionalQuantityAllowed);
         setError(validationError);
+        onValidityChange(item.sku, !validationError);
         if (validationError) {
             inputRef.current?.focus();
             return;
@@ -58,6 +66,7 @@ function QuantityField({ item, disabled, onQuantityUpdate, onEditComplete }) {
         const nextQuantity = operation(normalizeQuantity(draft));
         setDraft(nextQuantity);
         onQuantityUpdate(nextQuantity, item.sku);
+        onValidityChange(item.sku, true);
     };
 
     return (
@@ -84,6 +93,10 @@ function QuantityField({ item, disabled, onQuantityUpdate, onEditComplete }) {
                 onChange={ event => {
                     setDraft(event.target.value);
                     setError('');
+                    onValidityChange(
+                        item.sku,
+                        !validateQuantity(event.target.value, item.fractionalQuantityAllowed)
+                    );
                 } }
                 onBlur={ () => {
                     if (skipBlurRef.current) {
@@ -105,6 +118,7 @@ function QuantityField({ item, disabled, onQuantityUpdate, onEditComplete }) {
                         skipBlurRef.current = true;
                         setDraft(item.quantity);
                         setError('');
+                        onValidityChange(item.sku, true);
                         onEditComplete();
                     }
                 } }
@@ -130,6 +144,7 @@ QuantityField.propTypes = {
     item: PropTypes.object.isRequired,
     disabled: PropTypes.bool.isRequired,
     onQuantityUpdate: PropTypes.func.isRequired,
+    onValidityChange: PropTypes.func.isRequired,
     onEditComplete: PropTypes.func.isRequired
 };
 
@@ -137,6 +152,7 @@ export default function CashierCart({
     itemList,
     disabled = false,
     onQuantityUpdate,
+    onQuantityValidityChange = () => undefined,
     onRemove,
     onEditComplete
 }) {
@@ -179,6 +195,7 @@ export default function CashierCart({
                                         item={ item }
                                         disabled={ disabled }
                                         onQuantityUpdate={ onQuantityUpdate }
+                                        onValidityChange={ onQuantityValidityChange }
                                         onEditComplete={ onEditComplete }
                                     />
                                 </div>
@@ -208,6 +225,7 @@ CashierCart.propTypes = {
     itemList: PropTypes.array.isRequired,
     disabled: PropTypes.bool,
     onQuantityUpdate: PropTypes.func.isRequired,
+    onQuantityValidityChange: PropTypes.func,
     onRemove: PropTypes.func.isRequired,
     onEditComplete: PropTypes.func.isRequired
 };

@@ -39,12 +39,26 @@ const createSaleAction = set => ({
         }
     },
 
-    createSale: async (payload, options) => {
+    createSale: async (data, idempotencyKey, options) => {
         try {
-            const { data: response } = await api.createSale(payload, options)
+            const { data: response } = await api.createSale(data, idempotencyKey, options)
             return response
         } catch (error) {
             console.error('Error create sale: ', error);
+            throw error?.response?.data || error
+        }
+    },
+
+    getCheckoutStatus: async (idempotencyKey, config, options) => {
+        try {
+            const { data: response } = await api.getCheckoutStatus(
+                idempotencyKey,
+                config,
+                options
+            )
+            return response
+        } catch (error) {
+            console.error('Error getting sale checkout status: ', error);
             throw error?.response?.data || error
         }
     },

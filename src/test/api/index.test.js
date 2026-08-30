@@ -110,6 +110,36 @@ describe('normalizeApiError', () => {
     });
 
     it.each([
+        ['sale_insufficient_stock', API_DOMAIN_ERROR_CODE.SALE_INSUFFICIENT_STOCK],
+        ['sale_paid_less_than_total', API_DOMAIN_ERROR_CODE.SALE_PAID_LESS_THAN_TOTAL],
+        ['sale_qris_payment_mismatch', API_DOMAIN_ERROR_CODE.SALE_QRIS_PAYMENT_MISMATCH]
+    ])('preserves structured sale domain code %s', (code, domainCode) => {
+        expect(normalizeApiError(createHttpError(400, {
+            errorType: 'BusinessException',
+            message: 'safe normalized message',
+            code
+        }))).toMatchObject({ domainCode });
+    });
+
+    it.each([
+        ['CashSessionConflictException', API_DOMAIN_ERROR_CODE.CASH_SESSION_CONFLICT],
+        ['CheckoutIdempotencyConflictException', API_DOMAIN_ERROR_CODE.CHECKOUT_IDEMPOTENCY_CONFLICT]
+    ])('maps checkout conflict type %s without exposing its raw payload', (errorType, domainCode) => {
+        const normalized = normalizeApiError(createHttpError(409, {
+            errorType,
+            message: 'backend detail',
+            code: 409
+        }));
+
+        expect(normalized).toMatchObject({
+            category: API_ERROR_CATEGORY.CONFLICT,
+            domainCode,
+            status: 409
+        });
+        expect(normalized.response).toBeUndefined();
+    });
+
+    it.each([
         [
             500,
             'Printer tidak ditemukan',

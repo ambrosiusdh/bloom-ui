@@ -26,6 +26,7 @@ const SALE = {
     list: '/api/sales',
     detail: '/api/sales/details',
     create: '/api/sales',
+    checkoutStatus: '/api/sales/checkout-status',
     print: '/api/print'
 }
 

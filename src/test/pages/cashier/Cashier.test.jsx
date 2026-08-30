@@ -3,13 +3,17 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const cashierMocks = vi.hoisted(() => ({
+    createSale: vi.fn(),
+    getCheckoutStatus: vi.fn(),
+    getCurrentSession: vi.fn(),
     getItemDetails: vi.fn(),
     getItemList: vi.fn(),
     setBreadcrumbs: vi.fn(),
     session: {
         currentSession: { id: 7, status: 'OPEN' },
         currentStatus: 'ready',
-        drawerActionsEnabled: true
+        drawerActionsEnabled: true,
+        getCurrentSession: vi.fn()
     }
 }));
 
@@ -24,7 +28,11 @@ vi.mock('@components/cash-session/CurrentCashSession.jsx', () => ({
 }));
 vi.mock('@stores/index.js', () => ({
     useBreadcrumbStore: selector => selector({ setBreadcrumbs: cashierMocks.setBreadcrumbs }),
-    useCashSessionStore: selector => selector(cashierMocks.session)
+    useCashSessionStore: selector => selector(cashierMocks.session),
+    useSaleStore: selector => selector({
+        createSale: cashierMocks.createSale,
+        getCheckoutStatus: cashierMocks.getCheckoutStatus
+    })
 }));
 
 import Cashier from '@/pages/cashier/Cashier.jsx';
@@ -115,6 +123,9 @@ describe('Cashier search and cart', () => {
         vi.clearAllMocks();
         cashierMocks.getItemDetails.mockReset();
         cashierMocks.getItemList.mockReset();
+        cashierMocks.createSale.mockReset();
+        cashierMocks.getCheckoutStatus.mockReset();
+        cashierMocks.session.getCurrentSession.mockReset();
         Object.assign(cashierMocks.session, {
             currentSession: { id: 7, status: 'OPEN' },
             currentStatus: 'ready',
@@ -246,6 +257,34 @@ describe('Cashier search and cart', () => {
         expect(wholeInput).toHaveFocus();
     });
 
+    it('keeps backend-confirmed checkout success visible after clearing the submitted cart', async () => {
+        const user = setupHumanUser();
+        cashierMocks.getItemList.mockResolvedValue(listResponse([item()]));
+        cashierMocks.createSale.mockResolvedValue({
+            data: {
+                code: 'SALE/VIII-2026/0042',
+                totalAmount: '15000.0000',
+                paidAmount: '20000.0000',
+                changeAmount: '5000.0000',
+                paymentType: 'CASH',
+                saleItems: []
+            }
+        });
+        render(<Cashier />);
+
+        await user.type(screen.getByRole('textbox', { name: 'SKU atau nama barang' }), 'kain{Enter}');
+        await user.click(await screen.findByRole('button', { name: 'Tambah Kain katun ke keranjang' }));
+        await user.type(screen.getByRole('textbox', { name: 'Uang tunai diterima' }), '20000');
+        await user.click(screen.getByRole('button', { name: 'Tinjau pembayaran' }));
+        await user.click(await screen.findByRole('button', { name: 'Konfirmasi jual' }));
+
+        const successMessage = await screen.findByText('Penjualan SALE/VIII-2026/0042 berhasil.');
+        expect(successMessage).toBeInTheDocument();
+        await waitFor(() => expect(successMessage.closest('[role="status"]')).toHaveFocus());
+        expect(screen.queryByRole('textbox', { name: 'Jumlah Kain katun' })).not.toBeInTheDocument();
+        expect(screen.getByText('Cari barang lalu tambahkan ke keranjang')).toBeInTheDocument();
+    });
+
     it('marks edited-query results stale and ignores a superseded request', async () => {
         const user = setupHumanUser();
         const olderRequest = deferred();
@@ -311,7 +350,7 @@ describe('Cashier search and cart', () => {
         expect(search).toHaveValue('draft manual');
         expect(search).toHaveFocus();
         expect(screen.getByText('Produk pindai ditambahkan ke keranjang.')).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /bayar/i })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Tinjau pembayaran' })).toBeEnabled();
     });
 
     it('gives distinct not-found and inactive feedback without adding either scan', async () => {
