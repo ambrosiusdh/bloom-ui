@@ -41,8 +41,9 @@ Bloom UI is currently a JavaScript React application:
 - FE-15 current/open cash session is implemented: the cashier workspace consumes a successful `data: null` response as the verified no-session state, keeps HTTP failures separate, and opens one session with backend-confirmed opening cash, identity, timestamp, status, and conflict refresh behavior.
 - FE-16 cash-session close and reconciliation is implemented: the current-session surface previews server-calculated expected cash, posts only actual counted cash, renders the final server reconciliation, recovers already-closed conflicts, and locks shared drawer actions until session state is verified.
 - FE-17 cash-session history and detail is implemented: back-office users can page and filter the backend session read model, open one session, and review backend-stored reconciliation and audit fields without ledger aggregation or mutation.
-- FE-18 cashier search and cart is implemented: the focused cashier workspace gates interaction on a verified open session, searches the active backend item read model, handles stale results, and supports duplicate-add, remove, UOM/fraction-aware decimal quantity editing, advisory STORE availability, and deliberate keyboard focus without checkout or local totals.
+- FE-18 cashier search and cart is implemented: the focused cashier workspace gates interaction on a verified open session, searches the active backend item read model, handles stale results, and supports duplicate-add, remove, UOM/fraction-aware decimal quantity editing, advisory STORE availability, and deliberate keyboard focus without local totals.
 - FE-19's E81W keyboard-wedge adapter and device-informed automated coverage are implemented, but FE-19 remains in progress until the same physical input, focus, feedback, and rapid-scan checks pass on the store laptop.
+- FE-20 sale checkout is implemented: the cashier submits only STORE cart-line intent, CASH/QRIS input, and one stable `Idempotency-Key`; it blocks duplicate actions, preserves the exact request/key across safe replay, resolves ambiguous outcomes through the backend status lookup, and clears the cart only after a backend-confirmed sale while rendering backend totals/change.
 
 Release 1 work must preserve this baseline unless a narrowly scoped PR proves that a dependency change is necessary for its immediate domain. TypeScript migration, TanStack Query adoption, global store replacement, router restructuring, and a global design-system rewrite are not Release 1 prerequisites.
 
@@ -90,7 +91,7 @@ These credentials are test fixtures for local development and browser verificati
 | Opening inventory | Creating opening stock creates `OPENING_BALANCE` movements | Confirmed; requires an atomic backend contract |
 | Sale payments | `CASH` and `QRIS` | Confirmed |
 | Sale calculations | Totals and cash change are returned by the server | Confirmed |
-| Duplicate sale protection | Checkout uses a server-recognized idempotency mechanism | Confirmed; exact transport contract required |
+| Duplicate sale protection | `Idempotency-Key` on sale create and checkout-status lookup | Confirmed and implemented |
 | Receipt output | Backend-controlled printer flow | Confirmed |
 | Scanner | A physical barcode scanner is intended | Confirmed; device transport/terminator behavior still requires verification |
 | Cash session | At most one globally open session | Confirmed |
@@ -224,6 +225,9 @@ Movement history must be based on a backend read model and support the context r
 - The frontend sends only contract-approved inputs and renders the server-created sale and server-calculated totals/change.
 - Checkout has a pending state that prevents repeated local actions, but true duplicate resistance depends on the backend idempotency contract.
 - On an ambiguous timeout, do not silently resubmit with a new idempotency key. Offer a safe status/retry path defined by the backend contract.
+- FE-20 creates the key only for a confirmed attempt. `POST /api/sales` and `GET /api/sales/checkout-status` reuse that key; `UNKNOWN` keeps the frozen request/key recoverable and is never presented as proof that the sale failed.
+- A known validation, stock, cash-session, or idempotency conflict preserves actionable input. A changed payload starts a new attempt; an unchanged safe replay keeps the existing key.
+- Checkout success requires the backend sale record. The client then displays its sale code, total, paid amount, payment type, and change and clears the submitted cart; no print request is part of FE-20.
 
 ### 6.5 Receipt printing
 
@@ -402,7 +406,7 @@ The following must be verified or completed before their dependent frontend PRs 
 - Stock transfer is available at `POST /api/stock-transfers`; it atomically records source/destination movements, enforces decimal UOM/fraction and availability rules, accepts `Idempotency-Key`, and returns a stable transfer code and line result.
 - Cash-session current/open endpoints are available at `GET /api/cash-sessions/current` and `POST /api/cash-sessions/open`; the agreed current-session contract returns HTTP 200 with `data: null` when no session is open, while the backend enforces global single-open uniqueness with a transaction lock and partial unique index and maps concurrent opening to a conflict.
 - Cash-session close is available at `GET /api/cash-sessions/{sessionId}/expected-cash` and `POST /api/cash-sessions/{sessionId}/close`; close recalculates expected cash under the session transition lock, returns final actual/variance/status, and maps an already-closed race to a conflict. Read-only history is available at `GET /api/cash-sessions` with one-based paging, optional exact `OPEN`/`CLOSED` status filtering, fixed newest-first ordering, and detail at `GET /api/cash-sessions/{sessionId}`.
-- Sale request/response, server totals/change, payment method, cash-session enforcement, and idempotency/status-recovery contract.
+- Sale checkout is available at `POST /api/sales` with decimal STORE lines, `CASH`/`QRIS`, and required `Idempotency-Key`; the backend enforces an open session, owns prices/totals/change, replays an identical request, and conflicts on a changed same-key payload. `GET /api/sales/checkout-status` uses the same key and returns `COMPLETED` with the sale or `UNKNOWN` without mutating sale state.
 - Actual scanner model, interface, suffix/terminator, and behavior under rapid scans.
 - Printer endpoint success/error semantics in the target environment.
 - Supplier read/write contracts.

@@ -4,6 +4,9 @@ const cashierStore = vi.hoisted(() => ({
     getItemCategoryList: vi.fn().mockResolvedValue(undefined),
     getItemList: vi.fn().mockResolvedValue(undefined),
     getItemDetails: vi.fn(),
+    createSale: vi.fn(),
+    getCheckoutStatus: vi.fn(),
+    getCurrentSession: vi.fn(),
     setBreadcrumbs: vi.fn()
 }));
 
@@ -22,7 +25,12 @@ vi.mock('@stores/index.js', () => ({
     useCashSessionStore: selector => selector({
         currentSession: { id: 1, status: 'OPEN' },
         currentStatus: 'ready',
-        drawerActionsEnabled: true
+        drawerActionsEnabled: true,
+        getCurrentSession: cashierStore.getCurrentSession
+    }),
+    useSaleStore: selector => selector({
+        createSale: cashierStore.createSale,
+        getCheckoutStatus: cashierStore.getCheckoutStatus
     })
 }));
 vi.mock('@api/item.js', () => ({ default: { getItemList: cashierStore.getItemList } }));

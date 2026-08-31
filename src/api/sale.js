@@ -1,6 +1,8 @@
 import api from "@api/index.js";
 import { SALE } from "@api/path/index.js";
 
+const CHECKOUT_TIMEOUT_MS = 20_000;
+
 const getReadRequestArguments = (configOrOptions = {}, options) => {
     const {
         useLoader,
@@ -36,11 +38,28 @@ const getSaleDetails = async (code, configOrOptions, options) => {
     }, request.options)
 }
 
-const createSale = async (payload, options) => {
+const createSale = async (data, idempotencyKey, options) => {
     return api({
         url: SALE.create,
         method: 'POST',
-        ...payload
+        timeout: CHECKOUT_TIMEOUT_MS,
+        data,
+        headers: {
+            'Idempotency-Key': idempotencyKey
+        }
+    }, options);
+}
+
+const getCheckoutStatus = async (idempotencyKey, config = {}, options) => {
+    return api({
+        url: SALE.checkoutStatus,
+        method: 'GET',
+        timeout: CHECKOUT_TIMEOUT_MS,
+        ...config,
+        headers: {
+            ...config.headers,
+            'Idempotency-Key': idempotencyKey
+        }
     }, options);
 }
 
@@ -58,5 +77,6 @@ export default {
     getSaleList,
     getSaleDetails,
     createSale,
+    getCheckoutStatus,
     printReceipt
 }

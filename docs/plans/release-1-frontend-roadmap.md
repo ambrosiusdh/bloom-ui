@@ -79,7 +79,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-17 | Cash-session history and detail | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-16 | `gpt-5.6-terra`, high |
 | FE-18 | Cashier search and cart | IMPLEMENTED | PLAN_RECOMMENDED | FE-09, FE-15 | `gpt-5.6-sol`, high |
 | FE-19 | Physical scanner integration | IN_PROGRESS | PLAN_RECOMMENDED | FE-18 | `gpt-5.6-sol`, high |
-| FE-20 | Sale checkout submission | BLOCKED | BLOCKED | FE-18 | `gpt-5.6-sol`, xhigh |
+| FE-20 | Sale checkout submission | IMPLEMENTED | PLAN_RECOMMENDED | FE-18 | `gpt-5.6-sol`, xhigh |
 | FE-21 | Post-checkout print and recovery | BLOCKED | BLOCKED | FE-20, FE-07 | `gpt-5.6-sol`, high |
 | FE-22 | Sales history target alignment | BLOCKED | BLOCKED | FE-20 | `gpt-5.6-terra`, high |
 | FE-23 | Supplier list and detail | BLOCKED | BLOCKED | FE-02 | `gpt-5.6-terra`, high |
@@ -359,8 +359,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-13 — Stock adjustment
 
 - **Domain:** Stock adjustment.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `PLAN_RECOMMENDED`.
+- **Status:** `IMPLEMENTED`.
+- **Execution class:** `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-12.
 - **Current implementation note:** A legacy stock-adjustment route/screen exists, but it is not the FE-13 target: it uses integer/JavaScript-number quantity handling, reads deprecated aggregate `stockQuantity`, and does not send the backend-required `stockLocation` per line.
 - **Backend gate:** Adjustment request/response uses decimal quantity, explicit location/direction semantics, reason, posted movement result, validation, and conflict handling.
@@ -512,6 +512,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Validation:** Tests for CASH/QRIS, fractional lines, insufficient cash validation as defined, double click, same-key retry, timeout/unknown outcome, stock/session conflict, server totals/change; tests/build/lint/keyboard.
 - **Block condition:** Any idempotency, recovery, decimal, session, or server-calculation contract is missing.
 - **Split trigger:** If CASH and QRIS interaction together exceed the limit, extract shared submission state first, then deliver each payment method in separate PRs without shipping an unsafe partial checkout.
+
+**Implementation note (2026-08-30):** The backend gate was re-proven with focused controller/service tests and PostgreSQL cash-session/idempotency integration tests. The cashier now freezes confirmed cart/payment intent, uses one sale key across outcome lookup and safe replay, treats `UNKNOWN` as unresolved, and renders/clears only from backend-confirmed sale data. Printing and returns remain separate.
 
 **Copy-ready implementation prompt**
 
