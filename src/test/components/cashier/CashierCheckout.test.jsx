@@ -1,17 +1,20 @@
 import { act } from 'react';
+import { Route, Routes } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const checkoutMocks = vi.hoisted(() => ({
     createSale: vi.fn(),
     getCheckoutStatus: vi.fn(),
-    getCurrentSession: vi.fn()
+    getCurrentSession: vi.fn(),
+    printReceipt: vi.fn()
 }));
 
 vi.mock('@stores/index.js', () => ({
     useSaleStore: selector => selector({
         createSale: checkoutMocks.createSale,
-        getCheckoutStatus: checkoutMocks.getCheckoutStatus
+        getCheckoutStatus: checkoutMocks.getCheckoutStatus,
+        printReceipt: checkoutMocks.printReceipt
     }),
     useCashSessionStore: selector => selector({
         getCurrentSession: checkoutMocks.getCurrentSession
@@ -76,12 +79,18 @@ describe('CashierCheckout', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         checkoutMocks.getCurrentSession.mockResolvedValue({ id: 7, status: 'OPEN' });
+        checkoutMocks.printReceipt.mockResolvedValue({ data: true });
     });
 
-    it('confirms one cart intent, blocks a double click, and renders only backend totals on success', async () => {
+    it('shows confirmed sale before automatic print status, blocks duplicates, and supports reprint', async () => {
         const user = userEvent.setup();
         const request = deferred();
+        const printRequest = deferred();
+        const browserPrint = vi.spyOn(window, 'print').mockImplementation(() => {});
         checkoutMocks.createSale.mockReturnValue(request.promise);
+        checkoutMocks.printReceipt
+            .mockReturnValueOnce(printRequest.promise)
+            .mockResolvedValueOnce({ data: true });
         const { onLockChange, onSaleCompleted } = renderCheckout();
 
         const dialog = await reviewCashPayment(user);
@@ -115,6 +124,94 @@ describe('CashierCheckout', () => {
         expect(success).toHaveTextContent('Kembalian server: Rp 1.250');
         expect(success).toHaveFocus();
         expect(onSaleCompleted).toHaveBeenCalledWith(completedSale);
+        expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(1);
+        expect(checkoutMocks.printReceipt).toHaveBeenCalledWith(completedSale.code);
+
+        const printStatus = screen.getByRole('region', { name: 'Status pencetakan struk' });
+        expect(printStatus).toHaveTextContent(`Pencetakan struk ${ completedSale.code }`);
+        expect(printStatus).toHaveTextContent('Permintaan cetak sedang diproses oleh server.');
+        expect(screen.getByRole('button', { name: 'Mencetak...' })).toBeDisabled();
+        expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
+
+        await act(async () => printRequest.resolve({ data: true }));
+
+        expect(printStatus).toHaveTextContent('Struk berhasil dicetak.');
+        expect(printStatus).toHaveFocus();
+        await user.click(screen.getByRole('button', { name: 'Cetak ulang struk' }));
+        await waitFor(() => expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(2));
+        expect(checkoutMocks.printReceipt).toHaveBeenNthCalledWith(2, completedSale.code);
+        expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
+        expect(browserPrint).not.toHaveBeenCalled();
+        browserPrint.mockRestore();
+    });
+
+    it('keeps sale success visible when printing fails and retries only that sale reference', async () => {
+        const user = userEvent.setup();
+        const completedSale = sale();
+        checkoutMocks.createSale.mockResolvedValue({ data: completedSale });
+        checkoutMocks.printReceipt
+            .mockRejectedValueOnce(Object.assign(new Error('Printer hilang.'), {
+                category: 'unexpected',
+                domainCode: API_DOMAIN_ERROR_CODE.PRINTER_NOT_FOUND
+            }))
+            .mockResolvedValueOnce({ data: true });
+        renderCheckout();
+
+        await reviewCashPayment(user);
+        await user.click(screen.getByRole('button', { name: 'Konfirmasi jual' }));
+
+        const saleSuccess = await screen.findByRole('status');
+        const printFailure = await screen.findByRole('alert');
+        expect(saleSuccess).toHaveTextContent(`Penjualan ${ completedSale.code } berhasil.`);
+        expect(printFailure).toHaveTextContent('Printer yang dikonfigurasi pada server tidak ditemukan.');
+        expect(printFailure).toHaveTextContent('Penjualan tetap berhasil dan tidak dikirim ulang.');
+        expect(printFailure).toHaveFocus();
+
+        await user.click(screen.getByRole('button', { name: 'Coba cetak lagi' }));
+
+        await waitFor(() => expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(2));
+        expect(checkoutMocks.printReceipt).toHaveBeenNthCalledWith(1, completedSale.code);
+        expect(checkoutMocks.printReceipt).toHaveBeenNthCalledWith(2, completedSale.code);
+        expect(await screen.findByText(/Struk berhasil dicetak\./)).toBeInTheDocument();
+        expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
+    });
+
+    it('can navigate to the completed sale while printing is pending and ignores the late result', async () => {
+        const user = userEvent.setup();
+        const completedSale = sale();
+        const printRequest = deferred();
+        const onLockChange = vi.fn();
+        const onSaleCompleted = vi.fn();
+        checkoutMocks.createSale.mockResolvedValue({ data: completedSale });
+        checkoutMocks.printReceipt.mockReturnValue(printRequest.promise);
+        render(
+            <Routes>
+                <Route
+                    path="/cashier"
+                    element={ (
+                        <CashierCheckout
+                            itemList={ cartItems }
+                            onLockChange={ onLockChange }
+                            onSaleCompleted={ onSaleCompleted }
+                        />
+                    ) }
+                />
+                <Route path="/sales/:code" element={ <h1>Detail penjualan aman</h1> } />
+            </Routes>,
+            { route: '/cashier' }
+        );
+
+        await reviewCashPayment(user);
+        await user.click(screen.getByRole('button', { name: 'Konfirmasi jual' }));
+        await screen.findByRole('region', { name: 'Status pencetakan struk' });
+        await user.click(screen.getByRole('link', { name: 'Lihat detail penjualan' }));
+
+        expect(await screen.findByRole('heading', { name: 'Detail penjualan aman' })).toBeInTheDocument();
+        await act(async () => printRequest.resolve({ data: true }));
+        expect(screen.queryByText('Struk berhasil dicetak.')).not.toBeInTheDocument();
+        expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
+        expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(1);
+        expect(checkoutMocks.printReceipt).toHaveBeenCalledWith(completedSale.code);
     });
 
     it('submits QRIS confirmation input without deriving a total or change locally', async () => {
@@ -276,4 +373,3 @@ describe('CashierCheckout', () => {
         expect(await screen.findByRole('status')).toHaveTextContent('SALE/VIII-2026/0042');
     });
 });
-

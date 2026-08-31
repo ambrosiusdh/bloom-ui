@@ -3,34 +3,13 @@ import { useParams, Link } from 'react-router-dom';
 import { Button, Alert } from '@mui/material';
 import { Printer, ArrowLeft } from 'lucide-react';
 
-import { API_DOMAIN_ERROR_CODE } from '@api/error-contract.js';
+import {
+    getReceiptPrintErrorMessage,
+    RECEIPT_PRINT_STATUS
+} from '@components/sale/receipt-print.js';
 import SaleInfoCard from '@components/sale/SaleInfoCard';
 import SaleItemsTable from '@components/sale/SaleItemsTable';
 import { useSaleStore, useBreadcrumbStore } from '@stores/index.js';
-
-
-const PRINT_STATUS = Object.freeze({
-    IDLE: 'idle',
-    PENDING: 'pending',
-    SUCCESS: 'success',
-    ERROR: 'error'
-});
-
-const getPrintErrorMessage = error => {
-    if (error?.domainCode === API_DOMAIN_ERROR_CODE.PRINTER_NOT_FOUND) {
-        return 'Printer yang dikonfigurasi pada server tidak ditemukan. Periksa printer lalu coba lagi.';
-    }
-
-    if (error?.domainCode === API_DOMAIN_ERROR_CODE.SALE_NOT_FOUND) {
-        return 'Penjualan tidak ditemukan oleh server. Muat ulang detail penjualan sebelum mencoba lagi.';
-    }
-
-    if (error?.category === 'network') {
-        return 'Status pencetakan tidak dapat dipastikan karena koneksi ke server terputus. Periksa printer sebelum mencoba lagi.';
-    }
-
-    return 'Struk gagal dicetak. Penjualan tidak diubah. Periksa printer lalu coba lagi.';
-};
 
 const SaleDetail = () => {
     const { code } = useParams();
@@ -41,7 +20,7 @@ const SaleDetail = () => {
 
     const [error, setError] = useState(null);
     const [printState, setPrintState] = useState({
-        status: PRINT_STATUS.IDLE,
+        status: RECEIPT_PRINT_STATUS.IDLE,
         message: ''
     });
     const printInFlightRef = useRef(false);
@@ -75,7 +54,8 @@ const SaleDetail = () => {
     }, [saleReference, setBreadcrumbs, getSaleDetails]);
 
     useEffect(() => {
-        if (printState.status === PRINT_STATUS.SUCCESS || printState.status === PRINT_STATUS.ERROR) {
+        if (printState.status === RECEIPT_PRINT_STATUS.SUCCESS
+            || printState.status === RECEIPT_PRINT_STATUS.ERROR) {
             printFeedbackRef.current?.focus();
         }
     }, [printState.status]);
@@ -84,7 +64,7 @@ const SaleDetail = () => {
         printAttemptRef.current += 1;
         printInFlightRef.current = false;
         setPrintState({
-            status: PRINT_STATUS.IDLE,
+            status: RECEIPT_PRINT_STATUS.IDLE,
             message: ''
         });
 
@@ -100,7 +80,7 @@ const SaleDetail = () => {
         const attempt = ++printAttemptRef.current;
         printInFlightRef.current = true;
         setPrintState({
-            status: PRINT_STATUS.PENDING,
+            status: RECEIPT_PRINT_STATUS.PENDING,
             message: 'Permintaan cetak sedang diproses oleh server.'
         });
 
@@ -109,15 +89,15 @@ const SaleDetail = () => {
             if (attempt !== printAttemptRef.current) return;
 
             setPrintState({
-                status: PRINT_STATUS.SUCCESS,
+                status: RECEIPT_PRINT_STATUS.SUCCESS,
                 message: 'Struk berhasil dicetak.'
             });
         } catch (printError) {
             if (attempt !== printAttemptRef.current) return;
 
             setPrintState({
-                status: PRINT_STATUS.ERROR,
-                message: getPrintErrorMessage(printError)
+                status: RECEIPT_PRINT_STATUS.ERROR,
+                message: getReceiptPrintErrorMessage(printError)
             });
         } finally {
             if (attempt === printAttemptRef.current) {
@@ -126,7 +106,7 @@ const SaleDetail = () => {
         }
     };
 
-    const isPrinting = printState.status === PRINT_STATUS.PENDING;
+    const isPrinting = printState.status === RECEIPT_PRINT_STATUS.PENDING;
     const isSaleReady = saleDetails?.code === saleReference;
 
     if (error) {
@@ -163,20 +143,20 @@ const SaleDetail = () => {
                     onClick={ handlePrint }
                     disabled={ isPrinting || !isSaleReady }
                     aria-busy={ isPrinting }
-                    aria-describedby={ printState.status === PRINT_STATUS.IDLE ? undefined : 'receipt-print-status' }
+                    aria-describedby={ printState.status === RECEIPT_PRINT_STATUS.IDLE ? undefined : 'receipt-print-status' }
                 >
                     { isPrinting ? 'Mencetak...' : 'Cetak ulang struk' }
                 </Button>
             </div>
 
-            { printState.status !== PRINT_STATUS.IDLE && (
+            { printState.status !== RECEIPT_PRINT_STATUS.IDLE && (
                 <Alert
                     id="receipt-print-status"
                     ref={ printFeedbackRef }
-                    severity={ printState.status === PRINT_STATUS.ERROR ? 'error' : printState.status === PRINT_STATUS.SUCCESS ? 'success' : 'info' }
-                    role={ printState.status === PRINT_STATUS.ERROR ? 'alert' : 'status' }
+                    severity={ printState.status === RECEIPT_PRINT_STATUS.ERROR ? 'error' : printState.status === RECEIPT_PRINT_STATUS.SUCCESS ? 'success' : 'info' }
+                    role={ printState.status === RECEIPT_PRINT_STATUS.ERROR ? 'alert' : 'status' }
                     tabIndex={ -1 }
-                    action={ printState.status === PRINT_STATUS.ERROR ? (
+                    action={ printState.status === RECEIPT_PRINT_STATUS.ERROR ? (
                         <Button color="inherit" size="small" onClick={ handlePrint }>
                             Coba lagi
                         </Button>
