@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Roadmap
 
-Last updated: 2026-08-27
+Last updated: 2026-09-03
 
 ## 1. How to use this roadmap
 
@@ -81,7 +81,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-19 | Physical scanner integration | IN_PROGRESS | PLAN_RECOMMENDED | FE-18 | `gpt-5.6-sol`, high |
 | FE-20 | Sale checkout submission | IMPLEMENTED | PLAN_RECOMMENDED | FE-18 | `gpt-5.6-sol`, xhigh |
 | FE-21 | Post-checkout print and recovery | BLOCKED | BLOCKED | FE-20, FE-07 | `gpt-5.6-sol`, high |
-| FE-22 | Sales history target alignment | BLOCKED | BLOCKED | FE-20 | `gpt-5.6-terra`, high |
+| FE-22 | Sales history target alignment | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-20 | `gpt-5.6-terra`, high |
 | FE-23 | Supplier list and detail | BLOCKED | BLOCKED | FE-02 | `gpt-5.6-terra`, high |
 | FE-24 | Supplier create/edit/deactivate | BLOCKED | BLOCKED | FE-23 | `gpt-5.6-terra`, high |
 | FE-25 | Goods-receipt list and detail | BLOCKED | BLOCKED | FE-09, FE-23 | `gpt-5.6-sol`, high |
@@ -542,8 +542,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-22 — Sales history target alignment
 
 - **Domain:** Sales history/detail.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `DIRECT_IMPLEMENTATION`.
+- **Status:** `IMPLEMENTED`.
+- **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-20.
 - **Backend gate:** Sale list/detail read model exposes decimal quantities, server totals, payment method/status, tender/change where appropriate, session/reference/status, and defined void/return representation.
 - **User-visible change:** Sale history accurately displays posted outcomes and links to reprint.
@@ -554,6 +554,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Validation:** API/component tests for CASH/QRIS/fractional/change/status, date/Rupiah display, tests/build/lint/responsive.
 - **Block condition:** Frontend must compare amounts to infer payment/status or return/void semantics are ambiguous.
 - **Split trigger:** Split detail from list if the combined diff exceeds the size limit.
+
+**Implementation note (2026-09-03):** The backend gate now exposes explicit `COMPLETED`/`PAID`/`NONE` read statuses, persisted decimal line facts with stock location, totals/tender/change, session/reference, stable paging/order, and the four documented filters. The frontend renders those server fields directly, covers loading/error/retry/empty and stale responses, and preserves FE-07 reprint without adding sale correction or reporting actions.
 
 **Copy-ready implementation prompt**
 
@@ -766,7 +768,7 @@ The following are intentionally not hidden inside Release 1 PRs:
 - UOM conversion/packaging.
 - Customer credit.
 - Supplier prepayment/credit or multi-receipt allocation.
-- Sale void/return UI until policy and backend contract are approved.
+- Sale void/return mutations; Release 1 exposes only the read-only `correctionStatus: NONE` representation.
 - Supplier-payment reversal UI until its policy and backend contract are approved.
 - Post-close correction workflows beyond explicitly approved backend behavior.
 
@@ -776,8 +778,7 @@ If any becomes necessary, add a new evidence-backed roadmap entry instead of exp
 
 These questions cannot be safely answered by the current frontend implementation:
 
-1. What exact sale void/return policy and inventory/payment reversal behavior will Release 1 expose?
-2. What exact supplier-payment reversal and post-close correction policy applies to CASH payments and expenses?
-3. What are the actual scanner model/interface, suffix/terminator, and rapid-scan characteristics on the store laptop?
+1. What exact supplier-payment reversal and post-close correction policy applies to CASH payments and expenses?
+2. What are the actual scanner model/interface, suffix/terminator, and rapid-scan characteristics on the store laptop?
 
 The UOM vocabulary, first-movement lock, and simple one-receipt supplier-payment allocation are product-confirmed for frontend planning, but their backend domain document and implementation must still be aligned before dependent PRs move from `BLOCKED`.

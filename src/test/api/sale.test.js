@@ -12,6 +12,26 @@ describe('sale API', () => {
         apiRequest.mockResolvedValue({});
     });
 
+    it('sends only supported sale history filters, paging, and cancellation config', async () => {
+        const controller = new AbortController();
+        const params = {
+            page: 2,
+            size: 25,
+            code: 'SALE/IX',
+            startDate: '2026-09-01T00:00:00.000Z',
+            endDate: '2026-09-30T23:59:59.999Z'
+        };
+
+        await saleApi.getSaleList(params, { signal: controller.signal }, { useLoader: false });
+
+        expect(apiRequest).toHaveBeenCalledWith({
+            url: '/api/sales',
+            method: 'GET',
+            signal: controller.signal,
+            params
+        }, { useLoader: false });
+    });
+
     it('sends only the existing slash-containing sale reference to the backend print endpoint', async () => {
         await saleApi.printReceipt('SALE/VIII-2026/0001');
 
