@@ -17,13 +17,18 @@ vi.mock('@api/sale.js', () => ({ default: saleApi }));
 
 const sale = {
     code: 'SALE/VIII-2026/0001',
+    sessionId: 7,
+    saleStatus: 'COMPLETED',
+    paymentStatus: 'PAID',
+    correctionStatus: 'NONE',
     createdAt: '2026-08-11T02:00:00Z',
     createdBy: 'Kasir',
     paymentType: 'CASH',
-    subtotalAmount: 10000,
-    discountAmount: 0,
-    totalAmount: 10000,
-    paidAmount: 10000,
+    subtotalAmount: '12500.0000',
+    discountAmount: '0.0000',
+    totalAmount: '12500.0000',
+    paidAmount: '20000.0000',
+    changeAmount: '7500.0000',
     saleItems: []
 };
 
@@ -53,8 +58,35 @@ const getReadyPrintButton = async () => {
 describe('SaleDetail receipt reprint', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        useSaleStore.setState({ saleDetails: {} });
+        useSaleStore.setState({
+            saleDetails: null,
+            saleDetailStatus: 'idle',
+            saleDetailError: null
+        });
         saleApi.getSaleDetails.mockResolvedValue({ data: { data: sale } });
+    });
+
+    it('renders backend statuses, tender/change, session, and persisted fractional line facts', async () => {
+        saleApi.getSaleDetails.mockResolvedValue({ data: { data: {
+            ...sale,
+            paidAmount: '0.0000',
+            saleItems: [{
+                item: { sku: 'KAIN-1', name: 'Kain', baseUnitOfMeasure: 'METER' },
+                stockLocation: 'STORE',
+                quantity: '1.2500',
+                unitPrice: '10000.0000',
+                subtotal: '12500.0000'
+            }]
+        } } });
+
+        renderSaleDetail();
+
+        expect(await screen.findByLabelText('Lunas')).toBeInTheDocument();
+        expect(screen.getByLabelText('Tanpa pembatalan/retur')).toBeInTheDocument();
+        expect(screen.getByText('#7')).toBeInTheDocument();
+        expect(screen.getByText('Kembalian').nextSibling).toHaveTextContent('Rp 7.500');
+        expect(screen.getAllByText('1,25 meter')).not.toHaveLength(0);
+        expect(screen.getAllByText('Toko')).not.toHaveLength(0);
     });
 
     it('prevents duplicate clicks and preserves the sale reference through pending and success', async () => {

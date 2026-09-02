@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Button, Alert } from '@mui/material';
+import { useLocation, useParams, Link } from 'react-router-dom';
+import { Button, Alert, CircularProgress } from '@mui/material';
 import { Printer, ArrowLeft } from 'lucide-react';
 
 import { API_DOMAIN_ERROR_CODE } from '@api/error-contract.js';
@@ -38,8 +38,11 @@ const SaleDetail = () => {
     const getSaleDetails = useSaleStore(state => state.getSaleDetails);
     const printReceipt = useSaleStore(state => state.printReceipt);
     const saleDetails = useSaleStore(state => state.saleDetails);
+    const detailStatus = useSaleStore(state => state.saleDetailStatus);
+    const detailError = useSaleStore(state => state.saleDetailError);
+    const location = useLocation();
 
-    const [error, setError] = useState(null);
+    const [retryVersion, setRetryVersion] = useState(0);
     const [printState, setPrintState] = useState({
         status: PRINT_STATUS.IDLE,
         message: ''
@@ -48,6 +51,8 @@ const SaleDetail = () => {
     const printAttemptRef = useRef(0);
     const printFeedbackRef = useRef(null);
     const saleReference = code || '';
+    const backTo = typeof location.state?.from === 'string'
+        && location.state.from.startsWith('/sales') ? location.state.from : '/sales';
 
     useEffect(() => {
         const controller = new AbortController();
@@ -55,24 +60,22 @@ const SaleDetail = () => {
         const fetchDetails = async () => {
             if (!saleReference) return;
 
-            setError(null);
             try {
                 setBreadcrumbs([{ to: '/sales', label: 'Riwayat Penjualan' }, saleReference]);
                 await getSaleDetails(
                     saleReference,
                     { signal: controller.signal },
-                    { useLoader: true }
+                    { useLoader: false }
                 );
-            } catch (err) {
-                if (controller.signal.aborted) return;
-                setError(err.message || 'Gagal memuat detail penjualan');
+            } catch {
+                // The store owns the normalized error state; aborted requests are ignored there.
             }
         };
 
         fetchDetails();
 
         return () => controller.abort();
-    }, [saleReference, setBreadcrumbs, getSaleDetails]);
+    }, [saleReference, setBreadcrumbs, getSaleDetails, retryVersion]);
 
     useEffect(() => {
         if (printState.status === PRINT_STATUS.SUCCESS || printState.status === PRINT_STATUS.ERROR) {
@@ -129,18 +132,22 @@ const SaleDetail = () => {
     const isPrinting = printState.status === PRINT_STATUS.PENDING;
     const isSaleReady = saleDetails?.code === saleReference;
 
-    if (error) {
+    if (detailStatus === 'loading' || detailStatus === 'idle') {
         return (
-            <div className="p-4">
-                <Alert severity="error">{ error }</Alert>
-                <Button
-                    component={ Link }
-                    to="/sales"
-                    startIcon={ <ArrowLeft /> }
-                    className="mt-4"
-                >
-                    Kembali ke Daftar
-                </Button>
+            <div className="py-16 text-center" role="status" aria-live="polite">
+                <CircularProgress size={ 24 } aria-hidden="true" /> <span>Memuat detail penjualan...</span>
+            </div>
+        );
+    }
+
+    if (detailStatus === 'error') {
+        return (
+            <div className="space-y-4">
+                <Alert severity="error"
+                    action={ (
+                    <Button color="inherit" onClick={ () => setRetryVersion(value => value + 1) }>Coba lagi</Button>
+                ) }>{ detailError?.message || 'Gagal memuat detail penjualan.' }</Alert>
+                <Button component={ Link } to={ backTo } startIcon={ <ArrowLeft /> }>Kembali ke daftar</Button>
             </div>
         );
     }
@@ -150,7 +157,7 @@ const SaleDetail = () => {
             <div className="flex justify-between items-center print:hidden">
                 <Button
                     component={ Link }
-                    to="/sales"
+                    to={ backTo }
                     startIcon={ <ArrowLeft /> }
                     variant="text"
                     color="inherit"
