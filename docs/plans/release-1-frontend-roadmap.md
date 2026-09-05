@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Roadmap
 
-Last updated: 2026-08-27
+Last updated: 2026-09-03
 
 ## 1. How to use this roadmap
 
@@ -80,7 +80,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-18 | Cashier search and cart | IMPLEMENTED | PLAN_RECOMMENDED | FE-09, FE-15 | `gpt-5.6-sol`, high |
 | FE-19 | Physical scanner integration | IN_PROGRESS | PLAN_RECOMMENDED | FE-18 | `gpt-5.6-sol`, high |
 | FE-20 | Sale checkout submission | IMPLEMENTED | PLAN_RECOMMENDED | FE-18 | `gpt-5.6-sol`, xhigh |
-| FE-21 | Post-checkout print and recovery | BLOCKED | BLOCKED | FE-20, FE-07 | `gpt-5.6-sol`, high |
+| FE-21 | Post-checkout print and recovery | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-20, FE-07 | `gpt-5.6-sol`, high |
 | FE-22 | Sales history target alignment | BLOCKED | BLOCKED | FE-20 | `gpt-5.6-terra`, high |
 | FE-23 | Supplier list and detail | BLOCKED | BLOCKED | FE-02 | `gpt-5.6-terra`, high |
 | FE-24 | Supplier create/edit/deactivate | BLOCKED | BLOCKED | FE-23 | `gpt-5.6-terra`, high |
@@ -522,8 +522,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-21 — Post-checkout print and recovery
 
 - **Domain:** Receipt printing after checkout.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `DIRECT_IMPLEMENTATION`.
+- **Status:** `IMPLEMENTED`.
+- **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-20, FE-07.
 - **Backend gate:** Successful checkout returns the sale reference required by the verified print endpoint; printer failure does not roll back sale.
 - **User-visible change:** After sale success, printing is attempted/retried separately and a printer failure cannot obscure the completed sale.
@@ -534,6 +534,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Validation:** Tests for sale success+print success/failure/retry/navigation, no sale recreation, keyboard/focus; tests/build/lint and physical-printer note.
 - **Block condition:** Checkout lacks a stable printable reference or print failure can make sale outcome ambiguous.
 - **Split trigger:** If asynchronous job polling is required, move job monitoring into a separate print-domain PR.
+
+**Implementation note (2026-09-03):** The verified checkout response supplies the same sale code accepted by `POST /api/print`, and printer failure occurs after the sale transaction has committed. The cashier renders the confirmed sale first and starts backend printing separately. A Zustand coordinator keyed by sale reference shares pending and terminal print state with Sale Detail, blocks a second same-reference request while one is pending, and retries/reprints without repeating checkout. Automated focus, recovered-checkout, network-ambiguity, and cross-page navigation coverage is implemented; physical printer verification remains environmental and was not performed in this change.
 
 **Copy-ready implementation prompt**
 

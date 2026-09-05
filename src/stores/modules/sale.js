@@ -1,14 +1,25 @@
 import { create } from 'zustand'
 
 import api from '@api/sale.js'
+import { RECEIPT_PRINT_STATUS } from '@constants/receipt-print.js'
+
+let nextReceiptPrintRequestId = 0;
 
 const createSaleState = () => ({
     saleList: [],
     salePaging: {},
     saleDetails: {},
+    receiptPrintStateBySale: {},
 });
 
-const createSaleAction = set => ({
+const setReceiptPrintState = (set, saleCode, printState) => set(state => ({
+    receiptPrintStateBySale: {
+        ...state.receiptPrintStateBySale,
+        [saleCode]: printState
+    }
+}));
+
+const createSaleAction = (set, get) => ({
     getSaleList: async (payload, options) => {
         try {
             const { data: response } = await api.getSaleList(payload, options)
@@ -64,19 +75,51 @@ const createSaleAction = set => ({
     },
 
     printReceipt: async (saleCode, options) => {
-        const { data: response } = await api.printReceipt(saleCode, options)
-
-        if (response?.data !== true) {
-            const contractError = new Error('Backend tidak mengonfirmasi pencetakan struk.')
-            contractError.name = 'ApiError'
-            contractError.category = 'unexpected'
-            contractError.status = null
-            contractError.domainCode = null
-            contractError.validationErrors = []
-            throw contractError
+        const currentPrintState = get().receiptPrintStateBySale[saleCode];
+        if (currentPrintState?.status === RECEIPT_PRINT_STATUS.PENDING) {
+            return undefined;
         }
 
-        return response
+        const requestId = ++nextReceiptPrintRequestId;
+        setReceiptPrintState(set, saleCode, {
+            status: RECEIPT_PRINT_STATUS.PENDING,
+            error: null,
+            requestId
+        });
+
+        try {
+            const { data: response } = await api.printReceipt(saleCode, options)
+
+            if (response?.data !== true) {
+                const contractError = new Error('Backend tidak mengonfirmasi pencetakan struk.')
+                contractError.name = 'ApiError'
+                contractError.category = 'unexpected'
+                contractError.status = null
+                contractError.domainCode = null
+                contractError.validationErrors = []
+                throw contractError
+            }
+
+            if (get().receiptPrintStateBySale[saleCode]?.requestId === requestId) {
+                setReceiptPrintState(set, saleCode, {
+                    status: RECEIPT_PRINT_STATUS.SUCCESS,
+                    error: null,
+                    requestId
+                });
+            }
+
+            return response
+        } catch (error) {
+            const printError = error?.response?.data || error;
+            if (get().receiptPrintStateBySale[saleCode]?.requestId === requestId) {
+                setReceiptPrintState(set, saleCode, {
+                    status: RECEIPT_PRINT_STATUS.ERROR,
+                    error: printError,
+                    requestId
+                });
+            }
+            throw printError
+        }
     }
 })
 

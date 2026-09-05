@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const cashierMocks = vi.hoisted(() => ({
     createSale: vi.fn(),
     getCheckoutStatus: vi.fn(),
+    printReceipt: vi.fn(),
     getCurrentSession: vi.fn(),
     getItemDetails: vi.fn(),
     getItemList: vi.fn(),
@@ -31,7 +32,9 @@ vi.mock('@stores/index.js', () => ({
     useCashSessionStore: selector => selector(cashierMocks.session),
     useSaleStore: selector => selector({
         createSale: cashierMocks.createSale,
-        getCheckoutStatus: cashierMocks.getCheckoutStatus
+        getCheckoutStatus: cashierMocks.getCheckoutStatus,
+        printReceipt: cashierMocks.printReceipt,
+        receiptPrintStateBySale: {}
     })
 }));
 
@@ -125,6 +128,8 @@ describe('Cashier search and cart', () => {
         cashierMocks.getItemList.mockReset();
         cashierMocks.createSale.mockReset();
         cashierMocks.getCheckoutStatus.mockReset();
+        cashierMocks.printReceipt.mockReset();
+        cashierMocks.printReceipt.mockResolvedValue({ data: true });
         cashierMocks.session.getCurrentSession.mockReset();
         Object.assign(cashierMocks.session, {
             currentSession: { id: 7, status: 'OPEN' },
@@ -281,6 +286,8 @@ describe('Cashier search and cart', () => {
         const successMessage = await screen.findByText('Penjualan SALE/VIII-2026/0042 berhasil.');
         expect(successMessage).toBeInTheDocument();
         await waitFor(() => expect(successMessage.closest('[role="status"]')).toHaveFocus());
+        expect(cashierMocks.printReceipt).toHaveBeenCalledWith('SALE/VIII-2026/0042');
+        expect(cashierMocks.createSale).toHaveBeenCalledTimes(1);
         expect(screen.queryByRole('textbox', { name: 'Jumlah Kain katun' })).not.toBeInTheDocument();
         expect(screen.getByText('Cari barang lalu tambahkan ke keranjang')).toBeInTheDocument();
     });
