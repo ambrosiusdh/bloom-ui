@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Alert,
@@ -16,12 +16,13 @@ import { API_ERROR_CATEGORY } from '@api/index.js';
 import BloomConfirmationModal from '@components/_ui/BloomConfirmationModal.jsx';
 import BloomMoneyField from '@components/_ui/BloomMoneyField.jsx';
 import { formatRupiah } from '@components/cash-session/cash-session-money.js';
-import {
-    getReceiptPrintErrorMessage,
-    RECEIPT_PRINT_STATUS
-} from '@components/sale/receipt-print.js';
 import { useCashSessionStore, useSaleStore } from '@stores/index.js';
 import { formatQuantity } from '@utils/quantity-utils.js';
+import {
+    EMPTY_RECEIPT_PRINT_STATE,
+    getReceiptPrintMessage,
+    RECEIPT_PRINT_STATUS
+} from '@utils/receipt-print.js';
 
 import {
     createSaleIdempotencyKey,
@@ -55,6 +56,7 @@ export default function CashierCheckout({
     const createSale = useSaleStore(state => state.createSale);
     const getCheckoutStatus = useSaleStore(state => state.getCheckoutStatus);
     const printReceipt = useSaleStore(state => state.printReceipt);
+    const receiptPrintStateBySale = useSaleStore(state => state.receiptPrintStateBySale);
     const getCurrentSession = useCashSessionStore(state => state.getCurrentSession);
 
     const [paymentType, setPaymentType] = useState(PAYMENT_TYPES.CASH);
@@ -67,10 +69,6 @@ export default function CashierCheckout({
     const [unknownMessage, setUnknownMessage] = useState('');
     const [cartError, setCartError] = useState('');
     const [result, setResult] = useState(null);
-    const [printState, setPrintState] = useState({
-        status: RECEIPT_PRINT_STATUS.IDLE,
-        message: ''
-    });
 
     const attemptRef = useRef(null);
     const inFlightRef = useRef(false);
@@ -78,21 +76,21 @@ export default function CashierCheckout({
     const paidAmountRef = useRef(null);
     const feedbackRef = useRef(null);
     const successRef = useRef(null);
-    const printInFlightRef = useRef(false);
-    const printAttemptRef = useRef(0);
     const printFeedbackRef = useRef(null);
 
     const checkoutLocked = LOCKED_PHASES.has(phase);
     const currentRequest = createSaleRequest(itemList, paymentType, paidAmount);
     const currentSignature = getSaleRequestSignature(currentRequest);
     const canRetrySameRequest = attempt?.signature === currentSignature && !disabled;
+    const printState = result?.code
+        ? receiptPrintStateBySale[result.code] || EMPTY_RECEIPT_PRINT_STATE
+        : EMPTY_RECEIPT_PRINT_STATE;
+    const printMessage = getReceiptPrintMessage(printState);
 
     useEffect(() => {
         mountedRef.current = true;
         return () => {
             mountedRef.current = false;
-            printAttemptRef.current += 1;
-            printInFlightRef.current = false;
             onLockChange(false);
         };
     }, [onLockChange]);
@@ -118,43 +116,11 @@ export default function CashierCheckout({
         }
     }, [printState.status]);
 
-    const requestReceiptPrint = useCallback(async saleReference => {
-        if (!saleReference || printInFlightRef.current) return;
-
-        const printAttempt = ++printAttemptRef.current;
-        printInFlightRef.current = true;
-        setPrintState({
-            status: RECEIPT_PRINT_STATUS.PENDING,
-            message: 'Permintaan cetak sedang diproses oleh server.'
-        });
-
-        try {
-            await printReceipt(saleReference);
-            if (!mountedRef.current || printAttempt !== printAttemptRef.current) return;
-
-            setPrintState({
-                status: RECEIPT_PRINT_STATUS.SUCCESS,
-                message: 'Struk berhasil dicetak.'
-            });
-        } catch (printError) {
-            if (!mountedRef.current || printAttempt !== printAttemptRef.current) return;
-
-            setPrintState({
-                status: RECEIPT_PRINT_STATUS.ERROR,
-                message: getReceiptPrintErrorMessage(printError)
-            });
-        } finally {
-            if (printAttempt === printAttemptRef.current) {
-                printInFlightRef.current = false;
-            }
-        }
-    }, [printReceipt]);
-
     useEffect(() => {
         if (phase === 'success' && result?.code) {
-            requestReceiptPrint(result.code);
+            printReceipt(result.code).catch(() => undefined);
         }
-    }, [phase, requestReceiptPrint, result?.code]);
+    }, [phase, printReceipt, result?.code]);
 
     const resetKnownFailure = () => {
         setFailureMessage('');
@@ -194,10 +160,6 @@ export default function CashierCheckout({
         setFailureMessage('');
         setUnknownMessage('');
         setCartError('');
-        setPrintState({
-            status: RECEIPT_PRINT_STATUS.IDLE,
-            message: ''
-        });
         setResult(sale);
         setPhase('success');
         onSaleCompleted(sale);
@@ -378,12 +340,6 @@ export default function CashierCheckout({
     };
 
     const startNextSale = () => {
-        printAttemptRef.current += 1;
-        printInFlightRef.current = false;
-        setPrintState({
-            status: RECEIPT_PRINT_STATUS.IDLE,
-            message: ''
-        });
         setResult(null);
         setPhase('idle');
         onSaleCompleted(null);
@@ -491,6 +447,7 @@ export default function CashierCheckout({
                         severity="success"
                         className="mt-4"
                         role="status"
+                        aria-label="Status penjualan"
                         tabIndex={ -1 }
                         ref={ successRef }
                     >
@@ -509,21 +466,23 @@ export default function CashierCheckout({
                                     ? 'success'
                                     : 'info' }
                             className="mt-3"
-                            role={ printState.status === RECEIPT_PRINT_STATUS.ERROR ? 'alert' : 'region' }
+                            role={ printState.status === RECEIPT_PRINT_STATUS.ERROR ? 'alert' : 'status' }
                             aria-label="Status pencetakan struk"
-                            aria-live="polite"
                             aria-busy={ printState.status === RECEIPT_PRINT_STATUS.PENDING }
                             tabIndex={ -1 }
                             ref={ printFeedbackRef }
                         >
                             <div className="font-semibold">Pencetakan struk { result.code }</div>
-                            <div>{ printState.message } Penjualan tetap berhasil dan tidak dikirim ulang.</div>
+                            <div>{ printMessage } Penjualan tetap berhasil dan tidak dikirim ulang.</div>
+                            { printState.error?.domainCode === API_DOMAIN_ERROR_CODE.SALE_NOT_FOUND && (
+                                <div>Buka detail penjualan untuk memeriksa transaksi.</div>
+                            ) }
                             <Button
                                 color="inherit"
                                 size="small"
                                 className="mt-2"
                                 startIcon={ <Printer size={ 16 } /> }
-                                onClick={ () => requestReceiptPrint(result.code) }
+                                onClick={ () => printReceipt(result.code).catch(() => undefined) }
                                 disabled={ printState.status === RECEIPT_PRINT_STATUS.PENDING }
                             >
                                 { printState.status === RECEIPT_PRINT_STATUS.PENDING

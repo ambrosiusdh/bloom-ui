@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Roadmap
 
-Last updated: 2026-08-31
+Last updated: 2026-09-03
 
 ## 1. How to use this roadmap
 
@@ -535,7 +535,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Block condition:** Checkout lacks a stable printable reference or print failure can make sale outcome ambiguous.
 - **Split trigger:** If asynchronous job polling is required, move job monitoring into a separate print-domain PR.
 
-**Implementation note (2026-08-31):** The verified checkout response supplies the same sale code accepted by `POST /api/print`, and printer failure occurs after the sale transaction has committed. The cashier now renders the confirmed sale first, starts backend printing separately, keeps the sale visible through print pending/success/failure, retries or reprints only the same reference, and ignores late print UI results after navigation without repeating checkout. Automated focus and navigation coverage is implemented; physical printer verification remains environmental and was not performed in this change.
+**Implementation note (2026-09-03):** The verified checkout response supplies the same sale code accepted by `POST /api/print`, and printer failure occurs after the sale transaction has committed. The cashier renders the confirmed sale first and starts backend printing separately. A Zustand coordinator keyed by sale reference shares pending and terminal print state with Sale Detail, blocks a second same-reference request while one is pending, and retries/reprints without repeating checkout. Automated focus, recovered-checkout, network-ambiguity, and cross-page navigation coverage is implemented; physical printer verification remains environmental and was not performed in this change.
 
 **Copy-ready implementation prompt**
 

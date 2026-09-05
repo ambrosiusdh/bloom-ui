@@ -3,30 +3,29 @@ import { useParams, Link } from 'react-router-dom';
 import { Button, Alert } from '@mui/material';
 import { Printer, ArrowLeft } from 'lucide-react';
 
-import {
-    getReceiptPrintErrorMessage,
-    RECEIPT_PRINT_STATUS
-} from '@components/sale/receipt-print.js';
+import { API_DOMAIN_ERROR_CODE } from '@api/error-contract.js';
 import SaleInfoCard from '@components/sale/SaleInfoCard';
 import SaleItemsTable from '@components/sale/SaleItemsTable';
 import { useSaleStore, useBreadcrumbStore } from '@stores/index.js';
+import {
+    EMPTY_RECEIPT_PRINT_STATE,
+    getReceiptPrintMessage,
+    RECEIPT_PRINT_STATUS
+} from '@utils/receipt-print.js';
 
 const SaleDetail = () => {
     const { code } = useParams();
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const getSaleDetails = useSaleStore(state => state.getSaleDetails);
     const printReceipt = useSaleStore(state => state.printReceipt);
+    const receiptPrintStateBySale = useSaleStore(state => state.receiptPrintStateBySale);
     const saleDetails = useSaleStore(state => state.saleDetails);
 
     const [error, setError] = useState(null);
-    const [printState, setPrintState] = useState({
-        status: RECEIPT_PRINT_STATUS.IDLE,
-        message: ''
-    });
-    const printInFlightRef = useRef(false);
-    const printAttemptRef = useRef(0);
     const printFeedbackRef = useRef(null);
     const saleReference = code || '';
+    const printState = receiptPrintStateBySale[saleReference] || EMPTY_RECEIPT_PRINT_STATE;
+    const printMessage = getReceiptPrintMessage(printState);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -60,50 +59,9 @@ const SaleDetail = () => {
         }
     }, [printState.status]);
 
-    useEffect(() => {
-        printAttemptRef.current += 1;
-        printInFlightRef.current = false;
-        setPrintState({
-            status: RECEIPT_PRINT_STATUS.IDLE,
-            message: ''
-        });
-
-        return () => {
-            printAttemptRef.current += 1;
-            printInFlightRef.current = false;
-        };
-    }, [saleReference]);
-
-    const handlePrint = async () => {
-        if (!saleReference || printInFlightRef.current) return;
-
-        const attempt = ++printAttemptRef.current;
-        printInFlightRef.current = true;
-        setPrintState({
-            status: RECEIPT_PRINT_STATUS.PENDING,
-            message: 'Permintaan cetak sedang diproses oleh server.'
-        });
-
-        try {
-            await printReceipt(saleReference);
-            if (attempt !== printAttemptRef.current) return;
-
-            setPrintState({
-                status: RECEIPT_PRINT_STATUS.SUCCESS,
-                message: 'Struk berhasil dicetak.'
-            });
-        } catch (printError) {
-            if (attempt !== printAttemptRef.current) return;
-
-            setPrintState({
-                status: RECEIPT_PRINT_STATUS.ERROR,
-                message: getReceiptPrintErrorMessage(printError)
-            });
-        } finally {
-            if (attempt === printAttemptRef.current) {
-                printInFlightRef.current = false;
-            }
-        }
+    const handlePrint = () => {
+        if (!saleReference) return;
+        printReceipt(saleReference).catch(() => undefined);
     };
 
     const isPrinting = printState.status === RECEIPT_PRINT_STATUS.PENDING;
@@ -162,7 +120,10 @@ const SaleDetail = () => {
                         </Button>
                     ) : undefined }
                 >
-                    <strong>Penjualan { saleReference }.</strong> { printState.message }
+                    <strong>Penjualan { saleReference }.</strong> { printMessage }
+                    { printState.error?.domainCode === API_DOMAIN_ERROR_CODE.SALE_NOT_FOUND && (
+                        <> Muat ulang halaman sebelum mencoba lagi.</>
+                    ) }
                 </Alert>
             ) }
 

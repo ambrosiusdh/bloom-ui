@@ -1,21 +1,29 @@
 import { act } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const checkoutMocks = vi.hoisted(() => ({
     createSale: vi.fn(),
     getCheckoutStatus: vi.fn(),
     getCurrentSession: vi.fn(),
+    getSaleDetails: vi.fn(),
+    getSaleList: vi.fn(),
     printReceipt: vi.fn()
 }));
 
-vi.mock('@stores/index.js', () => ({
-    useSaleStore: selector => selector({
+vi.mock('@api/sale.js', () => ({
+    default: {
         createSale: checkoutMocks.createSale,
         getCheckoutStatus: checkoutMocks.getCheckoutStatus,
+        getSaleDetails: checkoutMocks.getSaleDetails,
+        getSaleList: checkoutMocks.getSaleList,
         printReceipt: checkoutMocks.printReceipt
-    }),
+    }
+}));
+
+vi.mock('@stores/index.js', async importOriginal => ({
+    ...await importOriginal(),
     useCashSessionStore: selector => selector({
         getCurrentSession: checkoutMocks.getCurrentSession
     })
@@ -23,6 +31,8 @@ vi.mock('@stores/index.js', () => ({
 
 import { API_DOMAIN_ERROR_CODE } from '@api/error-contract.js';
 import CashierCheckout from '@components/cashier/CashierCheckout.jsx';
+import SaleDetail from '@pages/sale/SaleDetail.jsx';
+import useSaleStore from '@stores/modules/sale.js';
 import { render, screen, waitFor } from '@/test/render.jsx';
 
 const cartItems = [{
@@ -78,8 +88,16 @@ const reviewCashPayment = async (user, amount = '20000') => {
 describe('CashierCheckout', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        useSaleStore.setState({
+            receiptPrintStateBySale: {},
+            saleDetails: {}
+        });
         checkoutMocks.getCurrentSession.mockResolvedValue({ id: 7, status: 'OPEN' });
-        checkoutMocks.printReceipt.mockResolvedValue({ data: true });
+        checkoutMocks.printReceipt.mockResolvedValue({ data: { data: true } });
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it('shows confirmed sale before automatic print status, blocks duplicates, and supports reprint', async () => {
@@ -90,7 +108,7 @@ describe('CashierCheckout', () => {
         checkoutMocks.createSale.mockReturnValue(request.promise);
         checkoutMocks.printReceipt
             .mockReturnValueOnce(printRequest.promise)
-            .mockResolvedValueOnce({ data: true });
+            .mockResolvedValueOnce({ data: { data: true } });
         const { onLockChange, onSaleCompleted } = renderCheckout();
 
         const dialog = await reviewCashPayment(user);
@@ -111,56 +129,55 @@ describe('CashierCheckout', () => {
                 quantity: '1.25',
                 stockLocation: 'STORE'
             }]
-        }, expect.stringMatching(/^sale-/));
+        }, expect.stringMatching(/^sale-/), undefined);
         expect(screen.getByRole('button', { name: 'Memproses...' })).toBeDisabled();
         expect(onLockChange).toHaveBeenCalledWith(true);
 
         const completedSale = sale();
-        await act(async () => request.resolve({ data: completedSale }));
+        await act(async () => request.resolve({ data: { data: completedSale } }));
 
-        const success = await screen.findByRole('status');
+        const success = await screen.findByRole('status', { name: 'Status penjualan' });
         expect(success).toHaveTextContent('Penjualan SALE/VIII-2026/0042 berhasil.');
         expect(success).toHaveTextContent('Total server: Rp 18.750');
         expect(success).toHaveTextContent('Kembalian server: Rp 1.250');
         expect(success).toHaveFocus();
         expect(onSaleCompleted).toHaveBeenCalledWith(completedSale);
         expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(1);
-        expect(checkoutMocks.printReceipt).toHaveBeenCalledWith(completedSale.code);
+        expect(checkoutMocks.printReceipt).toHaveBeenCalledWith(completedSale.code, undefined);
 
-        const printStatus = screen.getByRole('region', { name: 'Status pencetakan struk' });
+        const printStatus = screen.getByRole('status', { name: 'Status pencetakan struk' });
         expect(printStatus).toHaveTextContent(`Pencetakan struk ${ completedSale.code }`);
         expect(printStatus).toHaveTextContent('Permintaan cetak sedang diproses oleh server.');
         expect(screen.getByRole('button', { name: 'Mencetak...' })).toBeDisabled();
         expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
 
-        await act(async () => printRequest.resolve({ data: true }));
+        await act(async () => printRequest.resolve({ data: { data: true } }));
 
         expect(printStatus).toHaveTextContent('Struk berhasil dicetak.');
         expect(printStatus).toHaveFocus();
         await user.click(screen.getByRole('button', { name: 'Cetak ulang struk' }));
         await waitFor(() => expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(2));
-        expect(checkoutMocks.printReceipt).toHaveBeenNthCalledWith(2, completedSale.code);
+        expect(checkoutMocks.printReceipt).toHaveBeenNthCalledWith(2, completedSale.code, undefined);
         expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
         expect(browserPrint).not.toHaveBeenCalled();
-        browserPrint.mockRestore();
     });
 
     it('keeps sale success visible when printing fails and retries only that sale reference', async () => {
         const user = userEvent.setup();
         const completedSale = sale();
-        checkoutMocks.createSale.mockResolvedValue({ data: completedSale });
+        checkoutMocks.createSale.mockResolvedValue({ data: { data: completedSale } });
         checkoutMocks.printReceipt
             .mockRejectedValueOnce(Object.assign(new Error('Printer hilang.'), {
                 category: 'unexpected',
                 domainCode: API_DOMAIN_ERROR_CODE.PRINTER_NOT_FOUND
             }))
-            .mockResolvedValueOnce({ data: true });
+            .mockResolvedValueOnce({ data: { data: true } });
         renderCheckout();
 
         await reviewCashPayment(user);
         await user.click(screen.getByRole('button', { name: 'Konfirmasi jual' }));
 
-        const saleSuccess = await screen.findByRole('status');
+        const saleSuccess = await screen.findByRole('status', { name: 'Status penjualan' });
         const printFailure = await screen.findByRole('alert');
         expect(saleSuccess).toHaveTextContent(`Penjualan ${ completedSale.code } berhasil.`);
         expect(printFailure).toHaveTextContent('Printer yang dikonfigurasi pada server tidak ditemukan.');
@@ -170,20 +187,69 @@ describe('CashierCheckout', () => {
         await user.click(screen.getByRole('button', { name: 'Coba cetak lagi' }));
 
         await waitFor(() => expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(2));
-        expect(checkoutMocks.printReceipt).toHaveBeenNthCalledWith(1, completedSale.code);
-        expect(checkoutMocks.printReceipt).toHaveBeenNthCalledWith(2, completedSale.code);
+        expect(checkoutMocks.printReceipt).toHaveBeenNthCalledWith(1, completedSale.code, undefined);
+        expect(checkoutMocks.printReceipt).toHaveBeenNthCalledWith(2, completedSale.code, undefined);
         expect(await screen.findByText(/Struk berhasil dicetak\./)).toBeInTheDocument();
         expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
     });
 
-    it('can navigate to the completed sale while printing is pending and ignores the late result', async () => {
+    it('warns about an uncertain network print outcome and retries without recreating the sale', async () => {
+        const user = userEvent.setup();
+        const completedSale = sale();
+        checkoutMocks.createSale.mockResolvedValue({ data: { data: completedSale } });
+        checkoutMocks.printReceipt
+            .mockRejectedValueOnce(Object.assign(new Error('Koneksi terputus.'), {
+                category: 'network',
+                domainCode: null
+            }))
+            .mockResolvedValueOnce({ data: { data: true } });
+        renderCheckout();
+
+        await reviewCashPayment(user);
+        await user.click(screen.getByRole('button', { name: 'Konfirmasi jual' }));
+
+        const printFailure = await screen.findByRole('alert');
+        expect(screen.getByRole('status', { name: 'Status penjualan' }))
+            .toHaveTextContent(`Penjualan ${ completedSale.code } berhasil.`);
+        expect(printFailure).toHaveTextContent('Status pencetakan tidak dapat dipastikan');
+        expect(printFailure).toHaveTextContent('Periksa printer sebelum mencoba lagi.');
+
+        await user.click(screen.getByRole('button', { name: 'Coba cetak lagi' }));
+
+        await waitFor(() => expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(2));
+        expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
+    });
+
+    it('gives checkout-specific recovery when the confirmed sale cannot be found for printing', async () => {
+        const user = userEvent.setup();
+        const completedSale = sale();
+        checkoutMocks.createSale.mockResolvedValue({ data: { data: completedSale } });
+        checkoutMocks.printReceipt.mockRejectedValue(Object.assign(new Error('Tidak ditemukan.'), {
+            category: 'not_found',
+            domainCode: API_DOMAIN_ERROR_CODE.SALE_NOT_FOUND
+        }));
+        renderCheckout();
+
+        await reviewCashPayment(user);
+        await user.click(screen.getByRole('button', { name: 'Konfirmasi jual' }));
+
+        const printFailure = await screen.findByRole('alert');
+        expect(printFailure).toHaveTextContent(
+            'Penjualan tidak ditemukan oleh server sehingga struk belum dapat dicetak.'
+        );
+        expect(printFailure).toHaveTextContent('Buka detail penjualan untuk memeriksa transaksi.');
+        expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
+    });
+
+    it('shares a pending print with Sale Detail and blocks a second same-sale request', async () => {
         const user = userEvent.setup();
         const completedSale = sale();
         const printRequest = deferred();
         const onLockChange = vi.fn();
         const onSaleCompleted = vi.fn();
-        checkoutMocks.createSale.mockResolvedValue({ data: completedSale });
+        checkoutMocks.createSale.mockResolvedValue({ data: { data: completedSale } });
         checkoutMocks.printReceipt.mockReturnValue(printRequest.promise);
+        checkoutMocks.getSaleDetails.mockResolvedValue({ data: { data: completedSale } });
         render(
             <Routes>
                 <Route
@@ -196,22 +262,25 @@ describe('CashierCheckout', () => {
                         />
                     ) }
                 />
-                <Route path="/sales/:code" element={ <h1>Detail penjualan aman</h1> } />
+                <Route path="/sales/:code" element={ <SaleDetail /> } />
             </Routes>,
             { route: '/cashier' }
         );
 
         await reviewCashPayment(user);
         await user.click(screen.getByRole('button', { name: 'Konfirmasi jual' }));
-        await screen.findByRole('region', { name: 'Status pencetakan struk' });
+        await screen.findByRole('status', { name: 'Status pencetakan struk' });
         await user.click(screen.getByRole('link', { name: 'Lihat detail penjualan' }));
 
-        expect(await screen.findByRole('heading', { name: 'Detail penjualan aman' })).toBeInTheDocument();
-        await act(async () => printRequest.resolve({ data: true }));
-        expect(screen.queryByText('Struk berhasil dicetak.')).not.toBeInTheDocument();
+        const pendingPrintButton = await screen.findByRole('button', { name: 'Mencetak...' });
+        expect(pendingPrintButton).toBeDisabled();
+        expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(1);
+
+        await act(async () => printRequest.resolve({ data: { data: true } }));
+        expect(await screen.findByText('Struk berhasil dicetak.')).toBeInTheDocument();
         expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
         expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(1);
-        expect(checkoutMocks.printReceipt).toHaveBeenCalledWith(completedSale.code);
+        expect(checkoutMocks.printReceipt).toHaveBeenCalledWith(completedSale.code, undefined);
     });
 
     it('submits QRIS confirmation input without deriving a total or change locally', async () => {
@@ -221,7 +290,7 @@ describe('CashierCheckout', () => {
             changeAmount: '0.0000',
             paymentType: 'QRIS'
         });
-        checkoutMocks.createSale.mockResolvedValue({ data: completedSale });
+        checkoutMocks.createSale.mockResolvedValue({ data: { data: completedSale } });
         renderCheckout();
 
         await user.click(screen.getByRole('combobox', { name: 'Metode pembayaran' }));
@@ -238,9 +307,11 @@ describe('CashierCheckout', () => {
                 paymentType: 'QRIS',
                 paidAmount: '18750'
             }),
-            expect.stringMatching(/^sale-/)
+            expect.stringMatching(/^sale-/),
+            undefined
         ));
-        expect(await screen.findByRole('status')).toHaveTextContent('Kembalian server: Rp 0.');
+        expect(await screen.findByRole('status', { name: 'Status penjualan' }))
+            .toHaveTextContent('Kembalian server: Rp 0.');
     });
 
     it('focuses local validation and maps backend payment validation without clearing the cart', async () => {
@@ -305,9 +376,9 @@ describe('CashierCheckout', () => {
                 category: 'network',
                 status: null
             }))
-            .mockResolvedValueOnce({ data: completedSale });
+            .mockResolvedValueOnce({ data: { data: completedSale } });
         checkoutMocks.getCheckoutStatus.mockResolvedValue({
-            data: { status: 'UNKNOWN', sale: null }
+            data: { data: { status: 'UNKNOWN', sale: null } }
         });
         const { onSaleCompleted } = renderCheckout();
         await reviewCashPayment(user);
@@ -318,14 +389,15 @@ describe('CashierCheckout', () => {
         expect(checkoutMocks.getCheckoutStatus).toHaveBeenCalledTimes(1);
         const firstRequest = checkoutMocks.createSale.mock.calls[0][0];
         const firstKey = checkoutMocks.createSale.mock.calls[0][1];
-        expect(checkoutMocks.getCheckoutStatus).toHaveBeenCalledWith(firstKey);
+        expect(checkoutMocks.getCheckoutStatus).toHaveBeenCalledWith(firstKey, undefined, undefined);
         expect(screen.getByRole('textbox', { name: 'Uang tunai diterima' })).toBeDisabled();
 
         await user.click(screen.getByRole('button', { name: 'Kirim ulang permintaan yang sama' }));
 
         await waitFor(() => expect(checkoutMocks.createSale).toHaveBeenCalledTimes(2));
-        expect(checkoutMocks.createSale.mock.calls[1]).toEqual([firstRequest, firstKey]);
-        expect(await screen.findByRole('status')).toHaveTextContent(completedSale.code);
+        expect(checkoutMocks.createSale.mock.calls[1]).toEqual([firstRequest, firstKey, undefined]);
+        expect(await screen.findByRole('status', { name: 'Status penjualan' }))
+            .toHaveTextContent(completedSale.code);
         expect(onSaleCompleted).toHaveBeenCalledWith(completedSale);
     });
 
@@ -337,17 +409,22 @@ describe('CashierCheckout', () => {
             status: null
         }));
         checkoutMocks.getCheckoutStatus.mockResolvedValue({
-            data: { status: 'COMPLETED', sale: completedSale }
+            data: { data: { status: 'COMPLETED', sale: completedSale } }
         });
         renderCheckout();
         await reviewCashPayment(user);
         await user.click(screen.getByRole('button', { name: 'Konfirmasi jual' }));
 
-        expect(await screen.findByRole('status')).toHaveTextContent(completedSale.code);
+        expect(await screen.findByRole('status', { name: 'Status penjualan' }))
+            .toHaveTextContent(completedSale.code);
         expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
         expect(checkoutMocks.getCheckoutStatus).toHaveBeenCalledWith(
-            checkoutMocks.createSale.mock.calls[0][1]
+            checkoutMocks.createSale.mock.calls[0][1],
+            undefined,
+            undefined
         );
+        await waitFor(() => expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(1));
+        expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
     });
 
     it('handles a same-key payload conflict as known failure and uses a new key for a new attempt', async () => {
@@ -358,7 +435,7 @@ describe('CashierCheckout', () => {
                 status: 409,
                 domainCode: API_DOMAIN_ERROR_CODE.CHECKOUT_IDEMPOTENCY_CONFLICT
             }))
-            .mockResolvedValueOnce({ data: sale() });
+            .mockResolvedValueOnce({ data: { data: sale() } });
         renderCheckout();
         await reviewCashPayment(user);
         await user.click(screen.getByRole('button', { name: 'Konfirmasi jual' }));
@@ -370,6 +447,7 @@ describe('CashierCheckout', () => {
 
         await waitFor(() => expect(checkoutMocks.createSale).toHaveBeenCalledTimes(2));
         expect(checkoutMocks.createSale.mock.calls[1][1]).not.toBe(conflictedKey);
-        expect(await screen.findByRole('status')).toHaveTextContent('SALE/VIII-2026/0042');
+        expect(await screen.findByRole('status', { name: 'Status penjualan' }))
+            .toHaveTextContent('SALE/VIII-2026/0042');
     });
 });

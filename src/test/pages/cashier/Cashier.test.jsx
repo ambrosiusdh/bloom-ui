@@ -33,7 +33,8 @@ vi.mock('@stores/index.js', () => ({
     useSaleStore: selector => selector({
         createSale: cashierMocks.createSale,
         getCheckoutStatus: cashierMocks.getCheckoutStatus,
-        printReceipt: cashierMocks.printReceipt
+        printReceipt: cashierMocks.printReceipt,
+        receiptPrintStateBySale: {}
     })
 }));
 
@@ -284,9 +285,7 @@ describe('Cashier search and cart', () => {
 
         const successMessage = await screen.findByText('Penjualan SALE/VIII-2026/0042 berhasil.');
         expect(successMessage).toBeInTheDocument();
-        const printStatus = await screen.findByRole('region', { name: 'Status pencetakan struk' });
-        await waitFor(() => expect(printStatus).toHaveFocus());
-        expect(printStatus).toHaveTextContent('Struk berhasil dicetak.');
+        await waitFor(() => expect(successMessage.closest('[role="status"]')).toHaveFocus());
         expect(cashierMocks.printReceipt).toHaveBeenCalledWith('SALE/VIII-2026/0042');
         expect(cashierMocks.createSale).toHaveBeenCalledTimes(1);
         expect(screen.queryByRole('textbox', { name: 'Jumlah Kain katun' })).not.toBeInTheDocument();
