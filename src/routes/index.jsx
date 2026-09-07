@@ -25,6 +25,8 @@ const StockMovementList = lazy(() => import("@pages/stock-movement/StockMovement
 const StockTransferCreate = lazy(() => import("@pages/stock-transfer/StockTransferCreate.jsx"));
 const CashSessionHistory = lazy(() => import("@pages/cash-session/CashSessionHistory.jsx"));
 const CashSessionDetail = lazy(() => import("@pages/cash-session/CashSessionDetail.jsx"));
+const SupplierList = lazy(() => import("@pages/supplier/SupplierList.jsx"));
+const SupplierDetail = lazy(() => import("@pages/supplier/SupplierDetail.jsx"));
 
 const Login = lazy(() => import("@pages/login/Login.jsx"));
 const NotFound = lazy(() => import("@pages/NotFound.jsx"));
@@ -134,6 +136,14 @@ const router = createBrowserRouter([
             {
                 path: "cash-sessions/:sessionId",
                 element: withSuspense(<CashSessionDetail />)
+            },
+            {
+                path: "suppliers",
+                element: withSuspense(<SupplierList />)
+            },
+            {
+                path: "suppliers/:code",
+                element: withSuspense(<SupplierDetail />)
             },
             {
                 path: "*",

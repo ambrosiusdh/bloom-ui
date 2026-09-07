@@ -12,6 +12,7 @@ import {
     ReceiptTextIcon,
     TagsIcon,
     TruckIcon,
+    UsersIcon,
     UserIcon,
     XIcon
 } from "lucide-react";
@@ -39,6 +40,13 @@ const navigationGroups = [
             { to: '/stock-adjustments', icon: ClipboardCheckIcon, label: 'Penyesuaian Stok' },
             { to: '/stock-transfers/new', icon: ArrowLeftRightIcon, label: 'Transfer Stok' },
             { to: '/stock-movements', icon: HistoryIcon, label: 'Riwayat Pergerakan Stok' }
+        ]
+    },
+    {
+        id: 'navigation-procurement',
+        label: 'Pembelian',
+        items: [
+            { to: '/suppliers', icon: UsersIcon, label: 'Pemasok' }
         ]
     },
     {
