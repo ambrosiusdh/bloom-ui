@@ -65,6 +65,11 @@ const DASHBOARD = {
     overview: '/api/dashboard/overview'
 }
 
+const SUPPLIER = {
+    list: '/api/suppliers',
+    detail: code => `/api/suppliers/${ encodeURIComponent(code) }`
+}
+
 export {
     AUTH,
     ITEM,
@@ -75,5 +80,6 @@ export {
     STOCK_MOVEMENT,
     STOCK_TRANSFER,
     CASH_SESSION,
-    DASHBOARD
+    DASHBOARD,
+    SUPPLIER
 }
