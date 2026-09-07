@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Contract
 
-Last updated: 2026-08-27
+Last updated: 2026-09-05
 
 ## 1. Purpose
 
@@ -44,6 +44,7 @@ Bloom UI is currently a JavaScript React application:
 - FE-18 cashier search and cart is implemented: the focused cashier workspace gates interaction on a verified open session, searches the active backend item read model, handles stale results, and supports duplicate-add, remove, UOM/fraction-aware decimal quantity editing, advisory STORE availability, and deliberate keyboard focus without local totals.
 - FE-19's E81W keyboard-wedge adapter and device-informed automated coverage are implemented, but FE-19 remains in progress until the same physical input, focus, feedback, and rapid-scan checks pass on the store laptop.
 - FE-20 sale checkout is implemented: the cashier submits only STORE cart-line intent, CASH/QRIS input, and one stable `Idempotency-Key`; it blocks duplicate actions, preserves the exact request/key across safe replay, resolves ambiguous outcomes through the backend status lookup, and clears the cart only after a backend-confirmed sale while rendering backend totals/change.
+- FE-23 supplier list and detail are implemented: back-office users can search and page the backend supplier read model, switch between its supported active/inactive filters, and inspect one supplier by stable immutable code with explicit async, empty, retry, and stale-response behavior.
 
 Release 1 work must preserve this baseline unless a narrowly scoped PR proves that a dependency change is necessary for its immediate domain. TypeScript migration, TanStack Query adoption, global store replacement, router restructuring, and a global design-system rewrite are not Release 1 prerequisites.
 

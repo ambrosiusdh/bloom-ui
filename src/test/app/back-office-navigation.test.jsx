@@ -66,6 +66,7 @@ describe('back-office navigation', () => {
 
         expect(within(navigation).getByRole('heading', { name: 'Ringkasan' })).toBeInTheDocument();
         expect(within(navigation).getByRole('heading', { name: 'Persediaan' })).toBeInTheDocument();
+        expect(within(navigation).getByRole('heading', { name: 'Pembelian' })).toBeInTheDocument();
         expect(within(navigation).getByRole('heading', { name: 'Penjualan' })).toBeInTheDocument();
         expect(within(navigation).getByRole('heading', { name: 'Kas' })).toBeInTheDocument();
 
@@ -77,12 +78,13 @@ describe('back-office navigation', () => {
             '/stock-adjustments',
             '/stock-transfers/new',
             '/stock-movements',
+            '/suppliers',
             '/sales',
             '/cash-sessions'
         ]);
         expect(screen.getByRole('link', { name: 'Kasir' })).toHaveAttribute('href', '/cashier');
         expect(screen.getByRole('button', { name: 'Keluar' })).toHaveClass('bg-transparent', 'hover:bg-maroon-700');
-        expect(screen.queryByText(/supplier|utang|pengeluaran/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/utang|pengeluaran/i)).not.toBeInTheDocument();
     });
 
     it('marks a destination active throughout its existing child routes', () => {

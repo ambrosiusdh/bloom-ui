@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Roadmap
 
-Last updated: 2026-08-27
+Last updated: 2026-09-05
 
 ## 1. How to use this roadmap
 
@@ -82,7 +82,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-20 | Sale checkout submission | IMPLEMENTED | PLAN_RECOMMENDED | FE-18 | `gpt-5.6-sol`, xhigh |
 | FE-21 | Post-checkout print and recovery | BLOCKED | BLOCKED | FE-20, FE-07 | `gpt-5.6-sol`, high |
 | FE-22 | Sales history target alignment | BLOCKED | BLOCKED | FE-20 | `gpt-5.6-terra`, high |
-| FE-23 | Supplier list and detail | BLOCKED | BLOCKED | FE-02 | `gpt-5.6-terra`, high |
+| FE-23 | Supplier list and detail | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-24 | Supplier create/edit/deactivate | BLOCKED | BLOCKED | FE-23 | `gpt-5.6-terra`, high |
 | FE-25 | Goods-receipt list and detail | BLOCKED | BLOCKED | FE-09, FE-23 | `gpt-5.6-sol`, high |
 | FE-26 | Goods-receipt creation | BLOCKED | BLOCKED | FE-25 | `gpt-5.6-sol`, xhigh |
@@ -562,8 +562,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-23 — Supplier list and detail
 
 - **Domain:** Supplier read workflow.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `DIRECT_IMPLEMENTATION`.
+- **Status:** `IMPLEMENTED`.
+- **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-02.
 - **Backend gate:** Supplier list/detail endpoints and stable identifier, contact, active-state, paging/search response are implemented.
 - **User-visible change:** Users can search and inspect suppliers using stable records.
