@@ -1,24 +1,10 @@
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import {
-    useEffect,
-    useState
-} from "react"
-
-import {
-    endOfDay,
-    endOfMonth,
-    startOfMonth,
-    subWeeks
-} from "date-fns"
-import { enqueueSnackbar } from "notistack"
-
-import {
-    Link,
-    useSearchParams
-} from "react-router-dom"
-
-import {
+    Alert,
     Button,
-    IconButton,
+    Chip,
+    CircularProgress,
     MenuItem,
     Pagination,
     Paper,
@@ -29,273 +15,253 @@ import {
     TableHead,
     TableRow,
     TextField
-} from "@mui/material"
+} from '@mui/material';
+import PropTypes from 'prop-types';
 
-import {
-    Plus,
-    SearchIcon,
-    SquareArrowOutUpRightIcon
-} from "lucide-react"
+import { formatRupiah } from '@components/cash-session/cash-session-money.js';
+import { useBreadcrumbStore, useSaleStore } from '@stores/index.js';
+import { formatDate } from '@utils/date-utils.js';
 
-import {
-    useBreadcrumbStore,
-    useSaleStore
-} from "@stores/index.js"
+const PAGE_SIZE_OPTIONS = [5, 10, 25, 50];
+const FILTER_KEYS = { code: 'Kode penjualan', createdBy: 'Dibuat oleh' };
+const PAYMENT_LABELS = { CASH: 'Tunai', QRIS: 'QRIS' };
+const STATUS_LABELS = { COMPLETED: 'Selesai', PAID: 'Lunas' };
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-import { formatDate } from "@utils/date-utils.js"
-import { debounce } from "@utils/general-utils.js"
+const validDate = value => DATE_PATTERN.test(value || '')
+    && !Number.isNaN(new Date(`${ value }T00:00:00`).getTime());
 
-import BloomDateRangePicker from "@components/_ui/BloomDateRangePicker.jsx"
+const getQueryState = params => {
+    const next = new URLSearchParams(params);
+    const requestedPage = Number(params.get('page'));
+    const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+    if (params.has('page') && params.get('page') !== String(page)) next.set('page', String(page));
 
-const INITIAL_FILTER_DATE = {
-    startDate: startOfMonth(Date.now()),
-    endDate: endOfMonth(Date.now()),
-    key: 'selection'
-}
+    const requestedSize = Number(params.get('size'));
+    const size = PAGE_SIZE_OPTIONS.includes(requestedSize) ? requestedSize : 10;
+    if (params.has('size') && params.get('size') !== String(size)) next.set('size', String(size));
+
+    const requestedKey = params.get('key');
+    const filterKey = Object.hasOwn(FILTER_KEYS, requestedKey) ? requestedKey : 'code';
+    if (params.has('key') && requestedKey !== filterKey) next.set('key', filterKey);
+
+    const startDate = validDate(params.get('startDate')) ? params.get('startDate') : '';
+    const endDate = validDate(params.get('endDate')) ? params.get('endDate') : '';
+    if (params.has('startDate') && !startDate) next.delete('startDate');
+    if (params.has('endDate') && !endDate) next.delete('endDate');
+    if (startDate && endDate && startDate > endDate) {
+        next.delete('startDate');
+        next.delete('endDate');
+    }
+
+    const canonicalSearch = next.toString();
+    return {
+        page,
+        size,
+        filterKey,
+        query: params.get('q') || '',
+        startDate: startDate && (!endDate || startDate <= endDate) ? startDate : '',
+        endDate: endDate && (!startDate || startDate <= endDate) ? endDate : '',
+        canonicalSearch,
+        needsSanitization: canonicalSearch !== params.toString()
+    };
+};
+
+const toInstant = (date, endOfDay = false) => date
+    ? new Date(`${ date }T${ endOfDay ? '23:59:59.999' : '00:00:00.000' }`).toISOString()
+    : undefined;
+
+const StatusChip = ({ value, type }) => (
+    <Chip
+        size="small"
+        color={ value === 'COMPLETED' || value === 'PAID' ? 'success' : 'default' }
+        label={ STATUS_LABELS[value] || value || '-' }
+        aria-label={ `${ type }: ${ STATUS_LABELS[value] || value || '-' }` }
+    />
+);
+
+StatusChip.propTypes = { value: PropTypes.string, type: PropTypes.string.isRequired };
 
 export default function SaleList() {
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const saleList = useSaleStore(state => state.saleList);
     const salePaging = useSaleStore(state => state.salePaging);
+    const status = useSaleStore(state => state.saleListStatus);
+    const error = useSaleStore(state => state.saleListError);
     const getSaleList = useSaleStore(state => state.getSaleList);
-
     const [searchParams, setSearchParams] = useSearchParams();
-    const [filters, setFilters] = useState('');
-    const [selectedFilterKey, setSelectedFilterKey] = useState('code');
-    const filterKeyData = {
-        "code": "Kode Penjualan",
-        "createdBy": "Dibuat oleh"
-    }
-    const [filterDate, setFilterDate] = useState({ ...INITIAL_FILTER_DATE })
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemPerPage, setItemPerPage] = useState(10);
-    const itemPerPageOptions = [5, 10, 25, 50]
-    const [isLoadingTable, setLoadingTable] = useState(false);
+    const location = useLocation();
+    const [retryVersion, setRetryVersion] = useState(0);
+    const queryState = getQueryState(searchParams);
+    const [draft, setDraft] = useState({
+        filterKey: queryState.filterKey,
+        query: queryState.query,
+        startDate: queryState.startDate,
+        endDate: queryState.endDate
+    });
+    const [filterError, setFilterError] = useState('');
+    const returnTo = `${ location.pathname }${ location.search }`;
 
-    const handleFilterKeyChange = e => {
-        setSelectedFilterKey(e.target.value);
-    }
-    const handleFilterChange = e => {
-        setFilters(e.target.value);
-        setCurrentPage(1)
-    }
-    const handleFilterDateChange = dateRange => {
-        setFilterDate(dateRange)
-        setCurrentPage(1)
-    }
-    const handleFilterClear = () => {
-        setFilters('')
-        setSelectedFilterKey('code');
-        setFilterDate({ ...INITIAL_FILTER_DATE })
-    }
-
-    const filterSaleList = async (page = currentPage) => {
-        setLoadingTable(true);
-        setCurrentPage(page);
-        const payload = {
-            params: {
-                page,
-                size: itemPerPage,
-                [selectedFilterKey]: filters,
-                startDate: filterDate.startDate,
-                endDate: filterDate.endDate
-            }
-        }
-
-        await getSaleList(payload)
-        setLoadingTable(false);
-    }
-
-    const handleItemPerPageChange = (e) => {
-        setItemPerPage(e.target.value)
-        setCurrentPage(1)
+    const updateQuery = updates => {
+        const next = new URLSearchParams(searchParams);
+        Object.entries(updates).forEach(([key, value]) => value
+            ? next.set(key, String(value)) : next.delete(key));
+        setSearchParams(next);
     };
 
-    const handlePageChange = (e, value) => {
-        setCurrentPage(value);
-    }
-
-    const fetchSaleList = async () => {
-        setSearchParams({
-            page: currentPage,
-            itemPerPage: itemPerPage,
-            q: filters,
-            key: selectedFilterKey
-        })
-        await filterSaleList();
-    }
+    useEffect(() => setBreadcrumbs(['Riwayat Penjualan']), [setBreadcrumbs]);
 
     useEffect(() => {
-        debounce(fetchSaleList, 'fetchSaleList', 500)
-    }, [itemPerPage, filters, filterDate, currentPage]);
-
-    useEffect(() => {
-        setFilters('');
-    }, [selectedFilterKey]);
-
-    useEffect(() => {
-        setBreadcrumbs(['Riwayat Penjualan'])
-        const filterQueryParameterList = ['q', 'key', 'page', 'itemPerPage']
-        if (filterQueryParameterList.some(key => searchParams.has(key))) {
-            setSelectedFilterKey(searchParams.get('key') || 'sku');
-            setFilters(searchParams.get('q') || '');
-            setItemPerPage(Number(searchParams.get('itemPerPage')) || 10)
-            setCurrentPage(Number(searchParams.get('page')) || 1)
+        if (queryState.needsSanitization) {
+            setSearchParams(queryState.canonicalSearch, { replace: true });
         }
-    }, []);
+    }, [queryState.canonicalSearch, queryState.needsSanitization, setSearchParams]);
+
+    useEffect(() => {
+        setDraft({
+            filterKey: queryState.filterKey,
+            query: queryState.query,
+            startDate: queryState.startDate,
+            endDate: queryState.endDate
+        });
+    }, [queryState.filterKey, queryState.query, queryState.startDate, queryState.endDate]);
+
+    useEffect(() => {
+        if (queryState.needsSanitization) return undefined;
+        const controller = new AbortController();
+        const params = {
+            page: queryState.page,
+            size: queryState.size,
+            ...(queryState.query ? { [queryState.filterKey]: queryState.query } : {}),
+            ...(queryState.startDate ? { startDate: toInstant(queryState.startDate) } : {}),
+            ...(queryState.endDate ? { endDate: toInstant(queryState.endDate, true) } : {})
+        };
+        getSaleList(params, { signal: controller.signal }, { useLoader: false }).catch(() => {});
+        return () => controller.abort();
+    }, [getSaleList, queryState.endDate, queryState.filterKey, queryState.needsSanitization,
+        queryState.page, queryState.query, queryState.size, queryState.startDate, retryVersion]);
+
+    const applyFilters = event => {
+        event.preventDefault();
+        if (draft.startDate && draft.endDate && draft.startDate > draft.endDate) {
+            setFilterError('Tanggal mulai tidak boleh setelah tanggal akhir.');
+            return;
+        }
+        setFilterError('');
+        updateQuery({ key: draft.filterKey, q: draft.query, startDate: draft.startDate,
+            endDate: draft.endDate, page: 1 });
+    };
+
+    const clearFilters = () => {
+        setFilterError('');
+        updateQuery({ key: '', q: '', startDate: '', endDate: '', page: 1 });
+    };
 
     return (
-        <div className="sale-list">
-            <div className="sale-list__header mb-4 flex justify-between items-center">
-                <h2 className="sale-list__header-title font-bold text-2xl">Riwayat Penjualan</h2>
-            </div>
+        <div className="space-y-4">
+            <header>
+                <h2 className="font-bold text-2xl">Riwayat Penjualan</h2>
+                <p className="mt-1 text-gray-600">Nilai pembayaran dan status berikut dikonfirmasi langsung oleh server.</p>
+            </header>
 
-            <div className="
-                sale-list__filter
-                card
-                mb-4
-                flex
-                items-center
-                gap-2"
-            >
-                <TextField
-                    select
-                    className="sale-list__filter-key basis-1/6"
-                    label="Filter by"
-                    variant="outlined"
-                    size="small"
-                    value={ selectedFilterKey }
-                    onChange={ handleFilterKeyChange }
-                >
-                    { Object.keys(filterKeyData).map(filterKey => (
-                        <MenuItem key={ filterKey } value={ filterKey }>
-                            { filterKeyData[filterKey] }
-                        </MenuItem>
-                    )) }
-                </TextField>
+            { error && (
+                <Alert severity="error" action={ <Button color="inherit" onClick={ () => setRetryVersion(value => value + 1) }>Coba lagi</Button> }>
+                    { error.message || 'Riwayat penjualan gagal dimuat.' }
+                </Alert>
+            ) }
 
-                <TextField
-                    className="sale-list__filter-value basis-1/3"
-                    label={ `Filter by ${ filterKeyData[selectedFilterKey] }` }
-                    variant="outlined"
-                    size="small"
-                    value={ filters }
-                    onChange={ handleFilterChange }
-                />
+            <form className="card space-y-3" aria-label="Filter riwayat penjualan" onSubmit={ applyFilters }>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <TextField select
+                        label="Cari berdasarkan"
+                        value={ draft.filterKey }
+                        onChange={ event => setDraft(value => ({ ...value, filterKey: event.target.value })) }>
+                        { Object.entries(FILTER_KEYS).map(([value, label]) => <MenuItem key={ value } value={ value }>{ label }</MenuItem>) }
+                    </TextField>
+                    <TextField
+                        label={ FILTER_KEYS[draft.filterKey] }
+                        value={ draft.query }
+                        onChange={ event => setDraft(value => ({ ...value, query: event.target.value })) } />
+                    <TextField
+                        label="Tanggal mulai"
+                        type="date"
+                        value={ draft.startDate }
+                        slotProps={ { inputLabel: { shrink: true }, htmlInput: { max: draft.endDate || undefined } } }
+                        onChange={ event => setDraft(value => ({ ...value, startDate: event.target.value })) } />
+                    <TextField
+                        label="Tanggal akhir"
+                        type="date"
+                        value={ draft.endDate }
+                        slotProps={ { inputLabel: { shrink: true }, htmlInput: { min: draft.startDate || undefined } } }
+                        onChange={ event => setDraft(value => ({ ...value, endDate: event.target.value })) } />
+                </div>
+                { filterError && <Alert severity="warning">{ filterError }</Alert> }
+                <div className="flex flex-wrap gap-2">
+                    <Button type="submit" variant="contained">Terapkan filter</Button>
+                    <Button type="button"
+                        onClick={ clearFilters }
+                        disabled={ !queryState.query && !queryState.startDate && !queryState.endDate }>Hapus filter</Button>
+                </div>
+            </form>
 
-                <BloomDateRangePicker
-                    ranges={ filterDate }
-                    label="Tanggal pembuatan"
-                    onChange={ handleFilterDateChange }
-                />
-
-                <Button
-                    className="sale-list__filter-clear"
-                    variant="text"
-                    onClick={ handleFilterClear }
-                >
-                    Hapus filter
-                </Button>
-            </div>
-
-            <div className="sale-list__content sl-content bg-white rounded-lg shadow-lg pb-2">
-                <div className="sl-content__pagination px-4 py-2 flex justify-between items-center">
-                    <h3 className="sl-content__pagination-title text-xl font-bold">Daftar penjualan</h3>
-
-                    <div className="sl-content__pagination-inputs flex gap-2 items-center">
-                        <span className="text-sm text-gray-700">Data per halaman:</span>
-                        <TextField
-                            select
-                            value={ itemPerPage }
-                            onChange={ handleItemPerPageChange }
+            <section className="rounded-lg bg-white shadow-lg pb-2" aria-label="Daftar penjualan">
+                <div className="flex flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between">
+                    <h3 className="text-xl font-bold">Daftar penjualan</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm">Data per halaman:</span>
+                        <TextField select
                             size="small"
-                            className="w-20 mr-2"
-                        >
-                            { itemPerPageOptions.map(option => (
-                                <MenuItem key={ option } value={ option }>
-                                    { option }
-                                </MenuItem>
-                            )) }
+                            value={ queryState.size }
+                            className="w-20"
+                            aria-label="Data per halaman"
+                            onChange={ event => updateQuery({ size: event.target.value, page: 1 }) }>
+                            { PAGE_SIZE_OPTIONS.map(value => <MenuItem key={ value } value={ value }>{ value }</MenuItem>) }
                         </TextField>
                         <Pagination
-                            page={ currentPage }
-                            count={ salePaging?.totalPages }
-                            onChange={ handlePageChange }
-                        />
+                            page={ queryState.page }
+                            count={ salePaging.totalPages || 1 }
+                            disabled={ status === 'loading' || !salePaging.totalPages }
+                            onChange={ (_, value) => updateQuery({ page: value }) }
+                            aria-label="Halaman riwayat penjualan" />
                     </div>
                 </div>
 
-                <TableContainer
-                    component={ Paper }
-                    elevation={ 0 }
-                    className="sl-content__table"
-                >
-                    <Table>
-                        <TableHead className="sl-content__table-header bg-gray-100">
-                            <TableRow className="text-xs font-semibold tracking-wider">
-                                <TableCell className="whitespace-nowrap">Kode Penjualan</TableCell>
-                                <TableCell className="whitespace-nowrap">Dibuat oleh</TableCell>
-                                <TableCell className="whitespace-nowrap">Dibuat pada</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            { isLoadingTable
-                                ? (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan="5"
-                                            className="!border-b-0 !text-center italic !text-gray-500"
-                                        >
-                                            Loading...
-                                        </TableCell>
-                                    </TableRow>
-                                )
-                                : saleList?.length
-                                    ? saleList?.map(((sale, index) => {
-                                        const isLastRow = index === saleList.length - 1
-                                        const tableCellClass = isLastRow ? '!border-b-0' : ''
-                                        return (
-                                            <TableRow
-                                                key={ sale.code }
-                                                className="sl-content__table-row"
-                                            >
-                                                <TableCell className={ `${ tableCellClass } whitespace-nowrap w-full` }>
-                                                    <Link
-                                                        to={ `/sales/${ encodeURIComponent(sale.code) }` }
-                                                        className="table-action__detail flex items-start gap-0.5"
-                                                    >
-                                                        { sale.code }
-                                                        <SquareArrowOutUpRightIcon
-                                                            className="sl-content__table-link w-3.5 h-3.5"
-                                                        />
-                                                    </Link>
-                                                </TableCell>
-
-                                                <TableCell className={ `${ tableCellClass } whitespace-nowrap` }>
-                                                    { sale.createdBy || 'SYSTEM' }
-                                                </TableCell>
-
-                                                <TableCell className={ `${ tableCellClass } whitespace-nowrap` }>
-                                                    { formatDate(sale.createdAt) }
-                                                </TableCell>
-                                            </TableRow>
-                                        )
-                                    }))
-                                    : (
-                                        <TableRow>
-                                            <TableCell
-                                                className="!border-b-0 !text-center italic !text-gray-500"
-                                                colSpan="5"
-                                            >
-                                                Data tidak ditemukan
-                                            </TableCell>
-                                        </TableRow>
-                                    )
-                            }
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            </div>
+                { status === 'loading' ? (
+                    <div className="py-12 text-center" role="status" aria-live="polite">
+                        <CircularProgress size={ 22 } aria-hidden="true" /> <span>Memuat penjualan...</span>
+                    </div>
+                ) : status === 'error' ? (
+                    <div className="py-12 text-center text-gray-600">Riwayat penjualan belum dapat ditampilkan.</div>
+                ) : saleList.length ? (
+                    <TableContainer component={ Paper } elevation={ 0 }>
+                        <Table sx={ { minWidth: 920 } } aria-label="Riwayat penjualan">
+                            <TableHead className="bg-gray-100"><TableRow>
+                                <TableCell>Kode</TableCell><TableCell>Status</TableCell><TableCell>Pembayaran</TableCell>
+                                <TableCell align="right">Total server</TableCell><TableCell>Dibuat</TableCell><TableCell />
+                            </TableRow></TableHead>
+                            <TableBody>{ saleList.map(sale => (
+                                <TableRow key={ sale.code } hover>
+                                    <TableCell><strong>{ sale.code }</strong><div className="text-sm text-gray-600">{ sale.createdBy || 'SYSTEM' }</div></TableCell>
+                                    <TableCell><StatusChip value={ sale.saleStatus } type="Status penjualan" /></TableCell>
+                                    <TableCell><StatusChip value={ sale.paymentStatus } type="Status pembayaran" /><div className="mt-1 text-sm">{ PAYMENT_LABELS[sale.paymentType] || sale.paymentType || '-' }</div></TableCell>
+                                    <TableCell align="right" className="tabular-nums">{ formatRupiah(sale.totalAmount) }</TableCell>
+                                    <TableCell className="whitespace-nowrap">{ formatDate(sale.createdAt) || '-' }</TableCell>
+                                    <TableCell><Button component={ Link }
+                                        to={ `/sales/${ encodeURIComponent(sale.code) }` }
+                                        state={ { from: returnTo } }>Detail</Button></TableCell>
+                                </TableRow>
+                            )) }</TableBody>
+                        </Table>
+                    </TableContainer>
+                ) : (
+                    <div className="py-12 px-4 text-center">
+                        <div className="font-semibold">Tidak ada penjualan</div>
+                        <p className="mt-1 text-gray-600">{ queryState.query || queryState.startDate || queryState.endDate
+                            ? 'Ubah atau hapus filter untuk melihat penjualan lain.'
+                            : 'Riwayat akan tampil setelah penjualan berhasil dibuat.' }</p>
+                    </div>
+                ) }
+            </section>
         </div>
     );
 }

@@ -15,12 +15,15 @@ const getReadRequestArguments = (configOrOptions = {}, options) => {
     };
 };
 
-const getSaleList = async (payload, options) => {
+const getSaleList = async (params, configOrOptions, options) => {
+    const request = getReadRequestArguments(configOrOptions, options);
+
     return api({
         url: SALE.list,
         method: 'GET',
-        ...payload
-    }, options);
+        ...request.config,
+        params
+    }, request.options);
 }
 
 const getSaleDetails = async (code, configOrOptions, options) => {
