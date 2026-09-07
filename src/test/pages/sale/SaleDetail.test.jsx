@@ -1,6 +1,6 @@
 import { Link, Routes, Route } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SaleDetail from '@pages/sale/SaleDetail.jsx';
 import useSaleStore from '@stores/modules/sale.js';
@@ -63,7 +63,12 @@ describe('SaleDetail receipt reprint', () => {
             saleDetailStatus: 'idle',
             saleDetailError: null
         });
+        useSaleStore.setState({ saleDetails: {}, receiptPrintStateBySale: {} });
         saleApi.getSaleDetails.mockResolvedValue({ data: { data: sale } });
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it('renders backend statuses, tender/change, session, and persisted fractional line facts', async () => {
@@ -257,6 +262,23 @@ describe('SaleDetail receipt reprint', () => {
         expect(screen.getByRole('alert')).toHaveTextContent(
             'Periksa printer sebelum mencoba lagi.'
         );
+    });
+
+    it('gives detail-specific recovery when the sale cannot be found for printing', async () => {
+        const user = userEvent.setup();
+        saleApi.printReceipt.mockRejectedValue(Object.assign(new Error('Tidak ditemukan.'), {
+            category: 'not_found',
+            domainCode: 'sale_not_found'
+        }));
+        renderSaleDetail();
+
+        await user.click(await getReadyPrintButton());
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent(
+            'Penjualan tidak ditemukan oleh server sehingga struk belum dapat dicetak.'
+        );
+        expect(alert).toHaveTextContent('Muat ulang halaman sebelum mencoba lagi.');
     });
 
     it('shows a controlled failure when the backend does not acknowledge printing', async () => {
