@@ -74,6 +74,23 @@ describe('SupplierList', () => {
         expect(await screen.findByText('Tidak ada pemasok yang cocok dengan pencarian ini.')).toBeInTheDocument();
     });
 
+    it('does not send an overlong search supplied through the URL', async () => {
+        const overlongQuery = 'a'.repeat(256);
+        supplierApi.getSupplierList.mockResolvedValue(response());
+        render(<SupplierList />, { route: `/suppliers?query=${ overlongQuery }` });
+
+        expect(screen.getByRole('alert')).toHaveTextContent('Pencarian maksimal 255 karakter.');
+        expect(screen.getByRole('textbox', { name: 'Cari pemasok' })).toHaveAttribute('maxlength', '255');
+        expect(supplierApi.getSupplierList).not.toHaveBeenCalled();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Hapus pencarian' }));
+
+        await waitFor(() => expect(supplierApi.getSupplierList).toHaveBeenCalledWith({
+            signal: expect.any(AbortSignal),
+            params: { page: 1, size: 10, active: true }
+        }, undefined));
+    });
+
     it('shows an actionable error and retries the same request', async () => {
         supplierApi.getSupplierList
             .mockRejectedValueOnce(new Error('Pemasok gagal dimuat.'))

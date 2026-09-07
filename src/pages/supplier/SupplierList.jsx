@@ -23,6 +23,7 @@ import { GENERIC_ERR_MESSAGE } from '@constants/general.js';
 import { useBreadcrumbStore, useSupplierStore } from '@stores/index.js';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
+const SUPPLIER_QUERY_MAX_LENGTH = 255;
 
 const getPage = searchParams => Math.max(Number(searchParams.get('page')) || 1, 1);
 
@@ -109,6 +110,7 @@ export default function SupplierList() {
     const page = getPage(searchParams);
     const size = getPageSize(searchParams);
     const query = searchParams.get('query')?.trim() || '';
+    const queryIsTooLong = query.length > SUPPLIER_QUERY_MAX_LENGTH;
     const active = getActive(searchParams);
     const [queryInput, setQueryInput] = useState(query);
     const returnTo = `${ location.pathname }${ location.search }`;
@@ -135,6 +137,8 @@ export default function SupplierList() {
     }, [query]);
 
     useEffect(() => {
+        if (queryIsTooLong) return undefined;
+
         const controller = new AbortController();
         getSupplierList({
             signal: controller.signal,
@@ -147,11 +151,13 @@ export default function SupplierList() {
         }).catch(() => {});
 
         return () => controller.abort();
-    }, [active, getSupplierList, page, query, retryVersion, size]);
+    }, [active, getSupplierList, page, query, queryIsTooLong, retryVersion, size]);
 
     const handleSearch = event => {
         event.preventDefault();
-        updateQuery({ query: queryInput.trim(), page: 1 });
+        const nextQuery = queryInput.trim();
+        if (nextQuery.length > SUPPLIER_QUERY_MAX_LENGTH) return;
+        updateQuery({ query: nextQuery, page: 1 });
     };
 
     const handleClearSearch = () => {
@@ -175,8 +181,11 @@ export default function SupplierList() {
                         label="Cari pemasok"
                         value={ queryInput }
                         onChange={ event => setQueryInput(event.target.value) }
-                        inputProps={ { maxLength: 255 } }
-                        helperText="Kode, nama, kontak, atau alamat"
+                        inputProps={ { maxLength: SUPPLIER_QUERY_MAX_LENGTH } }
+                        error={ queryInput.trim().length > SUPPLIER_QUERY_MAX_LENGTH }
+                        helperText={ queryInput.trim().length > SUPPLIER_QUERY_MAX_LENGTH
+                            ? `Pencarian maksimal ${ SUPPLIER_QUERY_MAX_LENGTH } karakter.`
+                            : 'Kode, nama, kontak, atau alamat' }
                         fullWidth
                     />
                     <TextField
@@ -201,14 +210,20 @@ export default function SupplierList() {
                 </form>
             </Paper>
 
-            { status === 'loading' && (
+            { queryIsTooLong && (
+                <Alert severity="warning">
+                    Pencarian maksimal { SUPPLIER_QUERY_MAX_LENGTH } karakter. Perpendek atau hapus pencarian untuk melanjutkan.
+                </Alert>
+            ) }
+
+            { !queryIsTooLong && status === 'loading' && (
                 <div role="status" aria-live="polite" className="flex items-center gap-2 text-gray-700">
                     <CircularProgress size={ 20 } aria-hidden="true" />
                     <span>Memuat pemasok...</span>
                 </div>
             ) }
 
-            { status === 'error' && (
+            { !queryIsTooLong && status === 'error' && (
                 <Alert
                     severity="error"
                     action={ <Button color="inherit" onClick={ () => setRetryVersion(value => value + 1) }>Coba lagi</Button> }
@@ -217,7 +232,7 @@ export default function SupplierList() {
                 </Alert>
             ) }
 
-            { !isInitialLoading && status !== 'error' && suppliers.length === 0 && (
+            { !queryIsTooLong && !isInitialLoading && status !== 'error' && suppliers.length === 0 && (
                 <Paper className="p-8 text-center" role="status">
                     <h3 className="font-semibold">Tidak ada pemasok</h3>
                     <p className="text-gray-600 mt-1">
@@ -226,7 +241,7 @@ export default function SupplierList() {
                 </Paper>
             ) }
 
-            { hasResults && (
+            { !queryIsTooLong && hasResults && (
                 <>
                     <div className="grid gap-3 md:hidden" aria-busy={ status === 'loading' }>
                         { suppliers.map(supplier => (
@@ -274,7 +289,7 @@ export default function SupplierList() {
                 </>
             ) }
 
-            { status !== 'error' && paging.totalPages > 0 && (
+            { !queryIsTooLong && status !== 'error' && paging.totalPages > 0 && (
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <TextField
                         select
