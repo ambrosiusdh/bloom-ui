@@ -30,9 +30,9 @@ const createGoodsReceiptAction = set => ({
         try {
             const { data: response } = await api.getGoodsReceiptList(params, config, options)
             if (requestId === latestGoodsReceiptListRequestId && !config?.signal?.aborted) {
-                const { content = [], ...goodsReceiptPaging } = response.data || {}
+                const { content, ...goodsReceiptPaging } = response.data || {}
                 set({
-                    goodsReceiptList: content,
+                    goodsReceiptList: Array.isArray(content) ? content : [],
                     goodsReceiptPaging,
                     goodsReceiptListStatus: 'ready',
                     goodsReceiptListError: null
@@ -80,6 +80,15 @@ const createGoodsReceiptAction = set => ({
             }
             throw error
         }
+    },
+
+    clearGoodsReceiptDetails: () => {
+        latestGoodsReceiptDetailRequestId += 1;
+        set({
+            goodsReceiptDetails: null,
+            goodsReceiptDetailStatus: 'idle',
+            goodsReceiptDetailError: null
+        });
     },
 
     createGoodsReceipt: async (payload, options) => {

@@ -21,9 +21,9 @@ const receipt = {
         stockLocation: 'WAREHOUSE' }]
 };
 
-const renderDetail = () => render(
+const renderDetail = (reference = receipt.code) => render(
     <Routes><Route path="/goods-receipts/:code" element={ <GoodsReceiptDetail /> } /></Routes>,
-    { route: `/goods-receipts/${ encodeURIComponent(receipt.code) }` }
+    { route: `/goods-receipts/${ encodeURIComponent(reference) }` }
 );
 
 describe('GoodsReceiptDetail FE-25 read workflow', () => {
@@ -66,5 +66,12 @@ describe('GoodsReceiptDetail FE-25 read workflow', () => {
         await user.click(screen.getByRole('button', { name: 'Coba lagi' }));
         expect(await screen.findByText('Kain datang lengkap')).toBeInTheDocument();
         expect(goodsReceiptApi.getGoodsReceiptDetails).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects an obviously invalid reference without calling the backend', async () => {
+        renderDetail('G'.repeat(101));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('Nomor penerimaan barang tidak valid.');
+        expect(goodsReceiptApi.getGoodsReceiptDetails).not.toHaveBeenCalled();
     });
 });

@@ -11,10 +11,10 @@ import {
 import PropTypes from 'prop-types';
 
 import { formatRupiah } from '@components/cash-session/cash-session-money.js';
+import { GOODS_RECEIPT_LOCATION_LABELS } from '@utils/goods-receipt-utils.js';
 import { formatQuantity } from '@utils/quantity-utils.js';
 
 const decimalType = PropTypes.oneOfType([PropTypes.number, PropTypes.string]);
-const LOCATION_LABELS = { STORE: 'Toko', WAREHOUSE: 'Gudang' };
 const money = value => value == null ? '-' : formatRupiah(value);
 
 const propTypes = {
@@ -44,7 +44,7 @@ const GoodsReceiptItemsTable = ({ goodsReceiptItems }) => {
                         <div><strong>{ line.item?.name || '-' }</strong><div className="text-sm text-gray-600">{ line.item?.sku || '-' }</div></div>
                         <dl className="grid grid-cols-2 gap-3 text-sm">
                             <div><dt className="text-gray-600">Jumlah</dt><dd>{ formatQuantity(line.quantity, line.baseUnitOfMeasure) }</dd></div>
-                            <div><dt className="text-gray-600">Lokasi</dt><dd>{ LOCATION_LABELS[line.stockLocation] || line.stockLocation || '-' }</dd></div>
+                            <div><dt className="text-gray-600">Lokasi</dt><dd>{ GOODS_RECEIPT_LOCATION_LABELS[line.stockLocation] || line.stockLocation || '-' }</dd></div>
                             <div><dt className="text-gray-600">Harga beli</dt><dd>{ money(line.purchasePrice) }</dd></div>
                             <div><dt className="text-gray-600">Subtotal baris</dt><dd className="font-semibold">{ money(line.lineTotal) }</dd></div>
                         </dl>
@@ -70,7 +70,7 @@ const GoodsReceiptItemsTable = ({ goodsReceiptItems }) => {
                                         <div className="font-medium">{ goodsReceiptItem.item?.name || '-' }</div>
                                         <div className="text-sm text-gray-600">{ goodsReceiptItem.item?.sku || '-' }</div>
                                     </TableCell>
-                                    <TableCell>{ LOCATION_LABELS[goodsReceiptItem.stockLocation] || goodsReceiptItem.stockLocation || '-' }</TableCell>
+                                    <TableCell>{ GOODS_RECEIPT_LOCATION_LABELS[goodsReceiptItem.stockLocation] || goodsReceiptItem.stockLocation || '-' }</TableCell>
                                     <TableCell align="right">{ formatQuantity(goodsReceiptItem.quantity, goodsReceiptItem.baseUnitOfMeasure) }</TableCell>
                                     <TableCell align="right" className="tabular-nums">{ money(goodsReceiptItem.purchasePrice) }</TableCell>
                                     <TableCell align="right" className="font-medium tabular-nums">{ money(goodsReceiptItem.lineTotal) }</TableCell>

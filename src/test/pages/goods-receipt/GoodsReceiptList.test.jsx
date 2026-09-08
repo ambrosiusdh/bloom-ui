@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -21,9 +22,14 @@ const response = (content = [], totalPages = content.length ? 1 : 0) => ({
 });
 const deferred = () => {
     let resolve;
-    const promise = new Promise(resolvePromise => { resolve = resolvePromise; });
-    return { promise, resolve };
+    let reject;
+    const promise = new Promise((resolvePromise, rejectPromise) => {
+        resolve = resolvePromise;
+        reject = rejectPromise;
+    });
+    return { promise, reject, resolve };
 };
+const LocationProbe = () => <output aria-label="Lokasi saat ini">{ useLocation().search }</output>;
 
 describe('GoodsReceiptList FE-25 read workflow', () => {
     beforeEach(() => {
@@ -55,8 +61,12 @@ describe('GoodsReceiptList FE-25 read workflow', () => {
 
         const [params, config, options] = goodsReceiptApi.getGoodsReceiptList.mock.calls[0];
         expect(params).toMatchObject({ page: 2, size: 5, supplierName: 'Bloom' });
-        expect(params.receivedDateFrom).toEqual(expect.any(String));
-        expect(params.receivedDateTo).toEqual(expect.any(String));
+        expect(params.receivedDateFrom).toBe(
+            new Date('2026-09-01T00:00:00.000').toISOString()
+        );
+        expect(params.receivedDateTo).toBe(
+            new Date('2026-09-03T23:59:59.999').toISOString()
+        );
         expect(config.signal).toBeInstanceOf(AbortSignal);
         expect(options).toEqual({ useLoader: false });
         expect(goodsReceiptApi.getGoodsReceiptDetails).not.toHaveBeenCalled();
@@ -69,7 +79,7 @@ describe('GoodsReceiptList FE-25 read workflow', () => {
         render(<GoodsReceiptList />, { route: '/goods-receipts?key=code&q=GR-404' });
 
         expect(screen.getByRole('status')).toHaveTextContent('Memuat penerimaan barang...');
-        await act(async () => request.resolve(Promise.reject(new Error('Riwayat gagal dimuat.'))));
+        await act(async () => request.reject(new Error('Riwayat gagal dimuat.')));
         expect(await screen.findByRole('alert')).toHaveTextContent('Riwayat gagal dimuat.');
 
         goodsReceiptApi.getGoodsReceiptList.mockResolvedValueOnce(response());
@@ -77,5 +87,37 @@ describe('GoodsReceiptList FE-25 read workflow', () => {
         expect(await screen.findByText('Tidak ada penerimaan barang')).toBeInTheDocument();
         await waitFor(() => expect(goodsReceiptApi.getGoodsReceiptList).toHaveBeenCalledTimes(2));
         expect(goodsReceiptApi.getGoodsReceiptList.mock.calls[1][0]).toMatchObject({ code: 'GR-404' });
+    });
+
+    it('canonicalizes invalid URL input before fetching and clears draft-only filters', async () => {
+        const user = userEvent.setup();
+        goodsReceiptApi.getGoodsReceiptList.mockResolvedValue(response());
+        render(<><LocationProbe /><GoodsReceiptList /></>, {
+            route: '/goods-receipts?page=abc&size=900&key=unknown&receivedDateFrom=2026-02-31&receivedDateTo=bad'
+        });
+
+        expect(await screen.findByLabelText('Lokasi saat ini'))
+            .toHaveTextContent('?page=1&size=10&key=code');
+        expect(goodsReceiptApi.getGoodsReceiptList).toHaveBeenCalledTimes(1);
+        expect(goodsReceiptApi.getGoodsReceiptList.mock.calls[0][0]).toEqual({ page: 1, size: 10 });
+
+        const query = screen.getByRole('textbox', { name: 'Nomor penerimaan' });
+        await user.type(query, 'Bloom');
+        const clearButton = screen.getByRole('button', { name: 'Hapus filter' });
+        expect(clearButton).toBeEnabled();
+        await user.click(clearButton);
+        expect(query).toHaveValue('');
+    });
+
+    it('moves an out-of-range page to the last server page instead of showing a false empty state', async () => {
+        goodsReceiptApi.getGoodsReceiptList
+            .mockResolvedValueOnce(response([], 3))
+            .mockResolvedValueOnce(response([receipt], 3));
+        render(<GoodsReceiptList />, { route: '/goods-receipts?page=8' });
+
+        expect(await screen.findByText(receipt.code)).toBeInTheDocument();
+        expect(goodsReceiptApi.getGoodsReceiptList).toHaveBeenCalledTimes(2);
+        expect(goodsReceiptApi.getGoodsReceiptList.mock.calls[0][0]).toMatchObject({ page: 8 });
+        expect(goodsReceiptApi.getGoodsReceiptList.mock.calls[1][0]).toMatchObject({ page: 3 });
     });
 });

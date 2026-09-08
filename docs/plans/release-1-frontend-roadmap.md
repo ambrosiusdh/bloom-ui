@@ -84,7 +84,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-22 | Sales history target alignment | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-20 | `gpt-5.6-terra`, high |
 | FE-23 | Supplier list and detail | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-24 | Supplier create/edit/deactivate | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-23 | `gpt-5.6-terra`, high |
-| FE-25 | Goods-receipt list and detail | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-09, FE-23 | `gpt-5.6-sol`, high |
+| FE-25 | Goods-receipt list and detail | BLOCKED | BLOCKED | FE-09, FE-23 | `gpt-5.6-sol`, high |
 | FE-26 | Goods-receipt creation | BLOCKED | BLOCKED | FE-25 | `gpt-5.6-sol`, xhigh |
 | FE-27 | Supplier payable views | BLOCKED | BLOCKED | FE-25 | `gpt-5.6-sol`, high |
 | FE-28 | Single-receipt supplier payment | BLOCKED | BLOCKED | FE-15, FE-27 | `gpt-5.6-sol`, xhigh |
@@ -608,8 +608,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-25 — Goods-receipt list and detail
 
 - **Domain:** Goods-receipt read workflow.
-- **Status:** `IMPLEMENTED`.
-- **Execution class:** `DIRECT_IMPLEMENTATION`.
+- **Status:** `BLOCKED`.
+- **Execution class:** `BLOCKED`; implementation is present, but final approval requires the store-timezone gate below.
 - **Dependencies:** FE-09, FE-23.
 - **Backend gate:** Receipt list/detail responses use supplier identifier, decimal quantities, item UOM/location, server total, paid/outstanding, status, references, timestamps, paging/filter semantics.
 - **User-visible change:** Users can review posted receipts, destination quantities, totals, payment state, and supplier.
@@ -618,10 +618,10 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** Posted receipt truth is displayed from one suitable backend read model.
 - **Validation:** Tests for decimal/UOM/location, total/paid/outstanding/status, supplier, zero/partial values, tests/build/lint/responsive.
-- **Block condition:** Response lacks financial fields or requires per-row supplier/item requests.
+- **Block condition:** Response lacks financial fields, requires per-row supplier/item requests, or calendar-day filters lack an explicit business/store timezone contract for their `Instant` boundaries.
 - **Split trigger:** Split detail from list if the combined diff exceeds the cap.
 
-**Implementation note (2026-09-08):** The backend list/detail gate now exposes supplier ID/code/name, receipt and payment statuses, server-calculated total/paid/outstanding values, persisted decimal line quantities with UOM and stock location, references, timestamps, and the documented code/supplier/date filters with paging. The frontend read workflow renders those fields directly with loading, error/retry, empty, stale-response, keyboard, and responsive behavior. It issues one request per list load and one request only when a user opens detail; the legacy creation flow is not extended or linked, and no payment, enrichment, or client-side financial calculation was added.
+**Implementation note (2026-09-09):** The backend list/detail responses expose supplier ID/code/name, receipt and payment statuses, server-calculated total/paid/outstanding values, persisted decimal line quantities with UOM and stock location, references, timestamps, and code/supplier/date filters with paging. The frontend read workflow renders those fields directly with loading, error/retry, empty, canonical-query, page-boundary, stale-response, keyboard, and responsive behavior. It issues one request per list load and one request only when a user opens detail. The existing `/goods-receipts/new` route remains, but Release 1 navigation intentionally hides it until FE-26 replaces its contract-incompatible request; no payment, enrichment, or client-side financial calculation was added. Final approval is blocked because the date DTO accepts `Instant` while neither backend nor frontend contract names the fixed business/store timezone; the current conversion consequently follows the operator device timezone and must not be presented as the final store-timezone rule.
 
 **Copy-ready implementation prompt**
 

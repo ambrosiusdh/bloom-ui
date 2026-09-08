@@ -3,18 +3,14 @@ import PropTypes from 'prop-types';
 
 import { formatRupiah } from '@components/cash-session/cash-session-money.js';
 import { formatDate } from '@utils/date-utils.js';
+import {
+    getGoodsReceiptStatusColor,
+    GOODS_RECEIPT_PAYMENT_STATUS_LABELS,
+    GOODS_RECEIPT_STATUS_LABELS
+} from '@utils/goods-receipt-utils.js';
 
 const decimalType = PropTypes.oneOfType([PropTypes.number, PropTypes.string]);
-const RECEIPT_STATUS_LABELS = { POSTED: 'Dibukukan', CANCELLED: 'Dibatalkan' };
-const PAYMENT_STATUS_LABELS = {
-    UNPAID: 'Belum dibayar',
-    PARTIALLY_PAID: 'Dibayar sebagian',
-    PAID: 'Lunas'
-};
 const money = value => value == null ? '-' : formatRupiah(value);
-const paymentStatusColor = value => value === 'PAID'
-    ? 'success'
-    : value === 'PARTIALLY_PAID' ? 'warning' : 'default';
 
 const propTypes = {
     receipt: PropTypes.shape({
@@ -40,8 +36,8 @@ const propTypes = {
 const GoodsReceiptInfoCard = ({ receipt }) => {
     if (!receipt) return null;
 
-    const receiptStatus = RECEIPT_STATUS_LABELS[receipt.status] || receipt.status || '-';
-    const paymentStatus = PAYMENT_STATUS_LABELS[receipt.paymentStatus]
+    const receiptStatus = GOODS_RECEIPT_STATUS_LABELS[receipt.status] || receipt.status || '-';
+    const paymentStatus = GOODS_RECEIPT_PAYMENT_STATUS_LABELS[receipt.paymentStatus]
         || receipt.paymentStatus
         || '-';
 
@@ -58,13 +54,13 @@ const GoodsReceiptInfoCard = ({ receipt }) => {
                             size="small"
                             variant="outlined"
                             label={ receiptStatus }
-                            color={ receipt.status === 'POSTED' ? 'success' : 'default' }
+                            color={ getGoodsReceiptStatusColor(receipt.status) }
                             aria-label={ `Status penerimaan: ${ receiptStatus }` } />
                         <Chip
                             size="small"
                             variant="outlined"
                             label={ paymentStatus }
-                            color={ paymentStatusColor(receipt.paymentStatus) }
+                            color={ getGoodsReceiptStatusColor(receipt.paymentStatus) }
                             aria-label={ `Status pembayaran: ${ paymentStatus }` } />
                     </div>
                 </div>

@@ -11,8 +11,12 @@ vi.mock('@api/goods-receipt.js', () => ({ default: {
 
 const deferred = () => {
     let resolve;
-    const promise = new Promise(resolvePromise => { resolve = resolvePromise; });
-    return { promise, resolve };
+    let reject;
+    const promise = new Promise((resolvePromise, rejectPromise) => {
+        resolve = resolvePromise;
+        reject = rejectPromise;
+    });
+    return { promise, reject, resolve };
 };
 
 const page = content => ({ data: { data: { content, totalPages: 1, totalElements: content.length } } });
@@ -46,6 +50,19 @@ describe('goods receipt read store', () => {
         expect(goodsReceiptApi.getGoodsReceiptDetails).not.toHaveBeenCalled();
     });
 
+    it('treats an unexpected null page content as empty', async () => {
+        goodsReceiptApi.getGoodsReceiptList.mockResolvedValue({
+            data: { data: { content: null, totalPages: 0, totalElements: 0 } }
+        });
+
+        await useGoodsReceiptStore.getState().getGoodsReceiptList({ page: 1, size: 10 });
+
+        expect(useGoodsReceiptStore.getState()).toMatchObject({
+            goodsReceiptList: [],
+            goodsReceiptListStatus: 'ready'
+        });
+    });
+
     it('ignores older list and detail responses that finish after newer requests', async () => {
         const oldList = deferred();
         const oldDetail = deferred();
@@ -70,5 +87,31 @@ describe('goods receipt read store', () => {
             goodsReceiptList: [{ code: 'GR-NEW' }],
             goodsReceiptDetails: { code: 'GR-NEW' }
         });
+    });
+
+    it('does not replace newer success with an older error or an aborted error', async () => {
+        const older = deferred();
+        goodsReceiptApi.getGoodsReceiptList
+            .mockReturnValueOnce(older.promise)
+            .mockResolvedValueOnce(page([{ code: 'GR-NEW' }]));
+
+        const olderResult = useGoodsReceiptStore.getState().getGoodsReceiptList({ code: 'OLD' });
+        await useGoodsReceiptStore.getState().getGoodsReceiptList({ code: 'NEW' });
+        older.reject(new Error('Old request failed'));
+        await expect(olderResult).rejects.toThrow('Old request failed');
+
+        const controller = new AbortController();
+        const aborted = deferred();
+        goodsReceiptApi.getGoodsReceiptList.mockReturnValueOnce(aborted.promise);
+        const abortedResult = useGoodsReceiptStore.getState().getGoodsReceiptList(
+            { code: 'ABORT' },
+            { signal: controller.signal }
+        );
+        controller.abort();
+        aborted.reject(new Error('Request aborted'));
+        await expect(abortedResult).rejects.toThrow('Request aborted');
+
+        expect(useGoodsReceiptStore.getState().goodsReceiptListError).toBeNull();
+        expect(useGoodsReceiptStore.getState().goodsReceiptListStatus).not.toBe('error');
     });
 });

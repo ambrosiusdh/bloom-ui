@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import GoodsReceiptInfoCard from '@components/goods-receipt/GoodsReceiptInfoCard.jsx';
 import GoodsReceiptItemsTable from '@components/goods-receipt/GoodsReceiptItemsTable.jsx';
 import { useGoodsReceiptStore, useBreadcrumbStore } from '@stores/index.js';
+import { isValidGoodsReceiptReference } from '@utils/goods-receipt-utils.js';
 
 const GoodsReceiptDetail = () => {
     const { code } = useParams();
@@ -14,15 +15,23 @@ const GoodsReceiptDetail = () => {
     const goodsReceiptDetails = useGoodsReceiptStore(state => state.goodsReceiptDetails);
     const detailStatus = useGoodsReceiptStore(state => state.goodsReceiptDetailStatus);
     const detailError = useGoodsReceiptStore(state => state.goodsReceiptDetailError);
+    const clearGoodsReceiptDetails = useGoodsReceiptStore(state => state.clearGoodsReceiptDetails);
     const location = useLocation();
     const [retryVersion, setRetryVersion] = useState(0);
     const receiptReference = code || '';
+    const isValidReference = isValidGoodsReceiptReference(receiptReference);
+    const isCurrentReceipt = goodsReceiptDetails?.code === receiptReference;
     const backTo = typeof location.state?.from === 'string'
         && location.state.from.startsWith('/goods-receipts')
         ? location.state.from
         : '/goods-receipts';
 
     useEffect(() => {
+        if (!isValidReference) {
+            clearGoodsReceiptDetails();
+            return undefined;
+        }
+
         const controller = new AbortController();
 
         const fetchDetails = async () => {
@@ -45,10 +54,24 @@ const GoodsReceiptDetail = () => {
 
         fetchDetails();
 
-        return () => controller.abort();
-    }, [receiptReference, setBreadcrumbs, getGoodsReceiptDetails, retryVersion]);
+        return () => {
+            controller.abort();
+            clearGoodsReceiptDetails();
+        };
+    }, [clearGoodsReceiptDetails, isValidReference, receiptReference,
+        setBreadcrumbs, getGoodsReceiptDetails, retryVersion]);
 
-    if (detailStatus === 'loading' || detailStatus === 'idle') {
+    if (!isValidReference) {
+        return (
+            <div className="space-y-4">
+                <Alert severity="error">Nomor penerimaan barang tidak valid.</Alert>
+                <Button component={ Link } to={ backTo } startIcon={ <ArrowLeft /> }>Kembali ke daftar</Button>
+            </div>
+        );
+    }
+
+    if (detailStatus === 'loading' || detailStatus === 'idle'
+        || (detailStatus === 'ready' && !isCurrentReceipt)) {
         return (
             <div className="py-16 text-center" role="status" aria-live="polite">
                 <CircularProgress size={ 24 } aria-hidden="true" /> <span>Memuat detail penerimaan barang...</span>
@@ -56,7 +79,7 @@ const GoodsReceiptDetail = () => {
         );
     }
 
-    if (detailStatus === 'error') {
+    if (detailStatus === 'error' || !isCurrentReceipt) {
         return (
             <div className="space-y-4">
                 <Alert

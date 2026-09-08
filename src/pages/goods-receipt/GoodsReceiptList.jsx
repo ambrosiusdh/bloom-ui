@@ -8,35 +8,52 @@ import PropTypes from 'prop-types';
 
 import { formatRupiah } from '@components/cash-session/cash-session-money.js';
 import { useBreadcrumbStore, useGoodsReceiptStore } from '@stores/index.js';
-import { formatDate } from '@utils/date-utils.js';
+import { formatDate, isValidDateInput } from '@utils/date-utils.js';
+import {
+    getGoodsReceiptStatusColor,
+    GOODS_RECEIPT_PAYMENT_STATUS_LABELS,
+    GOODS_RECEIPT_STATUS_LABELS
+} from '@utils/goods-receipt-utils.js';
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25, 50];
 const FILTER_KEYS = { code: 'Nomor penerimaan', supplierName: 'Nama pemasok' };
-const RECEIPT_STATUS_LABELS = { POSTED: 'Dibukukan', CANCELLED: 'Dibatalkan' };
-const PAYMENT_STATUS_LABELS = {
-    UNPAID: 'Belum dibayar',
-    PARTIALLY_PAID: 'Dibayar sebagian',
-    PAID: 'Lunas'
-};
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-const validDate = value => DATE_PATTERN.test(value || '')
-    && !Number.isNaN(new Date(`${ value }T00:00:00`).getTime());
 
 const getQueryState = params => {
+    const next = new URLSearchParams(params);
     const requestedPage = Number(params.get('page'));
+    const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+    if (params.has('page') && params.get('page') !== String(page)) next.set('page', String(page));
+
     const requestedSize = Number(params.get('size'));
+    const size = PAGE_SIZE_OPTIONS.includes(requestedSize) ? requestedSize : 10;
+    if (params.has('size') && params.get('size') !== String(size)) next.set('size', String(size));
+
     const requestedKey = params.get('key');
-    const startDate = validDate(params.get('receivedDateFrom')) ? params.get('receivedDateFrom') : '';
-    const endDate = validDate(params.get('receivedDateTo')) ? params.get('receivedDateTo') : '';
+    const filterKey = Object.hasOwn(FILTER_KEYS, requestedKey) ? requestedKey : 'code';
+    if (params.has('key') && requestedKey !== filterKey) next.set('key', filterKey);
+
+    const startDate = isValidDateInput(params.get('receivedDateFrom'))
+        ? params.get('receivedDateFrom') : '';
+    const endDate = isValidDateInput(params.get('receivedDateTo'))
+        ? params.get('receivedDateTo') : '';
+    if (params.has('receivedDateFrom') && !startDate) next.delete('receivedDateFrom');
+    if (params.has('receivedDateTo') && !endDate) next.delete('receivedDateTo');
+    if (startDate && endDate && startDate > endDate) {
+        next.delete('receivedDateFrom');
+        next.delete('receivedDateTo');
+    }
+
+    const canonicalSearch = next.toString();
 
     return {
-        page: Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1,
-        size: PAGE_SIZE_OPTIONS.includes(requestedSize) ? requestedSize : 10,
-        filterKey: Object.hasOwn(FILTER_KEYS, requestedKey) ? requestedKey : 'code',
+        page,
+        size,
+        filterKey,
         query: params.get('q') || '',
         startDate: startDate && (!endDate || startDate <= endDate) ? startDate : '',
-        endDate: endDate && (!startDate || startDate <= endDate) ? endDate : ''
+        endDate: endDate && (!startDate || startDate <= endDate) ? endDate : '',
+        canonicalSearch,
+        needsSanitization: canonicalSearch !== params.toString()
     };
 };
 
@@ -45,15 +62,12 @@ const toInstant = (date, endOfDay = false) => date
     : undefined;
 
 const money = value => value == null ? '-' : formatRupiah(value);
-const statusColor = value => value === 'PAID' || value === 'POSTED'
-    ? 'success'
-    : value === 'PARTIALLY_PAID' ? 'warning' : 'default';
 
 const StatusChip = ({ labels, value, type }) => (
     <Chip
         size="small"
         variant="outlined"
-        color={ statusColor(value) }
+        color={ getGoodsReceiptStatusColor(value) }
         label={ labels[value] || value || '-' }
         aria-label={ `${ type}: ${ labels[value] || value || '-' }` }
     />
@@ -84,6 +98,13 @@ export default function GoodsReceiptList() {
     });
     const [filterError, setFilterError] = useState('');
     const returnTo = `${ location.pathname }${ location.search }`;
+    const totalPages = Number(paging.totalPages) || 0;
+    const isPageOutOfRange = status === 'ready'
+        && totalPages > 0
+        && queryState.page > totalPages;
+    const hasAppliedFilters = Boolean(queryState.query || queryState.startDate || queryState.endDate);
+    const hasDraftFilters = Boolean(draft.query || draft.startDate || draft.endDate
+        || draft.filterKey !== 'code');
 
     const updateQuery = updates => {
         const next = new URLSearchParams(searchParams);
@@ -95,6 +116,12 @@ export default function GoodsReceiptList() {
     useEffect(() => setBreadcrumbs(['Penerimaan Barang']), [setBreadcrumbs]);
 
     useEffect(() => {
+        if (queryState.needsSanitization) {
+            setSearchParams(queryState.canonicalSearch, { replace: true });
+        }
+    }, [queryState.canonicalSearch, queryState.needsSanitization, setSearchParams]);
+
+    useEffect(() => {
         setDraft({
             filterKey: queryState.filterKey,
             query: queryState.query,
@@ -104,6 +131,7 @@ export default function GoodsReceiptList() {
     }, [queryState.filterKey, queryState.query, queryState.startDate, queryState.endDate]);
 
     useEffect(() => {
+        if (queryState.needsSanitization) return undefined;
         const controller = new AbortController();
         const params = {
             page: queryState.page,
@@ -115,7 +143,17 @@ export default function GoodsReceiptList() {
         getGoodsReceiptList(params, { signal: controller.signal }, { useLoader: false }).catch(() => {});
         return () => controller.abort();
     }, [getGoodsReceiptList, queryState.endDate, queryState.filterKey, queryState.page,
-        queryState.query, queryState.size, queryState.startDate, retryVersion]);
+        queryState.query, queryState.size, queryState.startDate,
+        queryState.needsSanitization, retryVersion]);
+
+    useEffect(() => {
+        if (!isPageOutOfRange) return;
+        setSearchParams(current => {
+            const next = new URLSearchParams(current);
+            next.set('page', String(totalPages));
+            return next;
+        }, { replace: true });
+    }, [isPageOutOfRange, setSearchParams, totalPages]);
 
     const applyFilters = event => {
         event.preventDefault();
@@ -135,6 +173,7 @@ export default function GoodsReceiptList() {
 
     const clearFilters = () => {
         setFilterError('');
+        setDraft({ filterKey: 'code', query: '', startDate: '', endDate: '' });
         updateQuery({ key: '', q: '', receivedDateFrom: '', receivedDateTo: '', page: 1 });
     };
 
@@ -188,7 +227,7 @@ export default function GoodsReceiptList() {
                     <Button
                         type="button"
                         onClick={ clearFilters }
-                        disabled={ !queryState.query && !queryState.startDate && !queryState.endDate }>Hapus filter</Button>
+                        disabled={ !hasAppliedFilters && !hasDraftFilters }>Hapus filter</Button>
                 </div>
             </form>
 
@@ -207,17 +246,19 @@ export default function GoodsReceiptList() {
                             { PAGE_SIZE_OPTIONS.map(value => <MenuItem key={ value } value={ value }>{ value }</MenuItem>) }
                         </TextField>
                         <Pagination
-                            page={ queryState.page }
-                            count={ paging.totalPages || 1 }
+                            page={ totalPages ? Math.min(queryState.page, totalPages) : queryState.page }
+                            count={ totalPages || 1 }
                             disabled={ status === 'loading' || !paging.totalPages }
                             onChange={ (_, value) => updateQuery({ page: value }) }
                             aria-label="Halaman riwayat penerimaan barang" />
                     </div>
                 </div>
 
-                { status === 'loading' || status === 'idle' ? (
+                { status === 'loading' || status === 'idle' || isPageOutOfRange ? (
                     <div className="py-12 text-center" role="status" aria-live="polite">
-                        <CircularProgress size={ 22 } aria-hidden="true" /> <span>Memuat penerimaan barang...</span>
+                        <CircularProgress size={ 22 } aria-hidden="true" /> <span>{ isPageOutOfRange
+                            ? 'Menyesuaikan halaman penerimaan...'
+                            : 'Memuat penerimaan barang...' }</span>
                     </div>
                 ) : status === 'error' ? (
                     <div className="py-12 text-center text-gray-600">Riwayat penerimaan belum dapat ditampilkan.</div>
@@ -234,8 +275,8 @@ export default function GoodsReceiptList() {
                                     <TableCell><strong>{ receipt.supplierName || '-' }</strong>
                                         <div className="text-sm text-gray-600">ID #{ receipt.supplierId ?? '-' } · { receipt.supplierCode || '-' }</div></TableCell>
                                     <TableCell><div className="flex flex-col items-start gap-1">
-                                        <StatusChip labels={ RECEIPT_STATUS_LABELS } value={ receipt.status } type="Status penerimaan" />
-                                        <StatusChip labels={ PAYMENT_STATUS_LABELS } value={ receipt.paymentStatus } type="Status pembayaran" />
+                                        <StatusChip labels={ GOODS_RECEIPT_STATUS_LABELS } value={ receipt.status } type="Status penerimaan" />
+                                        <StatusChip labels={ GOODS_RECEIPT_PAYMENT_STATUS_LABELS } value={ receipt.paymentStatus } type="Status pembayaran" />
                                     </div></TableCell>
                                     <TableCell align="right" className="tabular-nums">
                                         <div>Total: { money(receipt.totalAmount) }</div>

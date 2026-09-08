@@ -48,7 +48,7 @@ Bloom UI is currently a JavaScript React application:
 - FE-22 sales history alignment is implemented: list/detail render backend-confirmed decimal lines, totals, payment/lifecycle/correction statuses, tender/change, session/reference, and supported filters without inferring paid state; FE-07 reprint remains separate and available.
 - FE-23 supplier list and detail are implemented: back-office users can search and page the backend supplier read model, switch between its supported active/inactive filters, and inspect one supplier by stable immutable code with explicit async, empty, retry, and stale-response behavior.
 - FE-24 supplier maintenance is implemented: back-office users can create and edit supplier master data while the stable code remains immutable, handle validation and duplicate-code conflicts without losing input, and deactivate suppliers through a separate accessible confirmation that preserves the record and its history.
-- FE-25 goods-receipt history and detail are implemented: back-office users can filter and page the backend receipt read model, inspect supplier identity and persisted decimal UOM/location lines, and review server-returned total, paid, outstanding, receipt status, payment status, references, and timestamps without enrichment or frontend financial calculations.
+- FE-25 goods-receipt history and detail implementation is present: back-office users can filter and page the backend receipt read model, inspect supplier identity and persisted decimal UOM/location lines, and review server-returned total, paid, outstanding, receipt status, payment status, references, and timestamps without enrichment or frontend financial calculations. Its date filters remain blocked from final approval until the business/store timezone contract is explicit.
 
 Release 1 work must preserve this baseline unless a narrowly scoped PR proves that a dependency change is necessary for its immediate domain. TypeScript migration, TanStack Query adoption, global store replacement, router restructuring, and a global design-system rewrite are not Release 1 prerequisites.
 
@@ -414,7 +414,7 @@ The following must be verified or completed before their dependent frontend PRs 
 - Sale checkout is available at `POST /api/sales` with decimal STORE lines, `CASH`/`QRIS`, and required `Idempotency-Key`; the backend enforces an open session, owns prices/totals/change, replays an identical request, and conflicts on a changed same-key payload. `GET /api/sales/checkout-status` uses the same key and returns `COMPLETED` with the sale or `UNKNOWN` without mutating sale state.
 - Actual scanner model, interface, suffix/terminator, and behavior under rapid scans.
 - Printer endpoint success/error semantics in the target environment.
-- Goods-receipt totals, payment/outstanding fields, status, decimal quantities, and supplier identifier.
+- Goods-receipt read fields are implemented, but the fixed business/store timezone for converting calendar-day filters to the endpoint's `Instant` boundaries remains undefined.
 - Accounts-payable and single-receipt payment endpoints, including overpayment and reversal behavior.
 - Expense create/list/detail/void contracts.
 - Post-close correction policy for drawer-affecting expenses and supplier payments.
