@@ -2,7 +2,11 @@ const UNIT_OF_MEASURE_LABELS = {
     PIECE: 'pcs',
     METER: 'meter',
     KILOGRAM: 'kg',
-    LITER: 'liter'
+    GRAM: 'gram',
+    LITER: 'liter',
+    MILLILITER: 'ml',
+    CENTIMETER: 'cm',
+    ROLL: 'rol'
 };
 
 const quantityFormatter = new Intl.NumberFormat('id-ID', {
