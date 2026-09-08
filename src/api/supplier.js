@@ -26,7 +26,28 @@ const getSupplierDetails = (code, configOrOptions, options) => {
     }, request.options);
 };
 
+const createSupplier = (payload, options) => api({
+    url: SUPPLIER.create,
+    method: 'POST',
+    ...payload
+}, options);
+
+const updateSupplier = (code, payload, options) => api({
+    url: SUPPLIER.update(code),
+    method: 'PUT',
+    ...payload
+}, options);
+
+const setSupplierActive = (code, active, options) => api({
+    url: SUPPLIER.activation(code),
+    method: 'PATCH',
+    data: { active }
+}, options);
+
 export default {
     getSupplierList,
-    getSupplierDetails
+    getSupplierDetails,
+    createSupplier,
+    updateSupplier,
+    setSupplierActive
 };

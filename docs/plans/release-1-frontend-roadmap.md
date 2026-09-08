@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Roadmap
 
-Last updated: 2026-09-05
+Last updated: 2026-09-08
 
 ## 1. How to use this roadmap
 
@@ -83,7 +83,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-21 | Post-checkout print and recovery | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-20, FE-07 | `gpt-5.6-sol`, high |
 | FE-22 | Sales history target alignment | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-20 | `gpt-5.6-terra`, high |
 | FE-23 | Supplier list and detail | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
-| FE-24 | Supplier create/edit/deactivate | BLOCKED | BLOCKED | FE-23 | `gpt-5.6-terra`, high |
+| FE-24 | Supplier create/edit/deactivate | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-23 | `gpt-5.6-terra`, high |
 | FE-25 | Goods-receipt list and detail | BLOCKED | BLOCKED | FE-09, FE-23 | `gpt-5.6-sol`, high |
 | FE-26 | Goods-receipt creation | BLOCKED | BLOCKED | FE-25 | `gpt-5.6-sol`, xhigh |
 | FE-27 | Supplier payable views | BLOCKED | BLOCKED | FE-25 | `gpt-5.6-sol`, high |
@@ -586,8 +586,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-24 — Supplier create/edit/deactivate
 
 - **Domain:** Supplier maintenance.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `DIRECT_IMPLEMENTATION`.
+- **Status:** `IMPLEMENTED`.
+- **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-23.
 - **Backend gate:** Create/update/deactivate requests, validation, uniqueness/conflict, and referential behavior are implemented.
 - **User-visible change:** Users can maintain supplier records and safely deactivate rather than destructively remove referenced suppliers.
@@ -598,6 +598,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Validation:** Form/mutation tests for validation/uniqueness/duplicate submit/deactivation, focus/confirmation, tests/build/lint.
 - **Block condition:** Backend exposes only unsafe deletion or lacks defined active-state behavior.
 - **Split trigger:** If deactivate policy is not ready, split it out and deliver create/edit only after renaming scope.
+
+**Implementation note (2026-09-08):** The backend write gate is verified: create normalizes and uniquely reserves the immutable supplier code (including codes owned by inactive suppliers), update changes only name/contact/address, and activation is a separate state transition that retains the supplier record and all historical relationships. The frontend now provides create/edit routes, server-aligned field validation, recoverable duplicate-code conflicts, pending and duplicate-submit protection, backend-confirmed success, and accessible deactivation from supplier detail. The guarded backend DELETE endpoint, reactivation, receipts, debt, and payments are not exposed by this change.
 
 **Copy-ready implementation prompt**
 

@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Alert, Button, Chip, CircularProgress, Paper } from '@mui/material';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CircleOff, Pencil } from 'lucide-react';
 
+import BloomConfirmationModal from '@components/_ui/BloomConfirmationModal.jsx';
 import { GENERIC_ERR_MESSAGE } from '@constants/general.js';
 import { useBreadcrumbStore, useSupplierStore } from '@stores/index.js';
 import { formatDate } from '@utils/date-utils.js';
@@ -17,8 +18,16 @@ export default function SupplierDetail() {
     const status = useSupplierStore(state => state.detailStatus);
     const error = useSupplierStore(state => state.detailError);
     const getSupplierDetails = useSupplierStore(state => state.getSupplierDetails);
+    const setSupplierActive = useSupplierStore(state => state.setSupplierActive);
     const clearSupplierDetails = useSupplierStore(state => state.clearSupplierDetails);
     const [retryVersion, setRetryVersion] = useState(0);
+    const [showDeactivation, setShowDeactivation] = useState(false);
+    const [isDeactivating, setIsDeactivating] = useState(false);
+    const [deactivationError, setDeactivationError] = useState('');
+    const [successMessage, setSuccessMessage] = useState(location.state?.message || '');
+    const deactivationInProgressRef = useRef(false);
+    const deactivationTriggerRef = useRef(null);
+    const successAlertRef = useRef(null);
     const isValidCode = Boolean(code.trim()) && code.length <= 255;
     const returnTo = typeof location.state?.from === 'string'
         && location.state.from.startsWith('/suppliers') ? location.state.from : '/suppliers';
@@ -44,6 +53,49 @@ export default function SupplierDetail() {
             clearSupplierDetails();
         };
     }, [clearSupplierDetails, code, getSupplierDetails, isValidCode, retryVersion]);
+
+    useEffect(() => {
+        if (successMessage) successAlertRef.current?.focus();
+    }, [successMessage]);
+
+    useEffect(() => () => {
+        deactivationInProgressRef.current = false;
+    }, []);
+
+    const openDeactivation = event => {
+        deactivationTriggerRef.current = event.currentTarget;
+        setDeactivationError('');
+        setShowDeactivation(true);
+    };
+
+    const closeDeactivation = () => {
+        if (deactivationInProgressRef.current) return;
+        setShowDeactivation(false);
+        setDeactivationError('');
+        setTimeout(() => deactivationTriggerRef.current?.focus(), 0);
+    };
+
+    const deactivateSupplier = async () => {
+        if (deactivationInProgressRef.current || !supplier?.active) return;
+        deactivationInProgressRef.current = true;
+        setIsDeactivating(true);
+        setDeactivationError('');
+
+        try {
+            const updatedSupplier = await setSupplierActive(supplier.code, false);
+            setShowDeactivation(false);
+            setSuccessMessage(
+                `Pemasok ${ updatedSupplier.name } berhasil dinonaktifkan tanpa menghapus riwayatnya.`
+            );
+        } catch (deactivationFailure) {
+            setDeactivationError(deactivationFailure?.category === 'not_found'
+                ? 'Pemasok ini tidak lagi tersedia. Tutup dialog lalu muat ulang data.'
+                : deactivationFailure?.message || 'Pemasok gagal dinonaktifkan. Silakan coba lagi.');
+        } finally {
+            deactivationInProgressRef.current = false;
+            setIsDeactivating(false);
+        }
+    };
 
     if (!isValidCode) {
         return (
@@ -80,7 +132,43 @@ export default function SupplierDetail() {
 
     return (
         <div className="space-y-5 pb-8">
+            { showDeactivation && (
+                <BloomConfirmationModal
+                    title={ `Nonaktifkan ${ supplier.name }?` }
+                    confirmButtonText={ isDeactivating ? 'Menonaktifkan...' : 'Nonaktifkan' }
+                    confirmButtonColor="error"
+                    onCancel={ closeDeactivation }
+                    onConfirm={ deactivateSupplier }
+                    isPending={ isDeactivating }
+                    focusCancel
+                >
+                    <p>
+                        Pemasok tidak lagi dapat dipilih untuk transaksi baru. Identitas,
+                        catatan, dan seluruh riwayat yang memakai kode <strong>{ supplier.code }</strong> tetap tersimpan.
+                    </p>
+                    { deactivationError && <Alert severity="error" className="mt-3">{ deactivationError }</Alert> }
+                    { isDeactivating && (
+                        <div role="status" className="mt-3 flex items-center gap-2">
+                            <CircularProgress size={ 18 } aria-hidden="true" />
+                            Menonaktifkan pemasok...
+                        </div>
+                    ) }
+                </BloomConfirmationModal>
+            ) }
+
             <Button component={ Link } to={ returnTo } startIcon={ <ArrowLeft aria-hidden="true" /> }>Kembali ke daftar</Button>
+
+            { successMessage && (
+                <Alert
+                    ref={ successAlertRef }
+                    severity="success"
+                    role="status"
+                    tabIndex={ -1 }
+                    onClose={ () => setSuccessMessage('') }
+                >
+                    { successMessage }
+                </Alert>
+            ) }
 
             <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
@@ -93,6 +181,29 @@ export default function SupplierDetail() {
                     aria-label={ `Status pemasok: ${ statusLabel }` }
                 />
             </header>
+
+            <div className="flex flex-wrap gap-2">
+                <Button
+                    component={ Link }
+                    to={ `/suppliers/${ encodeURIComponent(supplier.code) }/edit` }
+                    state={ { from: returnTo } }
+                    variant="contained"
+                    startIcon={ <Pencil aria-hidden="true" /> }
+                >
+                    Ubah pemasok
+                </Button>
+                { supplier.active && (
+                    <Button
+                        type="button"
+                        color="error"
+                        variant="outlined"
+                        startIcon={ <CircleOff aria-hidden="true" /> }
+                        onClick={ openDeactivation }
+                    >
+                        Nonaktifkan pemasok
+                    </Button>
+                ) }
+            </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
                 <Paper component="section" className="p-4 md:p-5" aria-labelledby="supplier-contact-title">

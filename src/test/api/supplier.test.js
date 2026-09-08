@@ -39,4 +39,27 @@ describe('supplier API', () => {
             signal: controller.signal
         }, undefined);
     });
+
+    it('uses the write contracts without exposing hard delete', async () => {
+        await supplierApi.createSupplier({ data: { code: 'SUP-001', name: 'Bloom' } });
+        await supplierApi.updateSupplier('SUP/001', { data: { name: 'Bloom Baru' } });
+        await supplierApi.setSupplierActive('SUP/001', false);
+
+        expect(apiRequest).toHaveBeenNthCalledWith(1, {
+            url: '/api/suppliers',
+            method: 'POST',
+            data: { code: 'SUP-001', name: 'Bloom' }
+        }, undefined);
+        expect(apiRequest).toHaveBeenNthCalledWith(2, {
+            url: '/api/suppliers/SUP%2F001',
+            method: 'PUT',
+            data: { name: 'Bloom Baru' }
+        }, undefined);
+        expect(apiRequest).toHaveBeenNthCalledWith(3, {
+            url: '/api/suppliers/SUP%2F001/activation',
+            method: 'PATCH',
+            data: { active: false }
+        }, undefined);
+        expect(supplierApi.deleteSupplier).toBeUndefined();
+    });
 });

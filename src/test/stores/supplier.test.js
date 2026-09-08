@@ -6,7 +6,10 @@ import useSupplierStore from '@stores/modules/supplier.js';
 vi.mock('@api/supplier.js', () => ({
     default: {
         getSupplierList: vi.fn(),
-        getSupplierDetails: vi.fn()
+        getSupplierDetails: vi.fn(),
+        createSupplier: vi.fn(),
+        updateSupplier: vi.fn(),
+        setSupplierActive: vi.fn()
     }
 }));
 
@@ -100,5 +103,24 @@ describe('supplier store', () => {
             detailStatus: 'ready',
             detailError: null
         });
+    });
+
+    it('updates cached detail and list from the server-confirmed activation result', async () => {
+        const activeSupplier = supplier('SUP-001', 'Bloom');
+        const inactiveSupplier = { ...activeSupplier, active: false };
+        useSupplierStore.setState({
+            supplierList: [activeSupplier],
+            supplierDetails: activeSupplier
+        });
+        supplierApi.setSupplierActive.mockResolvedValue({ data: { data: inactiveSupplier } });
+
+        const result = await useSupplierStore.getState().setSupplierActive('SUP-001', false);
+
+        expect(result).toEqual(inactiveSupplier);
+        expect(useSupplierStore.getState()).toMatchObject({
+            supplierList: [inactiveSupplier],
+            supplierDetails: inactiveSupplier
+        });
+        expect(supplierApi.setSupplierActive).toHaveBeenCalledWith('SUP-001', false, undefined);
     });
 });
