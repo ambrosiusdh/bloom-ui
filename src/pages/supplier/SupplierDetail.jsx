@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Alert, Button, Chip, CircularProgress, Paper } from '@mui/material';
 import { ArrowLeft, CircleOff, Pencil } from 'lucide-react';
 
@@ -7,12 +7,14 @@ import BloomConfirmationModal from '@components/_ui/BloomConfirmationModal.jsx';
 import { GENERIC_ERR_MESSAGE } from '@constants/general.js';
 import { useBreadcrumbStore, useSupplierStore } from '@stores/index.js';
 import { formatDate } from '@utils/date-utils.js';
+import { getSupplierListReturnTo, isValidSupplierCode } from '@utils/supplier-utils.js';
 
 const valueOrDash = value => value || '-';
 
 export default function SupplierDetail() {
     const { code = '' } = useParams();
     const location = useLocation();
+    const navigate = useNavigate();
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const supplier = useSupplierStore(state => state.supplierDetails);
     const status = useSupplierStore(state => state.detailStatus);
@@ -27,10 +29,10 @@ export default function SupplierDetail() {
     const [successMessage, setSuccessMessage] = useState(location.state?.message || '');
     const deactivationInProgressRef = useRef(false);
     const deactivationTriggerRef = useRef(null);
+    const isMountedRef = useRef(true);
     const successAlertRef = useRef(null);
-    const isValidCode = Boolean(code.trim()) && code.length <= 255;
-    const returnTo = typeof location.state?.from === 'string'
-        && location.state.from.startsWith('/suppliers') ? location.state.from : '/suppliers';
+    const isValidCode = isValidSupplierCode(code);
+    const returnTo = getSupplierListReturnTo(location.state?.from);
 
     useEffect(() => {
         setBreadcrumbs([
@@ -58,9 +60,21 @@ export default function SupplierDetail() {
         if (successMessage) successAlertRef.current?.focus();
     }, [successMessage]);
 
-    useEffect(() => () => {
-        deactivationInProgressRef.current = false;
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            deactivationInProgressRef.current = false;
+        };
     }, []);
+
+    useEffect(() => {
+        if (!location.state?.message) return;
+        navigate(`${ location.pathname }${ location.search }`, {
+            replace: true,
+            state: { from: returnTo }
+        });
+    }, [location.pathname, location.search, location.state?.message, navigate, returnTo]);
 
     const openDeactivation = event => {
         deactivationTriggerRef.current = event.currentTarget;
@@ -83,17 +97,19 @@ export default function SupplierDetail() {
 
         try {
             const updatedSupplier = await setSupplierActive(supplier.code, false);
+            if (!isMountedRef.current) return;
             setShowDeactivation(false);
             setSuccessMessage(
                 `Pemasok ${ updatedSupplier.name } berhasil dinonaktifkan tanpa menghapus riwayatnya.`
             );
         } catch (deactivationFailure) {
+            if (!isMountedRef.current) return;
             setDeactivationError(deactivationFailure?.category === 'not_found'
                 ? 'Pemasok ini tidak lagi tersedia. Tutup dialog lalu muat ulang data.'
                 : deactivationFailure?.message || 'Pemasok gagal dinonaktifkan. Silakan coba lagi.');
         } finally {
             deactivationInProgressRef.current = false;
-            setIsDeactivating(false);
+            if (isMountedRef.current) setIsDeactivating(false);
         }
     };
 

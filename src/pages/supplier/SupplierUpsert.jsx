@@ -3,8 +3,13 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Alert, Button, CircularProgress, Paper, TextField } from '@mui/material';
 
 import { useBreadcrumbStore, useSupplierStore } from '@stores/index.js';
+import {
+    getSupplierListReturnTo,
+    isValidSupplierCode,
+    SUPPLIER_CODE_MAX_LENGTH
+} from '@utils/supplier-utils.js';
 
-const MAX_LENGTH = 255;
+const MAX_LENGTH = SUPPLIER_CODE_MAX_LENGTH;
 const EMPTY_FORM = { code: '', name: '', contactNumber: '', address: '' };
 const EMPTY_ERRORS = { code: '', name: '', contactNumber: '', address: '' };
 const FIELD_ORDER = ['name', 'code', 'contactNumber', 'address'];
@@ -28,6 +33,18 @@ const validateForm = (form, isEdit) => Object.fromEntries(
     Object.keys(EMPTY_ERRORS).map(field => [field, validateField(field, form[field], isEdit)])
 );
 
+const getBackendValidationMessage = detail => {
+    if (detail.field === 'name' || detail.field === 'code') {
+        if (/required|blank/i.test(detail.message)) {
+            return `${ FIELD_LABELS[detail.field] } wajib diisi.`;
+        }
+    }
+    if (/255|exceed|max/i.test(detail.message)) {
+        return `${ FIELD_LABELS[detail.field] } maksimal ${ MAX_LENGTH } karakter.`;
+    }
+    return `${ FIELD_LABELS[detail.field] } tidak valid.`;
+};
+
 const toFormData = supplier => ({
     code: supplier.code ?? '',
     name: supplier.name ?? '',
@@ -47,18 +64,22 @@ const toPayload = (form, isEdit) => ({
 export default function SupplierUpsert() {
     const { code } = useParams();
     const isEdit = Boolean(code);
+    const isValidCode = !isEdit || isValidSupplierCode(code);
     const location = useLocation();
     const navigate = useNavigate();
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const getSupplierDetails = useSupplierStore(state => state.getSupplierDetails);
     const createSupplier = useSupplierStore(state => state.createSupplier);
     const updateSupplier = useSupplierStore(state => state.updateSupplier);
-    const returnTo = typeof location.state?.from === 'string'
-        && location.state.from.startsWith('/suppliers') ? location.state.from : '/suppliers';
+    const listReturnTo = getSupplierListReturnTo(location.state?.from);
+    const detailPath = isEdit && isValidCode
+        ? `/suppliers/${ encodeURIComponent(code) }`
+        : '';
+    const cancelTo = detailPath || listReturnTo;
 
     const [form, setForm] = useState(EMPTY_FORM);
     const [errors, setErrors] = useState(EMPTY_ERRORS);
-    const [isLoading, setIsLoading] = useState(isEdit);
+    const [isLoading, setIsLoading] = useState(isEdit && isValidCode);
     const [loadError, setLoadError] = useState('');
     const [submitError, setSubmitError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,11 +87,12 @@ export default function SupplierUpsert() {
     const fieldRefs = useRef({});
     const errorAlertRef = useRef(null);
     const loadErrorRef = useRef(null);
+    const isMountedRef = useRef(true);
     const submitInProgressRef = useRef(false);
     const pendingFieldFocusRef = useRef('');
 
     const loadSupplier = useCallback(async signal => {
-        if (!isEdit) return;
+        if (!isEdit || !isValidCode) return;
         setIsLoading(true);
         setLoadError('');
         try {
@@ -88,7 +110,7 @@ export default function SupplierUpsert() {
         } finally {
             if (!signal.aborted) setIsLoading(false);
         }
-    }, [code, getSupplierDetails, isEdit]);
+    }, [code, getSupplierDetails, isEdit, isValidCode]);
 
     const handleChange = event => {
         const { name, value } = event.target;
@@ -109,10 +131,10 @@ export default function SupplierUpsert() {
         if (submitInProgressRef.current) return;
 
         const nextErrors = validateForm(form, isEdit);
-        setErrors(nextErrors);
         const firstInvalidField = FIELD_ORDER.find(field => nextErrors[field]);
+        if (firstInvalidField) pendingFieldFocusRef.current = firstInvalidField;
+        setErrors(nextErrors);
         if (firstInvalidField) {
-            fieldRefs.current[firstInvalidField]?.focus();
             return;
         }
 
@@ -126,24 +148,22 @@ export default function SupplierUpsert() {
             const supplier = isEdit
                 ? await updateSupplier(code, toPayload(submittedForm, true))
                 : await createSupplier(toPayload(submittedForm, false));
+            if (!isMountedRef.current) return;
             navigate(`/suppliers/${ encodeURIComponent(supplier.code) }`, {
                 replace: true,
                 state: {
-                    from: returnTo,
+                    from: listReturnTo,
                     message: isEdit
                         ? `Pemasok ${ supplier.name } berhasil diperbarui.`
                         : `Pemasok ${ supplier.name } berhasil dibuat.`
                 }
             });
         } catch (error) {
+            if (!isMountedRef.current) return;
             const backendErrors = { ...EMPTY_ERRORS };
             error?.validationErrors?.forEach(detail => {
                 if (detail.field in backendErrors) {
-                    backendErrors[detail.field] = validateField(
-                        detail.field,
-                        submittedForm[detail.field],
-                        isEdit
-                    ) || `${ FIELD_LABELS[detail.field] } tidak valid.`;
+                    backendErrors[detail.field] = getBackendValidationMessage(detail);
                 }
             });
 
@@ -167,7 +187,7 @@ export default function SupplierUpsert() {
             }
         } finally {
             submitInProgressRef.current = false;
-            setIsSubmitting(false);
+            if (isMountedRef.current) setIsSubmitting(false);
         }
     };
 
@@ -179,7 +199,7 @@ export default function SupplierUpsert() {
     }, [code, isEdit, setBreadcrumbs]);
 
     useEffect(() => {
-        if (!isEdit) {
+        if (!isEdit || !isValidCode) {
             setForm({ ...EMPTY_FORM });
             setErrors({ ...EMPTY_ERRORS });
             setIsLoading(false);
@@ -188,7 +208,7 @@ export default function SupplierUpsert() {
         const controller = new AbortController();
         loadSupplier(controller.signal);
         return () => controller.abort();
-    }, [isEdit, loadSupplier, reloadVersion]);
+    }, [isEdit, isValidCode, loadSupplier, reloadVersion]);
 
     useEffect(() => {
         if (loadError) loadErrorRef.current?.focus();
@@ -206,9 +226,22 @@ export default function SupplierUpsert() {
         }
     }, [errors, isSubmitting]);
 
-    useEffect(() => () => {
-        submitInProgressRef.current = false;
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            submitInProgressRef.current = false;
+        };
     }, []);
+
+    if (!isValidCode) {
+        return (
+            <div className="space-y-3 max-w-3xl">
+                <Alert severity="error">Kode pemasok tidak valid.</Alert>
+                <Button component={ Link } to={ listReturnTo }>Kembali ke daftar</Button>
+            </div>
+        );
+    }
 
     if (isLoading) {
         return (
@@ -230,7 +263,9 @@ export default function SupplierUpsert() {
                 >
                     { loadError }
                 </Alert>
-                <Button component={ Link } to={ returnTo }>Kembali ke daftar</Button>
+                <Button component={ Link } to={ cancelTo } state={ detailPath ? { from: listReturnTo } : undefined }>
+                    { detailPath ? 'Kembali ke detail' : 'Kembali ke daftar' }
+                </Button>
             </div>
         );
     }
@@ -328,7 +363,14 @@ export default function SupplierUpsert() {
                     <Button type="submit" variant="contained" disabled={ interactionDisabled } aria-busy={ isSubmitting }>
                         { isSubmitting ? 'Menyimpan...' : isEdit ? 'Simpan perubahan' : 'Buat pemasok' }
                     </Button>
-                    <Button component={ Link } to={ returnTo } disabled={ interactionDisabled }>Batal</Button>
+                    <Button
+                        component={ Link }
+                        to={ cancelTo }
+                        state={ detailPath ? { from: listReturnTo } : undefined }
+                        disabled={ interactionDisabled }
+                    >
+                        Batal
+                    </Button>
                 </div>
 
                 { isSubmitting && (

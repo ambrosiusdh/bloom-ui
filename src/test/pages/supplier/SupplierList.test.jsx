@@ -47,6 +47,8 @@ describe('SupplierList', () => {
         expect(screen.getAllByLabelText('Status pemasok: Aktif').length).toBeGreaterThan(0);
         expect(screen.getAllByRole('link', { name: /detail.*Nusantara Tekstil/i })[0])
             .toHaveAttribute('href', '/suppliers/SUP-001');
+        expect(screen.getByRole('link', { name: 'Buat pemasok' }))
+            .toHaveAttribute('href', '/suppliers/maintenance/new');
         expect(supplierApi.getSupplierList).toHaveBeenCalledWith({
             signal: expect.any(AbortSignal),
             params: { page: 1, size: 10, active: true }

@@ -177,7 +177,7 @@ export default function SupplierList() {
                 </div>
                 <Button
                     component={ Link }
-                    to="/suppliers/new"
+                    to="/suppliers/maintenance/new"
                     state={ { from: returnTo } }
                     variant="contained"
                     startIcon={ <Plus aria-hidden="true" /> }
@@ -250,7 +250,7 @@ export default function SupplierList() {
                         { query ? 'Tidak ada pemasok yang cocok dengan pencarian ini.' : `Belum ada pemasok ${ active ? 'aktif' : 'tidak aktif' }.` }
                     </p>
                     { !query && active && (
-                        <Button component={ Link } to="/suppliers/new" state={ { from: returnTo } } className="mt-3">
+                        <Button component={ Link } to="/suppliers/maintenance/new" state={ { from: returnTo } } className="mt-3">
                             Buat pemasok pertama
                         </Button>
                     ) }

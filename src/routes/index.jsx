@@ -143,7 +143,7 @@ const router = createBrowserRouter([
                 element: withSuspense(<SupplierList />)
             },
             {
-                path: "suppliers/new",
+                path: "suppliers/maintenance/new",
                 element: withSuspense(<SupplierUpsert />)
             },
             {
