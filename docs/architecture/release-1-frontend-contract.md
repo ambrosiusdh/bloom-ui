@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Contract
 
-Last updated: 2026-09-05
+Last updated: 2026-09-08
 
 ## 1. Purpose
 
@@ -47,6 +47,7 @@ Bloom UI is currently a JavaScript React application:
 - FE-21 post-checkout printing is implemented: the cashier first renders and focuses the backend-confirmed sale/reference, then separately calls backend-controlled printing with that reference. A sale-reference-scoped coordinator preserves the completed sale and the same pending print operation across checkout, sale-detail navigation, success, failure, retry, and reprint.
 - FE-22 sales history alignment is implemented: list/detail render backend-confirmed decimal lines, totals, payment/lifecycle/correction statuses, tender/change, session/reference, and supported filters without inferring paid state; FE-07 reprint remains separate and available.
 - FE-23 supplier list and detail are implemented: back-office users can search and page the backend supplier read model, switch between its supported active/inactive filters, and inspect one supplier by stable immutable code with explicit async, empty, retry, and stale-response behavior.
+- FE-24 supplier maintenance is implemented: back-office users can create and edit supplier master data while the stable code remains immutable, handle validation and duplicate-code conflicts without losing input, and deactivate suppliers through a separate accessible confirmation that preserves the record and its history.
 
 Release 1 work must preserve this baseline unless a narrowly scoped PR proves that a dependency change is necessary for its immediate domain. TypeScript migration, TanStack Query adoption, global store replacement, router restructuring, and a global design-system rewrite are not Release 1 prerequisites.
 
@@ -412,7 +413,6 @@ The following must be verified or completed before their dependent frontend PRs 
 - Sale checkout is available at `POST /api/sales` with decimal STORE lines, `CASH`/`QRIS`, and required `Idempotency-Key`; the backend enforces an open session, owns prices/totals/change, replays an identical request, and conflicts on a changed same-key payload. `GET /api/sales/checkout-status` uses the same key and returns `COMPLETED` with the sale or `UNKNOWN` without mutating sale state.
 - Actual scanner model, interface, suffix/terminator, and behavior under rapid scans.
 - Printer endpoint success/error semantics in the target environment.
-- Supplier read/write contracts.
 - Goods-receipt totals, payment/outstanding fields, status, decimal quantities, and supplier identifier.
 - Accounts-payable and single-receipt payment endpoints, including overpayment and reversal behavior.
 - Expense create/list/detail/void contracts.

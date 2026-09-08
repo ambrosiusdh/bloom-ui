@@ -67,7 +67,10 @@ const DASHBOARD = {
 
 const SUPPLIER = {
     list: '/api/suppliers',
-    detail: code => `/api/suppliers/${ encodeURIComponent(code) }`
+    create: '/api/suppliers',
+    detail: code => `/api/suppliers/${ encodeURIComponent(code) }`,
+    update: code => `/api/suppliers/${ encodeURIComponent(code) }`,
+    activation: code => `/api/suppliers/${ encodeURIComponent(code) }/activation`
 }
 
 export {

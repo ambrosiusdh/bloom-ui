@@ -27,6 +27,7 @@ const CashSessionHistory = lazy(() => import("@pages/cash-session/CashSessionHis
 const CashSessionDetail = lazy(() => import("@pages/cash-session/CashSessionDetail.jsx"));
 const SupplierList = lazy(() => import("@pages/supplier/SupplierList.jsx"));
 const SupplierDetail = lazy(() => import("@pages/supplier/SupplierDetail.jsx"));
+const SupplierUpsert = lazy(() => import("@pages/supplier/SupplierUpsert.jsx"));
 
 const Login = lazy(() => import("@pages/login/Login.jsx"));
 const NotFound = lazy(() => import("@pages/NotFound.jsx"));
@@ -140,6 +141,14 @@ const router = createBrowserRouter([
             {
                 path: "suppliers",
                 element: withSuspense(<SupplierList />)
+            },
+            {
+                path: "suppliers/maintenance/new",
+                element: withSuspense(<SupplierUpsert />)
+            },
+            {
+                path: "suppliers/:code/edit",
+                element: withSuspense(<SupplierUpsert />)
             },
             {
                 path: "suppliers/:code",

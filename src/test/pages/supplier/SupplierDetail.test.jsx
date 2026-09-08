@@ -16,13 +16,17 @@ import useSupplierStore from '@stores/modules/supplier.js';
 import {
     fireEvent,
     render,
-    screen
+    screen,
+    waitFor
 } from '@/test/render.jsx';
 
 vi.mock('@api/supplier.js', () => ({
     default: {
         getSupplierList: vi.fn(),
-        getSupplierDetails: vi.fn()
+        getSupplierDetails: vi.fn(),
+        createSupplier: vi.fn(),
+        updateSupplier: vi.fn(),
+        setSupplierActive: vi.fn()
     }
 }));
 
@@ -89,5 +93,39 @@ describe('SupplierDetail', () => {
         expect(await screen.findByRole('heading', { name: 'Nusantara Tekstil' })).toBeInTheDocument();
 
         view.unmount();
+    });
+
+    it('confirms deactivation accessibly, blocks duplicates, and preserves stable identity', async () => {
+        const activeSupplier = { ...supplier, active: true };
+        let resolveDeactivation;
+        supplierApi.getSupplierDetails.mockResolvedValue({ data: { data: activeSupplier } });
+        supplierApi.setSupplierActive.mockReturnValue(new Promise(resolve => {
+            resolveDeactivation = resolve;
+        }));
+        renderDetail();
+
+        const trigger = await screen.findByRole('button', { name: 'Nonaktifkan pemasok' });
+        fireEvent.click(trigger);
+        expect(screen.getByRole('dialog', { name: 'Nonaktifkan Nusantara Tekstil?' })).toBeInTheDocument();
+        const cancel = screen.getByRole('button', { name: 'Batal' });
+        await waitFor(() => expect(cancel).toHaveFocus());
+        fireEvent.click(cancel);
+        await waitFor(() => expect(trigger).toHaveFocus());
+
+        fireEvent.click(trigger);
+        const confirm = screen.getByRole('button', { name: 'Nonaktifkan' });
+        fireEvent.click(confirm);
+        fireEvent.click(confirm);
+
+        expect(supplierApi.setSupplierActive).toHaveBeenCalledTimes(1);
+        expect(supplierApi.setSupplierActive).toHaveBeenCalledWith('SUP-001', false, undefined);
+        expect(screen.getByRole('status')).toHaveTextContent('Menonaktifkan pemasok...');
+
+        resolveDeactivation({ data: { data: { ...activeSupplier, active: false } } });
+
+        expect(await screen.findByText(/berhasil dinonaktifkan tanpa menghapus riwayatnya/i)).toBeInTheDocument();
+        expect(screen.getByText('Kode pemasok: SUP-001')).toBeInTheDocument();
+        expect(screen.getByLabelText('Status pemasok: Tidak aktif')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Nonaktifkan pemasok' })).not.toBeInTheDocument();
     });
 });

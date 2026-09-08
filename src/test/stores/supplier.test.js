@@ -6,7 +6,10 @@ import useSupplierStore from '@stores/modules/supplier.js';
 vi.mock('@api/supplier.js', () => ({
     default: {
         getSupplierList: vi.fn(),
-        getSupplierDetails: vi.fn()
+        getSupplierDetails: vi.fn(),
+        createSupplier: vi.fn(),
+        updateSupplier: vi.fn(),
+        setSupplierActive: vi.fn()
     }
 }));
 
@@ -99,6 +102,70 @@ describe('supplier store', () => {
             supplierDetails: supplier('SUP-NEW'),
             detailStatus: 'ready',
             detailError: null
+        });
+    });
+
+    it('updates detail and invalidates the filtered list after activation changes', async () => {
+        const activeSupplier = supplier('SUP-001', 'Bloom');
+        const inactiveSupplier = { ...activeSupplier, active: false };
+        useSupplierStore.setState({
+            supplierList: [activeSupplier],
+            supplierDetails: activeSupplier
+        });
+        supplierApi.setSupplierActive.mockResolvedValue({ data: { data: inactiveSupplier } });
+
+        const result = await useSupplierStore.getState().setSupplierActive('SUP-001', false);
+
+        expect(result).toEqual(inactiveSupplier);
+        expect(useSupplierStore.getState()).toMatchObject({
+            supplierList: [],
+            supplierPaging: {},
+            supplierDetails: inactiveSupplier,
+            listStatus: 'idle'
+        });
+        expect(supplierApi.setSupplierActive).toHaveBeenCalledWith('SUP-001', false, undefined);
+    });
+
+    it('returns created data and invalidates any previously cached page', async () => {
+        const createdSupplier = supplier('SUP-NEW', 'Baru');
+        useSupplierStore.setState({
+            supplierList: [supplier('SUP-OLD')],
+            supplierPaging: { totalPages: 1 },
+            listStatus: 'ready'
+        });
+        supplierApi.createSupplier.mockResolvedValue({ data: { data: createdSupplier } });
+
+        const result = await useSupplierStore.getState().createSupplier({
+            data: { code: 'sup-new', name: 'Baru' }
+        });
+
+        expect(result).toEqual(createdSupplier);
+        expect(useSupplierStore.getState()).toMatchObject({
+            supplierList: [],
+            supplierPaging: {},
+            listStatus: 'idle'
+        });
+    });
+
+    it('keeps stable detail identity and invalidates search results after an edit', async () => {
+        const original = supplier('SUP-001', 'Lama');
+        const updated = supplier('SUP-001', 'Baru');
+        useSupplierStore.setState({
+            supplierList: [original],
+            supplierDetails: original,
+            listStatus: 'ready'
+        });
+        supplierApi.updateSupplier.mockResolvedValue({ data: { data: updated } });
+
+        const result = await useSupplierStore.getState().updateSupplier('SUP-001', {
+            data: { name: 'Baru' }
+        });
+
+        expect(result).toEqual(updated);
+        expect(useSupplierStore.getState()).toMatchObject({
+            supplierList: [],
+            supplierDetails: updated,
+            listStatus: 'idle'
         });
     });
 });

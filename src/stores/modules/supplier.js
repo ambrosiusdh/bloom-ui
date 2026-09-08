@@ -73,6 +73,50 @@ const useSupplierStore = create(set => ({
         }
     },
 
+    createSupplier: async (payload, options) => {
+        const { data: response } = await supplierApi.createSupplier(payload, options);
+        latestListRequestId += 1;
+        set({
+            supplierList: [],
+            supplierPaging: {},
+            listStatus: 'idle',
+            listError: null
+        });
+        return response.data;
+    },
+
+    updateSupplier: async (code, payload, options) => {
+        const { data: response } = await supplierApi.updateSupplier(code, payload, options);
+        const updatedSupplier = response.data;
+        latestListRequestId += 1;
+        set(state => ({
+            supplierDetails: state.supplierDetails?.code === updatedSupplier.code
+                ? updatedSupplier
+                : state.supplierDetails,
+            supplierList: [],
+            supplierPaging: {},
+            listStatus: 'idle',
+            listError: null
+        }));
+        return updatedSupplier;
+    },
+
+    setSupplierActive: async (code, active, options) => {
+        const { data: response } = await supplierApi.setSupplierActive(code, active, options);
+        const updatedSupplier = response.data;
+        latestListRequestId += 1;
+        set(state => ({
+            supplierDetails: state.supplierDetails?.code === updatedSupplier.code
+                ? updatedSupplier
+                : state.supplierDetails,
+            supplierList: [],
+            supplierPaging: {},
+            listStatus: 'idle',
+            listError: null
+        }));
+        return updatedSupplier;
+    },
+
     clearSupplierDetails: () => {
         latestDetailRequestId += 1;
         set({

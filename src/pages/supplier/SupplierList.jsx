@@ -16,7 +16,7 @@ import {
     TableRow,
     TextField
 } from '@mui/material';
-import { Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import PropTypes from 'prop-types';
 
 import { GENERIC_ERR_MESSAGE } from '@constants/general.js';
@@ -170,9 +170,20 @@ export default function SupplierList() {
 
     return (
         <div className="space-y-5 pb-8">
-            <header>
-                <h2 className="text-2xl font-bold">Pemasok</h2>
-                <p className="text-gray-600">Cari dan periksa data pemasok berdasarkan catatan server.</p>
+            <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <h2 className="text-2xl font-bold">Pemasok</h2>
+                    <p className="text-gray-600">Cari dan periksa data pemasok berdasarkan catatan server.</p>
+                </div>
+                <Button
+                    component={ Link }
+                    to="/suppliers/maintenance/new"
+                    state={ { from: returnTo } }
+                    variant="contained"
+                    startIcon={ <Plus aria-hidden="true" /> }
+                >
+                    Buat pemasok
+                </Button>
             </header>
 
             <Paper component="section" className="p-4" aria-label="Pencarian pemasok">
@@ -238,6 +249,11 @@ export default function SupplierList() {
                     <p className="text-gray-600 mt-1">
                         { query ? 'Tidak ada pemasok yang cocok dengan pencarian ini.' : `Belum ada pemasok ${ active ? 'aktif' : 'tidak aktif' }.` }
                     </p>
+                    { !query && active && (
+                        <Button component={ Link } to="/suppliers/maintenance/new" state={ { from: returnTo } } className="mt-3">
+                            Buat pemasok pertama
+                        </Button>
+                    ) }
                 </Paper>
             ) }
 
