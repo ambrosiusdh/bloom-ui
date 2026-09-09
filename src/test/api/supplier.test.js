@@ -40,6 +40,22 @@ describe('supplier API', () => {
         }, undefined);
     });
 
+    it('reads the server-calculated outstanding balance by stable supplier code', async () => {
+        const controller = new AbortController();
+
+        await supplierApi.getSupplierOutstandingBalance(
+            'SUP/001',
+            { signal: controller.signal },
+            { useLoader: false }
+        );
+
+        expect(apiRequest).toHaveBeenCalledWith({
+            url: '/api/suppliers/SUP%2F001/outstanding-balance',
+            method: 'GET',
+            signal: controller.signal
+        }, { useLoader: false });
+    });
+
     it('uses the write contracts without exposing hard delete', async () => {
         await supplierApi.createSupplier({ data: { code: 'SUP-001', name: 'Bloom' } });
         await supplierApi.updateSupplier('SUP/001', { data: { name: 'Bloom Baru' } });

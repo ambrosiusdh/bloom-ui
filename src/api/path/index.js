@@ -70,7 +70,8 @@ const SUPPLIER = {
     create: '/api/suppliers',
     detail: code => `/api/suppliers/${ encodeURIComponent(code) }`,
     update: code => `/api/suppliers/${ encodeURIComponent(code) }`,
-    activation: code => `/api/suppliers/${ encodeURIComponent(code) }/activation`
+    activation: code => `/api/suppliers/${ encodeURIComponent(code) }/activation`,
+    outstandingBalance: code => `/api/suppliers/${ encodeURIComponent(code) }/outstanding-balance`
 }
 
 export {

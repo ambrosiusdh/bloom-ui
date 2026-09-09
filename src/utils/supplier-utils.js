@@ -8,3 +8,8 @@ export const getSupplierListReturnTo = value => typeof value === 'string'
     && (value === '/suppliers' || value.startsWith('/suppliers?'))
     ? value
     : '/suppliers';
+
+export const getSupplierDetailReturnTo = value => typeof value === 'string'
+    && (value === '/payables' || value.startsWith('/payables?'))
+    ? value
+    : getSupplierListReturnTo(value);

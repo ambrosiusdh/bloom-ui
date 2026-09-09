@@ -22,7 +22,8 @@ const GoodsReceiptDetail = () => {
     const isValidReference = isValidGoodsReceiptReference(receiptReference);
     const isCurrentReceipt = goodsReceiptDetails?.code === receiptReference;
     const backTo = typeof location.state?.from === 'string'
-        && location.state.from.startsWith('/goods-receipts')
+        && (location.state.from.startsWith('/goods-receipts')
+            || location.state.from.startsWith('/payables'))
         ? location.state.from
         : '/goods-receipts';
 

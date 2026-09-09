@@ -4,6 +4,7 @@ import supplierApi from '@api/supplier.js';
 
 let latestListRequestId = 0;
 let latestDetailRequestId = 0;
+let latestBalanceRequestId = 0;
 
 const initialState = {
     supplierList: [],
@@ -12,7 +13,10 @@ const initialState = {
     listError: null,
     supplierDetails: null,
     detailStatus: 'idle',
-    detailError: null
+    detailError: null,
+    supplierOutstandingBalance: null,
+    balanceStatus: 'idle',
+    balanceError: null
 };
 
 const useSupplierStore = create(set => ({
@@ -73,6 +77,40 @@ const useSupplierStore = create(set => ({
         }
     },
 
+    getSupplierOutstandingBalance: async (code, config, options) => {
+        const requestId = ++latestBalanceRequestId;
+        set({
+            supplierOutstandingBalance: null,
+            balanceStatus: 'loading',
+            balanceError: null
+        });
+
+        try {
+            const { data: response } = await supplierApi.getSupplierOutstandingBalance(
+                code,
+                config,
+                options
+            );
+            if (requestId === latestBalanceRequestId && !config?.signal?.aborted) {
+                set({
+                    supplierOutstandingBalance: response.data,
+                    balanceStatus: 'ready',
+                    balanceError: null
+                });
+            }
+            return response.data;
+        } catch (error) {
+            if (requestId === latestBalanceRequestId && !config?.signal?.aborted) {
+                set({
+                    supplierOutstandingBalance: null,
+                    balanceStatus: 'error',
+                    balanceError: error
+                });
+            }
+            throw error;
+        }
+    },
+
     createSupplier: async (payload, options) => {
         const { data: response } = await supplierApi.createSupplier(payload, options);
         latestListRequestId += 1;
@@ -123,6 +161,15 @@ const useSupplierStore = create(set => ({
             supplierDetails: null,
             detailStatus: 'idle',
             detailError: null
+        });
+    },
+
+    clearSupplierOutstandingBalance: () => {
+        latestBalanceRequestId += 1;
+        set({
+            supplierOutstandingBalance: null,
+            balanceStatus: 'idle',
+            balanceError: null
         });
     }
 }));

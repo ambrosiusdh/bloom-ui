@@ -7,6 +7,7 @@ vi.mock('@api/supplier.js', () => ({
     default: {
         getSupplierList: vi.fn(),
         getSupplierDetails: vi.fn(),
+        getSupplierOutstandingBalance: vi.fn(),
         createSupplier: vi.fn(),
         updateSupplier: vi.fn(),
         setSupplierActive: vi.fn()
@@ -51,7 +52,10 @@ describe('supplier store', () => {
             listError: null,
             supplierDetails: null,
             detailStatus: 'idle',
-            detailError: null
+            detailError: null,
+            supplierOutstandingBalance: null,
+            balanceStatus: 'idle',
+            balanceError: null
         });
     });
 
@@ -103,6 +107,29 @@ describe('supplier store', () => {
             detailStatus: 'ready',
             detailError: null
         });
+    });
+
+    it('stores the supplier balance response directly without client aggregation', async () => {
+        const serverBalance = {
+            supplierId: 1,
+            supplierCode: 'SUP-001',
+            supplierName: 'Bloom',
+            totalPostedAmount: '100.0000',
+            paidAmount: '40.0000',
+            outstandingAmount: '60.0000'
+        };
+        supplierApi.getSupplierOutstandingBalance.mockResolvedValue({
+            data: { data: serverBalance }
+        });
+
+        await useSupplierStore.getState().getSupplierOutstandingBalance('SUP-001');
+
+        expect(useSupplierStore.getState()).toMatchObject({
+            supplierOutstandingBalance: serverBalance,
+            balanceStatus: 'ready',
+            balanceError: null
+        });
+        expect(supplierApi.getSupplierOutstandingBalance).toHaveBeenCalledTimes(1);
     });
 
     it('updates detail and invalidates the filtered list after activation changes', async () => {
