@@ -12,6 +12,14 @@ describe('goods receipt read API', () => {
         apiRequest.mockResolvedValue({});
     });
 
+    it('posts receipt intent with the supplied stable idempotency key', async () => {
+        const payload = { supplierCode: 'SUP-7', receivedDate: '2026-09-09T02:00:00Z',
+            items: [{ itemSku: 'KAIN-1', quantity: '0.5000', purchasePrice: '10000.125', stockLocation: 'STORE' }] };
+        await goodsReceiptApi.createGoodsReceipt(payload, 'receipt-replay', { useLoader: false });
+        expect(apiRequest).toHaveBeenCalledWith({ url: '/api/goods-receipts', method: 'POST',
+            data: payload, headers: { 'Idempotency-Key': 'receipt-replay' } }, { useLoader: false });
+    });
+
     it('forwards only the supplied list filters, paging, and cancellation signal', async () => {
         const controller = new AbortController();
         const params = {

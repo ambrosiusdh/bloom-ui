@@ -1,339 +1,153 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Paper, TextField } from '@mui/material';
 
-import { format } from 'date-fns';
-import { enqueueSnackbar } from 'notistack';
+import GoodsReceiptInfoCard from '@components/goods-receipt/GoodsReceiptInfoCard.jsx';
+import GoodsReceiptItemsTable from '@components/goods-receipt/GoodsReceiptItemsTable.jsx';
+import { RECEIPT_OFFSETS, validateReceipt } from '@components/goods-receipt/receipt-create.js';
+import ReceiptLineEditor from '@components/goods-receipt/ReceiptLineEditor.jsx';
+import ReceiptLookup from '@components/goods-receipt/ReceiptLookup.jsx';
+import { useBreadcrumbStore } from '@stores/index.js';
+import useGoodsReceiptCreateStore from '@stores/modules/goods-receipt-create.js';
+import { formatUnitOfMeasure } from '@utils/quantity-utils.js';
 
-import { useNavigate } from 'react-router-dom';
-
-import {
-    Autocomplete,
-    Button,
-    IconButton,
-    Paper,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    TextField,
-    Typography,
-    CircularProgress,
-    Tooltip
-} from '@mui/material';
-
-import { Trash, Plus, Save, Edit2 } from 'lucide-react';
-
-import { useBreadcrumbStore, useGoodsReceiptStore, useItemStore } from '@stores/index.js';
-
-import { debounce } from '@utils/general-utils.js';
-
-import BloomInputNumber from '@components/_ui/BloomInputNumber.jsx';
-
-const GoodsReceiptCreate = () => {
-    const navigate = useNavigate();
-    const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
-    const createGoodsReceipt = useGoodsReceiptStore(state => state.createGoodsReceipt);
-    const isSubmitting = useGoodsReceiptStore(state => state.isSubmitting);
-    const getItemList = useItemStore(state => state.getItemList);
-
-    const [receivedDate, setReceivedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-    const [supplierName, setSupplierName] = useState('');
-    const [description, setDescription] = useState('');
-    const [items, setItems] = useState([
-        { itemSku: null, itemName: '', currentStock: 0, quantity: 1, isLocked: false }
-    ]);
-
-    const [itemOptions, setItemOptions] = useState([]);
-    const [loadingItems, setLoadingItems] = useState(false);
-
-    useEffect(() => {
-        setBreadcrumbs(['Penerimaan Barang', 'Buat Penerimaan']);
-    }, [setBreadcrumbs]);
-
-    const handleSearchItems = async (query) => {
-        if (!query) return;
-        setLoadingItems(true);
-        try {
-            const payload = {
-                params: {
-                    page: 1,
-                    size: 20,
-                    sku: query
-                }
-            };
-            const response = await getItemList(payload);
-            setItemOptions(response.data.content || []);
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setLoadingItems(false);
-        }
-    };
-
-    const debouncedSearch = value => {
-        debounce(() => { handleSearchItems(value) }, 'searchItems', 500);
-    }
-
-    const handleAddItem = () => {
-        setItems([...items, { itemSku: null, itemName: '', currentStock: 0, quantity: 1, isLocked: false }]);
-    };
-
-    const handleRemoveItem = (index) => {
-        const newItems = [...items];
-        newItems.splice(index, 1);
-        setItems(newItems);
-    };
-
-    const handleItemChange = (index, field, value) => {
-        const newItems = [...items];
-        newItems[index][field] = value;
-        setItems(newItems);
-    };
-
-    const handleSkuChange = (index, newValue) => {
-        const newItems = [...items];
-        if (newValue) {
-            newItems[index].itemSku = newValue.sku;
-            newItems[index].itemName = newValue.name;
-            newItems[index].currentStock = newValue.stockQuantity || 0;
-            newItems[index].isLocked = true;
-        } else {
-            newItems[index].itemSku = null;
-            newItems[index].itemName = '';
-            newItems[index].currentStock = 0;
-            newItems[index].isLocked = false;
-        }
-        setItems(newItems);
-    };
-
-    const handleUnlockItem = (index) => {
-        const newItems = [...items];
-        newItems[index].isLocked = false;
-        newItems[index].itemSku = null;
-        newItems[index].itemName = '';
-        newItems[index].currentStock = 0;
-        setItems(newItems);
-    };
-
-    const validateForm = () => {
-        if (!receivedDate) return "Tanggal penerimaan wajib diisi";
-        if (items.length === 0) return "Min. 1 barang";
-
-        const skus = new Set();
-        for (let i = 0; i < items.length; i++) {
-            const item = items[i];
-            if (!item.itemSku) return `Barang pada baris ${i + 1} wajib dipilih`;
-            if (!item.isLocked) return `Barang pada baris ${i + 1} belum dipilih`;
-            if (item.quantity < 1) return `Jumlah pada baris ${i + 1} harus >= 1`;
-            if (skus.has(item.itemSku)) return `Duplikasi barang ${item.itemSku} tidak diperbolehkan`;
-            skus.add(item.itemSku);
-        }
-        return null;
-    };
-
-    const handleSubmit = async () => {
-        const error = validateForm();
-        if (error) {
-            enqueueSnackbar(error, { variant: 'error' });
-            return;
-        }
-
-        const payload = {
-            receivedDate: new Date(receivedDate).toISOString(),
-            supplierName,
-            description,
-            items: items.map(item => ({
-                itemSku: item.itemSku,
-                quantity: item.quantity
-            }))
-        };
-
-        try {
-            await createGoodsReceipt(payload);
-            enqueueSnackbar("Penerimaan barang berhasil dibuat", { variant: 'success' });
-            navigate('/goods-receipts');
-        } catch (err) {
-            enqueueSnackbar(err.message || "Gagal membuat penerimaan barang", { variant: 'error' });
-        }
-    };
-
-    // Check if submit should be disabled (any unlocked item)
-    const hasUnlockedItems = items.some(item => !item.isLocked);
-
-    return (
-        <div className="goods-receipt-create">
-            <div className="flex justify-between items-center mb-6">
-                <Typography variant="h5" className="font-bold">Buat Penerimaan Barang</Typography>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                { /* Header Form */ }
-                <Paper className="p-4 space-y-4">
-                    <TextField
-                        label="Tanggal Penerimaan"
-                        type="date"
-                        fullWidth
-                        value={ receivedDate }
-                        onChange={ (e) => setReceivedDate(e.target.value) }
-                        slotProps={ { inputLabel: { shrink: true } } }
-                    />
-                    <TextField
-                        label="Supplier"
-                        fullWidth
-                        value={ supplierName }
-                        onChange={ (e) => setSupplierName(e.target.value) }
-                        placeholder="Nama Supplier"
-                    />
-                    <TextField
-                        label="Keterangan"
-                        fullWidth
-                        multiline
-                        rows={ 3 }
-                        value={ description }
-                        onChange={ (e) => setDescription(e.target.value) }
-                        placeholder="Opsional"
-                    />
-                </Paper>
-
-                { /* Instructions */ }
-                <Paper className="p-4 bg-blue-50">
-                    <Typography variant="subtitle2" className="font-bold text-blue-800 mb-2">Panduan</Typography>
-                    <ul className="list-disc list-inside text-sm text-blue-700 space-y-1">
-                        <li>Pilih tanggal penerimaan yang sesuai.</li>
-                        <li>Pastikan SKU barang sudah terdaftar di sistem.</li>
-                        <li>Stok akan otomatis <strong>BERTAMBAH</strong> setelah disimpan.</li>
-                        <li>Tidak bisa input barang yang sama dua kali dalam satu dokumen.</li>
-                    </ul>
-                </Paper>
-            </div>
-
-            { /* Items Table */ }
-            <Paper className="mb-6 overflow-hidden">
-                <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
-                    <Typography variant="h6" className="font-bold">Barang</Typography>
-                    <Button
-                        startIcon={ <Plus /> }
-                        onClick={ handleAddItem }
-                        variant="outlined"
-                        size="small"
-                    >
-                        Tambah Baris
-                    </Button>
-                </div>
-                <TableContainer>
-                    <Table>
-                        <TableHead className="bg-gray-100">
-                            <TableRow>
-                                <TableCell width="40%">Item (SKU / Nama)</TableCell>
-                                <TableCell width="20%">Stok Saat Ini</TableCell>
-                                <TableCell width="20%" align="center">Qty Diterima</TableCell>
-                                <TableCell width="10%" align="center">Aksi</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            { items.map((row, index) => (
-                                <TableRow key={ index }>
-                                    <TableCell>
-                                        { row.isLocked ? (
-                                            <div className="flex justify-between items-center bg-gray-50 p-2 rounded border border-gray-200">
-                                                <div>
-                                                    <div className="font-bold text-sm">{ row.itemSku }</div>
-                                                    <div className="text-xs text-gray-600">{ row.itemName }</div>
-                                                </div>
-                                                <Tooltip title="Ganti Barang">
-                                                    <IconButton size="small" onClick={ () => handleUnlockItem(index) }>
-                                                        <Edit2 size={ 14 } className="text-blue-500" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                            </div>
-                                        ) : (
-                                            <Autocomplete
-                                                freeSolo
-                                                options={ itemOptions }
-                                                getOptionLabel={ (option) => {
-                                                    if (typeof option === 'string') return option;
-                                                    return `${option.sku} - ${option.name}`;
-                                                } }
-                                                loading={ loadingItems }
-                                                onInputChange={ (e, value) => {
-                                                    debouncedSearch(value);
-                                                } }
-                                                onChange={ (e, value) => handleSkuChange(index, value) }
-                                                renderInput={ (params) => (
-                                                    <TextField
-                                                        { ...params }
-                                                        label="Cari SKU / Nama"
-                                                        variant="outlined"
-                                                        size="small"
-                                                        slotProps={ {
-                                                            input: {
-                                                                ...params.InputProps,
-                                                                endAdornment: (
-                                                                    <>
-                                                                        { loadingItems ? <CircularProgress color="inherit" size={ 20 } /> : null }
-                                                                        { params.InputProps.endAdornment }
-                                                                    </>
-                                                                ),
-                                                            },
-                                                        } }
-                                                    />
-                                                ) }
-                                            />
-                                        ) }
-                                    </TableCell>
-                                    <TableCell className="text-gray-700 font-medium">
-                                        { row.isLocked ? row.currentStock : '-' }
-                                    </TableCell>
-                                    <TableCell align="center">
-                                        <BloomInputNumber
-                                            value={ row.quantity }
-                                            onChange={ (val) => handleItemChange(index, 'quantity', val) }
-                                            min={ 1 }
-                                        />
-                                    </TableCell>
-                                    <TableCell align="center">
-                                        <IconButton
-                                            color="error"
-                                            onClick={ () => handleRemoveItem(index) }
-                                            disabled={ items.length === 1 }
-                                        >
-                                            <Trash size={ 18 } />
-                                        </IconButton>
-                                    </TableCell>
-                                </TableRow>
-                            )) }
-                            { items.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={ 4 } align="center" className="py-8 text-gray-400">
-                                        Klik "Tambah Baris" untuk memasukkan barang
-                                    </TableCell>
-                                </TableRow>
-                            ) }
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            </Paper>
-
-            <div className="flex justify-end gap-3">
-                <Button
-                    variant="outlined"
-                    onClick={ () => navigate('/goods-receipts') }
-                    disabled={ isSubmitting }
-                >
-                    Batal
-                </Button>
-                <Button
-                    variant="contained"
-                    onClick={ handleSubmit }
-                    startIcon={ <Save /> }
-                    disabled={ isSubmitting || hasUnlockedItems }
-                >
-                    { isSubmitting ? 'Menyimpan...' : 'Simpan Penerimaan' }
-                </Button>
-            </div>
-        </div>
-    );
+const MESSAGES = {
+    storageUnavailable: 'Penyimpanan pemulihan di tab ini tidak tersedia. Belum ada permintaan baru yang dikirim. Aktifkan penyimpanan browser, lalu coba kembali.',
+    rejected: 'Penerimaan ditolak. Masukan tetap tersimpan. Periksa pemasok, aturan jumlah, harga dan lokasi; pilih ulang barang/pemasok bila datanya berubah.',
+    conflict: 'Data berubah saat diproses. Masukan tetap tersimpan. Pilih ulang barang/pemasok untuk memuat data terbaru, lalu tinjau kembali.',
+    authentication: 'Sesi berakhir. Masuk kembali untuk melanjutkan masukan yang tersimpan.',
+    authorization: 'Anda tidak memiliki izin membuat penerimaan. Masukan tetap tersimpan.',
+    uncertain: 'Hasil penyimpanan belum dapat dipastikan. Masukan dikunci. Coba kembali permintaan yang sama agar tidak membuat penerimaan ganda.',
+    keyConflict: 'Identitas permintaan sudah dipakai untuk data berbeda. Masukan dikunci. Periksa riwayat dan minta bantuan sebelum membuat penerimaan lain.'
 };
 
-export default GoodsReceiptCreate;
+export default function GoodsReceiptCreate() {
+    const { draft, attempt, pending, result, outcome, errors, updateDraft, submit, reset } = useGoodsReceiptCreateStore();
+    const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
+    const [reviewing, setReviewing] = useState(false);
+    const [localErrors, setLocalErrors] = useState({});
+    const refs = useRef({});
+    const noticeRef = useRef(null);
+    const focusAfterEdit = useRef(null);
+    const mergedErrors = { ...errors, ...localErrors };
+    const locked = pending || !!attempt || !!result;
+    useEffect(() => setBreadcrumbs(['Penerimaan Barang', 'Buat Penerimaan']), [setBreadcrumbs]);
+    useEffect(() => {
+        if (!reviewing && (result || MESSAGES[outcome])) {
+            const target = Object.keys(errors)[0];
+            (refs.current[target] || noticeRef.current)?.focus();
+        }
+    }, [outcome, result, reviewing, errors]);
+    useEffect(() => {
+        if (focusAfterEdit.current) {
+            refs.current[focusAfterEdit.current]?.focus();
+            focusAfterEdit.current = null;
+        }
+    }, [draft.items]);
+    const ref = name => element => { refs.current[name] = element; };
+    const change = (name, value) => { setLocalErrors({}); updateDraft({ ...draft, [name]: value }); };
+    const review = event => {
+        event.preventDefault();
+        if (locked) return;
+        const validation = validateReceipt(draft);
+        setLocalErrors(validation);
+        if (Object.keys(validation).length) {
+            refs.current[Object.keys(validation)[0]]?.focus();
+            return;
+        }
+        setReviewing(true);
+    };
+    const confirm = async () => {
+        if (useGoodsReceiptCreateStore.getState().pending) return;
+        await submit();
+        setReviewing(false);
+    };
+    const input = (name, label) => ({
+        name, label, value: draft[name], disabled: locked || reviewing, inputRef: ref(name),
+        error: !!mergedErrors[name], helperText: mergedErrors[name],
+        onChange: event => change(name, event.target.value)
+    });
+
+    return (
+        <div className="max-w-6xl space-y-4">
+            <h2 className="text-2xl font-bold">Buat Penerimaan Barang</h2>
+            { (result || MESSAGES[outcome]) && <Alert ref={ noticeRef }
+                tabIndex={ -1 }
+                role={ result ? 'status' : 'alert' }
+                severity={ result ? 'success' : 'warning' }>
+                { result ? `Penerimaan ${ result.code } berhasil dikonfirmasi server.` : MESSAGES[outcome] }
+            </Alert> }
+            { result ? <>
+                <GoodsReceiptInfoCard receipt={ result } />
+                <GoodsReceiptItemsTable goodsReceiptItems={ result.items } />
+                <Button onClick={ reset }>Buat penerimaan berikutnya</Button>
+            </> : <Paper component="form" onSubmit={ review } noValidate className="space-y-5 p-4 md:p-6" aria-busy={ pending }>
+                <p>Pilih pemasok dan barang terdaftar. Setelah dikonfirmasi, stok dan tagihan penerimaan dicatat bersama. Pembayaran dicatat terpisah.</p>
+                <ReceiptLookup kind="supplier"
+                    value={ draft.supplier }
+                    onChange={ value => change('supplier', value) }
+                    disabled={ locked || reviewing }
+                    error={ mergedErrors.supplier }
+                    inputRef={ ref('supplier') } />
+                { draft.supplier && <p className="text-sm">Pemasok terpilih: [{ draft.supplier.code }] { draft.supplier.name }</p> }
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <TextField { ...input('receivedTime', 'Tanggal dan waktu penerimaan') } type="datetime-local" slotProps={ { inputLabel: { shrink: true } } } />
+                    <TextField { ...input('offset', 'Zona waktu penerimaan') } select>
+                        { Object.entries(RECEIPT_OFFSETS).map(([value, label]) => <MenuItem key={ value } value={ value }>{ label }</MenuItem>) }
+                    </TextField>
+                </div>
+                <TextField { ...input('description', 'Keterangan (opsional)') } fullWidth multiline minRows={ 2 } />
+                <ReceiptLookup kind="item"
+                    value={ null }
+                    disabled={ locked || reviewing }
+                    error={ mergedErrors.items }
+                    inputRef={ ref('items') }
+                    onChange={ item => {
+                        if (!item) return;
+                        focusAfterEdit.current = `items[${ draft.items.length }].quantity`;
+                        change('items', [...draft.items, { id: crypto.randomUUID(), item, quantity: '1', purchasePrice: '', stockLocation: '' }]);
+                    } } />
+                <p className="text-sm text-gray-600">Barang yang sama boleh muncul di beberapa baris; setiap baris tetap dicatat terpisah. Tombol +/− mengubah tepat 1 satuan; pecahan dapat diketik.</p>
+                { !draft.items.length && <p role="status">Belum ada barang. Cari barang untuk menambahkan baris.</p> }
+                { draft.items.map((line, index) => <ReceiptLineEditor key={ line.id }
+                    line={ line }
+                    index={ index }
+                    disabled={ locked || reviewing }
+                    errors={ mergedErrors }
+                    fieldRef={ name => ref(`items[${ index }].${ name }`) }
+                    onChange={ (name, value) => change('items', draft.items.map(row => row.id === line.id ? { ...row, [name]: value } : row)) }
+                    onRemove={ () => {
+                        focusAfterEdit.current = draft.items.length === 1 ? 'items' : `items[${ Math.min(index, draft.items.length - 2) }].quantity`;
+                        change('items', draft.items.filter(row => row.id !== line.id));
+                    } } />) }
+                <Button type="submit" variant="contained" disabled={ locked || reviewing }>Tinjau penerimaan</Button>
+                { pending && <p role="status">Menyimpan penerimaan. Tunggu konfirmasi server...</p> }
+                { (outcome === 'uncertain' || (attempt && outcome === 'storageUnavailable')) && <Button type="button" variant="contained" disabled={ pending } onClick={ () => setReviewing(true) }>Coba kembali permintaan yang sama</Button> }
+            </Paper> }
+            <Button component={ Link } to="/goods-receipts" disabled={ pending }>Riwayat penerimaan</Button>
+            { reviewing && <Dialog open
+                fullWidth
+                maxWidth="md"
+                aria-labelledby="receipt-review-title"
+                disableEscapeKeyDown={ pending }
+                onClose={ pending ? undefined : () => setReviewing(false) }>
+                <DialogTitle id="receipt-review-title">Konfirmasi penerimaan barang</DialogTitle>
+                <DialogContent className="space-y-3">
+                    <p>Pemasok: [{ draft.supplier.code }] { draft.supplier.name }</p>
+                    <p>Diterima: { draft.receivedTime.replace('T', ' ') } · { RECEIPT_OFFSETS[draft.offset] }</p>
+                    { draft.description && <p className="whitespace-pre-wrap break-words">{ draft.description }</p> }
+                    <ol className="list-decimal pl-6 space-y-2">
+                        { draft.items.map(line => <li key={ line.id } className="break-words">[{ line.item.sku }] { line.item.name }: { line.quantity } { formatUnitOfMeasure(line.item.baseUnitOfMeasure) } · Rp { line.purchasePrice } per satuan · { line.stockLocation }</li>) }
+                    </ol>
+                    <p>Semua baris menambah stok di lokasi masing-masing. Total dan sisa tagihan ditentukan server. Penerimaan ini tidak mencatat pembayaran awal.</p>
+                    { attempt && <p>Pengiriman memakai permintaan yang sama untuk mencegah penerimaan ganda.</p> }
+                    { pending && <p role="status">Menyimpan penerimaan...</p> }
+                </DialogContent>
+                <DialogActions>
+                    <Button autoFocus disabled={ pending } onClick={ () => setReviewing(false) }>Kembali</Button>
+                    <Button variant="contained" disabled={ pending } aria-busy={ pending } onClick={ confirm }>Simpan penerimaan</Button>
+                </DialogActions>
+            </Dialog> }
+        </div>
+    );
+}

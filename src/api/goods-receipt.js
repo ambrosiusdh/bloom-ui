@@ -33,11 +33,12 @@ const getGoodsReceiptDetails = async (code, configOrOptions, options) => {
     }, request.options)
 }
 
-const createGoodsReceipt = async (payload, options) => {
+const createGoodsReceipt = async (payload, idempotencyKey, options) => {
     return api({
         url: GOODS_RECEIPT.create,
         method: 'POST',
-        data: payload
+        data: payload,
+        headers: { 'Idempotency-Key': idempotencyKey }
     }, options);
 }
 

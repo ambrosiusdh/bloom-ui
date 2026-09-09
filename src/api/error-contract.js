@@ -6,7 +6,8 @@ export const API_DOMAIN_ERROR_CODE = Object.freeze({
     SALE_PAID_LESS_THAN_TOTAL: 'sale_paid_less_than_total',
     SALE_QRIS_PAYMENT_MISMATCH: 'sale_qris_payment_mismatch',
     CASH_SESSION_CONFLICT: 'cash_session_conflict',
-    CHECKOUT_IDEMPOTENCY_CONFLICT: 'checkout_idempotency_conflict'
+    CHECKOUT_IDEMPOTENCY_CONFLICT: 'checkout_idempotency_conflict',
+    GOODS_RECEIPT_IDEMPOTENCY_CONFLICT: 'goods_receipt_idempotency_conflict'
 });
 
 const STRUCTURED_DOMAIN_CODES = new Set([
@@ -16,6 +17,7 @@ const STRUCTURED_DOMAIN_CODES = new Set([
 ]);
 
 const DOMAIN_ERROR_TYPES = Object.freeze({
+    GoodsReceiptIdempotencyConflictException: API_DOMAIN_ERROR_CODE.GOODS_RECEIPT_IDEMPOTENCY_CONFLICT,
     CashSessionConflictException: API_DOMAIN_ERROR_CODE.CASH_SESSION_CONFLICT,
     CheckoutIdempotencyConflictException: API_DOMAIN_ERROR_CODE.CHECKOUT_IDEMPOTENCY_CONFLICT
 });
