@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Alert, Button, Chip, CircularProgress, Paper } from '@mui/material';
+import { Alert, Button, Chip, CircularProgress, Divider, Paper } from '@mui/material';
 import { ArrowLeft, CircleOff, Pencil } from 'lucide-react';
 
 import BloomConfirmationModal from '@components/_ui/BloomConfirmationModal.jsx';
+import { formatRupiah } from '@components/cash-session/cash-session-money.js';
 import { GENERIC_ERR_MESSAGE } from '@constants/general.js';
 import { useBreadcrumbStore, useSupplierStore } from '@stores/index.js';
 import { formatDate } from '@utils/date-utils.js';
-import { getSupplierListReturnTo, isValidSupplierCode } from '@utils/supplier-utils.js';
+import { getSupplierDetailReturnTo, isValidSupplierCode } from '@utils/supplier-utils.js';
 
 const valueOrDash = value => value || '-';
+const money = value => value == null ? '-' : formatRupiah(value);
 
 export default function SupplierDetail() {
     const { code = '' } = useParams();
@@ -20,9 +22,15 @@ export default function SupplierDetail() {
     const status = useSupplierStore(state => state.detailStatus);
     const error = useSupplierStore(state => state.detailError);
     const getSupplierDetails = useSupplierStore(state => state.getSupplierDetails);
+    const balance = useSupplierStore(state => state.supplierOutstandingBalance);
+    const balanceStatus = useSupplierStore(state => state.balanceStatus);
+    const balanceError = useSupplierStore(state => state.balanceError);
+    const getSupplierOutstandingBalance = useSupplierStore(state => state.getSupplierOutstandingBalance);
     const setSupplierActive = useSupplierStore(state => state.setSupplierActive);
     const clearSupplierDetails = useSupplierStore(state => state.clearSupplierDetails);
+    const clearSupplierOutstandingBalance = useSupplierStore(state => state.clearSupplierOutstandingBalance);
     const [retryVersion, setRetryVersion] = useState(0);
+    const [balanceRetryVersion, setBalanceRetryVersion] = useState(0);
     const [showDeactivation, setShowDeactivation] = useState(false);
     const [isDeactivating, setIsDeactivating] = useState(false);
     const [deactivationError, setDeactivationError] = useState('');
@@ -32,7 +40,7 @@ export default function SupplierDetail() {
     const isMountedRef = useRef(true);
     const successAlertRef = useRef(null);
     const isValidCode = isValidSupplierCode(code);
-    const returnTo = getSupplierListReturnTo(location.state?.from);
+    const returnTo = getSupplierDetailReturnTo(location.state?.from);
 
     useEffect(() => {
         setBreadcrumbs([
@@ -55,6 +63,23 @@ export default function SupplierDetail() {
             clearSupplierDetails();
         };
     }, [clearSupplierDetails, code, getSupplierDetails, isValidCode, retryVersion]);
+
+    useEffect(() => {
+        if (!isValidCode) {
+            clearSupplierOutstandingBalance();
+            return undefined;
+        }
+
+        const controller = new AbortController();
+        getSupplierOutstandingBalance(code, { signal: controller.signal }, { useLoader: false })
+            .catch(() => {});
+
+        return () => {
+            controller.abort();
+            clearSupplierOutstandingBalance();
+        };
+    }, [balanceRetryVersion, clearSupplierOutstandingBalance, code,
+        getSupplierOutstandingBalance, isValidCode]);
 
     useEffect(() => {
         if (successMessage) successAlertRef.current?.focus();
@@ -145,6 +170,11 @@ export default function SupplierDetail() {
     }
 
     const statusLabel = supplier.active ? 'Aktif' : 'Tidak aktif';
+    const isCurrentBalance = balance?.supplierCode === supplier.code;
+    const payablesSearch = new URLSearchParams({
+        key: 'supplierName',
+        q: supplier.name
+    }).toString();
 
     return (
         <div className="space-y-5 pb-8">
@@ -220,6 +250,64 @@ export default function SupplierDetail() {
                     </Button>
                 ) }
             </div>
+
+            <Paper component="section" className="p-4 md:p-5" aria-labelledby="supplier-payable-title">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h3 id="supplier-payable-title" className="text-lg font-bold">Ringkasan utang</h3>
+                        <p className="text-sm text-gray-600">Nilai resmi yang dihitung oleh server.</p>
+                    </div>
+                    <Button
+                        component={ Link }
+                        to={ `/payables?${ payablesSearch }` }
+                        variant="outlined"
+                    >
+                        Lihat penerimaan pemasok
+                    </Button>
+                </div>
+
+                <Divider className="my-4" />
+
+                { balanceStatus === 'idle' || balanceStatus === 'loading'
+                    || (balanceStatus === 'ready' && !isCurrentBalance) ? (
+                    <div role="status" aria-live="polite" className="flex items-center gap-2 py-4">
+                        <CircularProgress size={ 20 } aria-hidden="true" />
+                        Memuat ringkasan utang pemasok...
+                    </div>
+                ) : balanceStatus === 'error' || !isCurrentBalance ? (
+                    <Alert
+                        severity="error"
+                        action={ (
+                            <Button
+                                color="inherit"
+                                onClick={ () => setBalanceRetryVersion(value => value + 1) }
+                            >
+                                Coba lagi
+                            </Button>
+                        ) }
+                    >
+                        { balanceError?.message || 'Ringkasan utang pemasok gagal dimuat.' }
+                    </Alert>
+                ) : (
+                    <dl
+                        className="grid gap-4 sm:grid-cols-3"
+                        aria-label="Ringkasan utang pemasok dari server"
+                    >
+                        <div>
+                            <dt className="text-sm text-gray-600">Total penerimaan dibukukan</dt>
+                            <dd className="font-bold tabular-nums">{ money(balance.totalPostedAmount) }</dd>
+                        </div>
+                        <div>
+                            <dt className="text-sm text-gray-600">Sudah dibayar</dt>
+                            <dd className="font-bold tabular-nums">{ money(balance.paidAmount) }</dd>
+                        </div>
+                        <div>
+                            <dt className="text-sm text-gray-600">Sisa utang</dt>
+                            <dd className="font-bold tabular-nums">{ money(balance.outstandingAmount) }</dd>
+                        </div>
+                    </dl>
+                ) }
+            </Paper>
 
             <div className="grid gap-4 lg:grid-cols-2">
                 <Paper component="section" className="p-4 md:p-5" aria-labelledby="supplier-contact-title">

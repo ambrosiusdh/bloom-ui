@@ -79,12 +79,15 @@ describe('back-office navigation', () => {
             '/stock-transfers/new',
             '/stock-movements',
             '/suppliers',
+            '/payables',
             '/sales',
             '/cash-sessions'
         ]);
         expect(screen.getByRole('link', { name: 'Kasir' })).toHaveAttribute('href', '/cashier');
         expect(screen.getByRole('button', { name: 'Keluar' })).toHaveClass('bg-transparent', 'hover:bg-maroon-700');
-        expect(screen.queryByText(/utang|pengeluaran/i)).not.toBeInTheDocument();
+        expect(within(navigation).getByRole('link', { name: 'Utang Pemasok' }))
+            .toHaveAttribute('href', '/payables');
+        expect(screen.queryByText(/pengeluaran/i)).not.toBeInTheDocument();
     });
 
     it('marks a destination active throughout its existing child routes', () => {

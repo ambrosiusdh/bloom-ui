@@ -24,6 +24,7 @@ vi.mock('@api/supplier.js', () => ({
     default: {
         getSupplierList: vi.fn(),
         getSupplierDetails: vi.fn(),
+        getSupplierOutstandingBalance: vi.fn(),
         createSupplier: vi.fn(),
         updateSupplier: vi.fn(),
         setSupplierActive: vi.fn()
@@ -42,6 +43,15 @@ const supplier = {
     updatedBy: 'manager'
 };
 
+const balance = {
+    supplierId: 1,
+    supplierCode: 'SUP-001',
+    supplierName: 'Nusantara Tekstil',
+    totalPostedAmount: '150000.0000',
+    paidAmount: '50000.0000',
+    outstandingAmount: '100000.0000'
+};
+
 const renderDetail = () => render(
     <Routes>
         <Route path="/suppliers/:code" element={ <SupplierDetail /> } />
@@ -55,11 +65,15 @@ describe('SupplierDetail', () => {
         useSupplierStore.setState({
             supplierDetails: null,
             detailStatus: 'idle',
-            detailError: null
+            detailError: null,
+            supplierOutstandingBalance: null,
+            balanceStatus: 'idle',
+            balanceError: null
         });
+        supplierApi.getSupplierOutstandingBalance.mockResolvedValue({ data: { data: balance } });
     });
 
-    it('loads detail by stable code and displays contact, audit, and inactive state', async () => {
+    it('loads one server balance and displays contact, audit, inactive state, and payable link', async () => {
         supplierApi.getSupplierDetails.mockResolvedValue({ data: { data: supplier } });
         renderDetail();
 
@@ -74,7 +88,18 @@ describe('SupplierDetail', () => {
             { signal: expect.any(AbortSignal) },
             undefined
         );
-        expect(screen.queryByText(/utang|saldo|bayar/i)).not.toBeInTheDocument();
+        expect(supplierApi.getSupplierOutstandingBalance).toHaveBeenCalledTimes(1);
+        expect(supplierApi.getSupplierOutstandingBalance).toHaveBeenCalledWith(
+            'SUP-001',
+            { signal: expect.any(AbortSignal) },
+            { useLoader: false }
+        );
+        expect(screen.getByText('Total penerimaan dibukukan').nextSibling).toHaveTextContent('Rp 150.000');
+        expect(screen.getByText('Sudah dibayar').nextSibling).toHaveTextContent('Rp 50.000');
+        expect(screen.getByText('Sisa utang').nextSibling).toHaveTextContent('Rp 100.000');
+        expect(screen.getByRole('link', { name: 'Lihat penerimaan pemasok' })).toHaveAttribute(
+            'href', '/payables?key=supplierName&q=Nusantara+Tekstil'
+        );
     });
 
     it('announces loading and retries a failed detail read', async () => {
@@ -93,6 +118,23 @@ describe('SupplierDetail', () => {
         expect(await screen.findByRole('heading', { name: 'Nusantara Tekstil' })).toBeInTheDocument();
 
         view.unmount();
+    });
+
+    it('keeps supplier detail visible when the balance fails and retries only the balance', async () => {
+        supplierApi.getSupplierDetails.mockResolvedValue({ data: { data: supplier } });
+        supplierApi.getSupplierOutstandingBalance
+            .mockRejectedValueOnce(new Error('Saldo gagal dimuat.'))
+            .mockResolvedValueOnce({ data: { data: { ...balance, outstandingAmount: '0.0000' } } });
+        renderDetail();
+
+        expect(await screen.findByRole('heading', { name: 'Nusantara Tekstil' })).toBeInTheDocument();
+        expect(await screen.findByRole('alert')).toHaveTextContent('Saldo gagal dimuat.');
+        fireEvent.click(screen.getByRole('button', { name: 'Coba lagi' }));
+
+        expect(await screen.findByText('Sisa utang')).toBeInTheDocument();
+        expect(screen.getByText('Sisa utang').nextSibling).toHaveTextContent('Rp 0');
+        expect(supplierApi.getSupplierOutstandingBalance).toHaveBeenCalledTimes(2);
+        expect(supplierApi.getSupplierDetails).toHaveBeenCalledTimes(1);
     });
 
     it('confirms deactivation accessibly, blocks duplicates, and preserves stable identity', async () => {

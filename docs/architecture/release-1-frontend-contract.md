@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Contract
 
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 
 ## 1. Purpose
 
@@ -53,6 +53,7 @@ Bloom UI is currently a JavaScript React application:
 Release 1 work must preserve this baseline unless a narrowly scoped PR proves that a dependency change is necessary for its immediate domain. TypeScript migration, TanStack Query adoption, global store replacement, router restructuring, and a global design-system rewrite are not Release 1 prerequisites.
 
 - FE-26 goods-receipt creation is implemented for review: stable supplier code/item SKU, decimal-string UOM-aware quantities and purchase prices, explicit per-line location and received time/UTC offset, one confirmed idempotent atomic POST, tab-persisted draft/recovery, and server-confirmed receipt/payment results. Optional initial payment is omitted. Shared `BloomQuantityField` mechanics are used by receipt entry and the FE-18 cashier wrapper; workflow validation and FE-13 direction/zero rules remain local.
+- FE-27 supplier payable views are implemented for review: `/payables` pages the backend goods-receipt read model and renders its receipt/payment statuses and financial values directly; supplier detail reads exactly one backend aggregate for that supplier. The workflow links supplier and receipt detail without per-row enrichment or browser-side debt aggregation. It intentionally omits a payment-status filter because the backend does not expose one, and omits calendar date filtering so it does not expand FE-25's unresolved store-timezone boundary.
 
 ### 2.2 Current implemented routes
 

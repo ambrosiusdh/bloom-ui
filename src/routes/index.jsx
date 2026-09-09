@@ -28,6 +28,7 @@ const CashSessionDetail = lazy(() => import("@pages/cash-session/CashSessionDeta
 const SupplierList = lazy(() => import("@pages/supplier/SupplierList.jsx"));
 const SupplierDetail = lazy(() => import("@pages/supplier/SupplierDetail.jsx"));
 const SupplierUpsert = lazy(() => import("@pages/supplier/SupplierUpsert.jsx"));
+const SupplierPayableList = lazy(() => import("@pages/payable/SupplierPayableList.jsx"));
 
 const Login = lazy(() => import("@pages/login/Login.jsx"));
 const NotFound = lazy(() => import("@pages/NotFound.jsx"));
@@ -141,6 +142,10 @@ const router = createBrowserRouter([
             {
                 path: "suppliers",
                 element: withSuspense(<SupplierList />)
+            },
+            {
+                path: "payables",
+                element: withSuspense(<SupplierPayableList />)
             },
             {
                 path: "suppliers/maintenance/new",

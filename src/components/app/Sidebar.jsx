@@ -46,7 +46,8 @@ const navigationGroups = [
         id: 'navigation-procurement',
         label: 'Pembelian',
         items: [
-            { to: '/suppliers', icon: UsersIcon, label: 'Pemasok' }
+            { to: '/suppliers', icon: UsersIcon, label: 'Pemasok' },
+            { to: '/payables', icon: HandCoinsIcon, label: 'Utang Pemasok' }
         ]
     },
     {

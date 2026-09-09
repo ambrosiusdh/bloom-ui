@@ -86,7 +86,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-24 | Supplier create/edit/deactivate | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-23 | `gpt-5.6-terra`, high |
 | FE-25 | Goods-receipt list and detail | BLOCKED | BLOCKED | FE-09, FE-23 | `gpt-5.6-sol`, high |
 | FE-26 | Goods-receipt creation | REVIEW | PLAN_RECOMMENDED | FE-25 | `gpt-5.6-sol`, xhigh |
-| FE-27 | Supplier payable views | BLOCKED | BLOCKED | FE-25 | `gpt-5.6-sol`, high |
+| FE-27 | Supplier payable views | REVIEW | DIRECT_IMPLEMENTATION | FE-25 | `gpt-5.6-sol`, high |
 | FE-28 | Single-receipt supplier payment | BLOCKED | BLOCKED | FE-15, FE-27 | `gpt-5.6-sol`, xhigh |
 | FE-29 | Unexpected expense list/create | BLOCKED | BLOCKED | FE-15 | `gpt-5.6-sol`, high |
 | FE-30 | Unexpected expense void/reversal | BLOCKED | BLOCKED | FE-29 | `gpt-5.6-sol`, high |
@@ -653,8 +653,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-27 — Supplier payable views
 
 - **Domain:** Supplier debt/accounts payable read model.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `DIRECT_IMPLEMENTATION`.
+- **Status:** `REVIEW`.
+- **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-25.
 - **Backend gate:** Payable summary and receipt-level outstanding read endpoints expose server-calculated amounts, status, supplier/receipt references, dates, paging/filter semantics.
 - **User-visible change:** Users can see which supplier receipts remain unpaid or partially paid and their backend-confirmed outstanding amounts.
@@ -665,6 +665,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Validation:** Tests for unpaid/partial/paid status, Rupiah/date display, zero/empty/error, no N+1, tests/build/lint/responsive.
 - **Block condition:** Backend lacks receipt-level outstanding or requires frontend aggregation across receipts/payments.
 - **Split trigger:** If supplier summary and receipt detail exceed size, ship receipt-level list first and summary later.
+
+**Implementation note (2026-09-10):** The backend gate is satisfied by the paged goods-receipt read model, whose rows contain server-derived `paidAmount`, `outstandingAmount`, and `paymentStatus`, plus the single-supplier outstanding-balance endpoint. `/payables` uses one paged receipt request and only supported receipt/supplier-name filters; supplier detail uses one aggregate request, so no per-row balance enrichment or browser aggregation is present. Returned Instants are formatted in Indonesian, while calendar date filtering is deliberately omitted here because FE-25's store-timezone boundary remains unresolved.
 
 **Copy-ready implementation prompt**
 

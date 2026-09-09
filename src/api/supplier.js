@@ -26,6 +26,16 @@ const getSupplierDetails = (code, configOrOptions, options) => {
     }, request.options);
 };
 
+const getSupplierOutstandingBalance = (code, configOrOptions, options) => {
+    const request = getReadRequestArguments(configOrOptions, options);
+
+    return api({
+        url: SUPPLIER.outstandingBalance(code),
+        method: 'GET',
+        ...request.config
+    }, request.options);
+};
+
 const createSupplier = (payload, options) => api({
     url: SUPPLIER.create,
     method: 'POST',
@@ -47,6 +57,7 @@ const setSupplierActive = (code, active, options) => api({
 export default {
     getSupplierList,
     getSupplierDetails,
+    getSupplierOutstandingBalance,
     createSupplier,
     updateSupplier,
     setSupplierActive
