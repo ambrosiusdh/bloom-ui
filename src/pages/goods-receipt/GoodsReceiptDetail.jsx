@@ -1,57 +1,99 @@
 import { useEffect, useState } from 'react';
-
-import { useParams, Link } from 'react-router-dom';
-
-import { Button, Alert } from '@mui/material';
-
+import { useLocation, useParams, Link } from 'react-router-dom';
+import { Button, Alert, CircularProgress } from '@mui/material';
 import { ArrowLeft } from 'lucide-react';
-
-import { useGoodsReceiptStore, useBreadcrumbStore } from '@stores/index.js';
 
 import GoodsReceiptInfoCard from '@components/goods-receipt/GoodsReceiptInfoCard.jsx';
 import GoodsReceiptItemsTable from '@components/goods-receipt/GoodsReceiptItemsTable.jsx';
+import { useGoodsReceiptStore, useBreadcrumbStore } from '@stores/index.js';
+import { isValidGoodsReceiptReference } from '@utils/goods-receipt-utils.js';
 
 const GoodsReceiptDetail = () => {
     const { code } = useParams();
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const getGoodsReceiptDetails = useGoodsReceiptStore(state => state.getGoodsReceiptDetails);
     const goodsReceiptDetails = useGoodsReceiptStore(state => state.goodsReceiptDetails);
-
-    const [error, setError] = useState(null);
+    const detailStatus = useGoodsReceiptStore(state => state.goodsReceiptDetailStatus);
+    const detailError = useGoodsReceiptStore(state => state.goodsReceiptDetailError);
+    const clearGoodsReceiptDetails = useGoodsReceiptStore(state => state.clearGoodsReceiptDetails);
+    const location = useLocation();
+    const [retryVersion, setRetryVersion] = useState(0);
+    const receiptReference = code || '';
+    const isValidReference = isValidGoodsReceiptReference(receiptReference);
+    const isCurrentReceipt = goodsReceiptDetails?.code === receiptReference;
+    const backTo = typeof location.state?.from === 'string'
+        && location.state.from.startsWith('/goods-receipts')
+        ? location.state.from
+        : '/goods-receipts';
 
     useEffect(() => {
+        if (!isValidReference) {
+            clearGoodsReceiptDetails();
+            return undefined;
+        }
+
+        const controller = new AbortController();
+
         const fetchDetails = async () => {
-            if (!code) return;
+            if (!receiptReference) return;
 
             try {
-                const decodedCode = decodeURIComponent(code);
                 setBreadcrumbs([
                     { to: '/goods-receipts', label: 'Penerimaan Barang' },
-                    decodedCode
+                    receiptReference
                 ]);
-                const params = {
-                    code: decodedCode
-                }
-                await getGoodsReceiptDetails({ params }, { useLoader: true });
-            } catch (err) {
-                setError(err.message || 'Gagal memuat detail penerimaan barang');
+                await getGoodsReceiptDetails(
+                    receiptReference,
+                    { signal: controller.signal },
+                    { useLoader: false }
+                );
+            } catch {
+                // The store owns the request error. Aborted requests are ignored there.
             }
         };
 
         fetchDetails();
-    }, [code, setBreadcrumbs, getGoodsReceiptDetails]);
 
-    if (error) {
+        return () => {
+            controller.abort();
+            clearGoodsReceiptDetails();
+        };
+    }, [clearGoodsReceiptDetails, isValidReference, receiptReference,
+        setBreadcrumbs, getGoodsReceiptDetails, retryVersion]);
+
+    if (!isValidReference) {
         return (
-            <div className="p-4">
-                <Alert severity="error">{ error }</Alert>
+            <div className="space-y-4">
+                <Alert severity="error">Nomor penerimaan barang tidak valid.</Alert>
+                <Button component={ Link } to={ backTo } startIcon={ <ArrowLeft /> }>Kembali ke daftar</Button>
+            </div>
+        );
+    }
+
+    if (detailStatus === 'loading' || detailStatus === 'idle'
+        || (detailStatus === 'ready' && !isCurrentReceipt)) {
+        return (
+            <div className="py-16 text-center" role="status" aria-live="polite">
+                <CircularProgress size={ 24 } aria-hidden="true" /> <span>Memuat detail penerimaan barang...</span>
+            </div>
+        );
+    }
+
+    if (detailStatus === 'error' || !isCurrentReceipt) {
+        return (
+            <div className="space-y-4">
+                <Alert
+                    severity="error"
+                    action={ (
+                    <Button color="inherit" onClick={ () => setRetryVersion(value => value + 1) }>Coba lagi</Button>
+                    ) }
+                >{ detailError?.message || 'Gagal memuat detail penerimaan barang.' }</Alert>
                 <Button
                     component={ Link }
-                    to="/goods-receipts"
+                    to={ backTo }
                     startIcon={ <ArrowLeft /> }
-                    className="mt-4"
                 >
-                    Kembali ke Daftar
+                    Kembali ke daftar
                 </Button>
             </div>
         );
@@ -62,7 +104,7 @@ const GoodsReceiptDetail = () => {
             <div className="flex justify-between items-center print:hidden">
                 <Button
                     component={ Link }
-                    to="/goods-receipts"
+                    to={ backTo }
                     startIcon={ <ArrowLeft /> }
                     variant="text"
                     color="inherit"
@@ -73,7 +115,7 @@ const GoodsReceiptDetail = () => {
 
             <GoodsReceiptInfoCard receipt={ goodsReceiptDetails } />
 
-            <GoodsReceiptItemsTable goodsReceiptItems={ goodsReceiptDetails?.items } />
+            <GoodsReceiptItemsTable goodsReceiptItems={ goodsReceiptDetails?.items || [] } />
         </div>
     );
 };
