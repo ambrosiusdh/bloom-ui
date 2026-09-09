@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Contract
 
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 
 ## 1. Purpose
 
@@ -51,6 +51,8 @@ Bloom UI is currently a JavaScript React application:
 - FE-25 goods-receipt history and detail implementation is present: back-office users can filter and page the backend receipt read model, inspect supplier identity and persisted decimal UOM/location lines, and review server-returned total, paid, outstanding, receipt status, payment status, references, and timestamps without enrichment or frontend financial calculations. Its date filters remain blocked from final approval until the business/store timezone contract is explicit.
 
 Release 1 work must preserve this baseline unless a narrowly scoped PR proves that a dependency change is necessary for its immediate domain. TypeScript migration, TanStack Query adoption, global store replacement, router restructuring, and a global design-system rewrite are not Release 1 prerequisites.
+
+- FE-26 goods-receipt creation is implemented for review: stable supplier code/item SKU, decimal-string UOM-aware quantities and purchase prices, explicit per-line location and received time/UTC offset, one confirmed idempotent atomic POST, tab-persisted draft/recovery, and server-confirmed receipt/payment results. Optional initial payment is omitted. Shared `BloomQuantityField` mechanics are used by receipt entry and the FE-18 cashier wrapper; workflow validation and FE-13 direction/zero rules remain local.
 
 ### 2.2 Current implemented routes
 
@@ -381,7 +383,7 @@ Preserve and improve useful existing assets where their behavior fits the contra
 
 Reuse is not mandatory when an existing component encodes a legacy contract, inaccessible interaction, or unsafe transaction behavior. Prefer local extraction after a repeated pattern is proven over creating a global abstraction in advance.
 
-FE-26 is the planned reuse checkpoint for quantity entry. Once its goods-receipt line contract is verified, compare it with the implemented FE-18 cashier control and the FE-13 target behavior. If the input mechanics genuinely match, extract a shared `BloomQuantityField`; keep receipt, cashier, and adjustment business rules in their respective workflows.
+FE-26 completed the quantity-entry reuse checkpoint. `BloomQuantityField` preserves controlled editing strings, accepts comma/dot drafts, labels UOM, and performs exact decimal-string/BigInt ±1 stepping. Receipt and FE-18 use it with their own validation, minimum/zero policy, commit/focus behavior, and request mapping. FE-13 target CORRECTION permits zero and owns absolute-target/direction semantics; the adjustment workflow is not migrated by FE-26. The legacy `BloomInputNumber` is not used for receipt creation.
 
 ## 11. Explicit Release 1 exclusions
 
@@ -414,6 +416,7 @@ The following must be verified or completed before their dependent frontend PRs 
 - Sale checkout is available at `POST /api/sales` with decimal STORE lines, `CASH`/`QRIS`, and required `Idempotency-Key`; the backend enforces an open session, owns prices/totals/change, replays an identical request, and conflicts on a changed same-key payload. `GET /api/sales/checkout-status` uses the same key and returns `COMPLETED` with the sale or `UNKNOWN` without mutating sale state.
 - Actual scanner model, interface, suffix/terminator, and behavior under rapid scans.
 - Printer endpoint success/error semantics in the target environment.
+- Goods-receipt creation is available at `POST /api/goods-receipts` with required `Idempotency-Key`, stable `supplierCode`, `receivedDate` Instant, and decimal item/price/location lines. The service computes totals and posts receipt/movements atomically, replays identical requests, and conflicts on changed same-key payloads. `initialPayment` is optional; FE-26 omits it and renders returned total/paid/outstanding/status. The form requires an explicitly selected UTC offset rather than assuming a fixed store timezone.
 - Goods-receipt read fields are implemented, but the fixed business/store timezone for converting calendar-day filters to the endpoint's `Instant` boundaries remains undefined.
 - Accounts-payable and single-receipt payment endpoints, including overpayment and reversal behavior.
 - Expense create/list/detail/void contracts.

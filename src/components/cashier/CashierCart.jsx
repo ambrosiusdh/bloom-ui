@@ -1,19 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { IconButton, TextField } from '@mui/material';
+import { IconButton } from '@mui/material';
 import {
-    MinusIcon,
-    PlusIcon,
     ShoppingBasketIcon,
     Trash2Icon
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 
+import BloomQuantityField from '@components/_ui/BloomQuantityField.jsx';
 import {
     canDecrementQuantityByOne,
-    decrementQuantityByOne,
     formatQuantity,
     formatUnitOfMeasure,
-    incrementQuantityByOne,
     isQuantityAboveAvailability,
     normalizeQuantity,
     validateQuantity
@@ -54,7 +51,7 @@ function QuantityField({
         return true;
     };
 
-    const adjustByOne = operation => {
+    const adjustByOne = nextQuantity => {
         const validationError = validateQuantity(draft, item.fractionalQuantityAllowed);
         setError(validationError);
         onValidityChange(item.sku, !validationError);
@@ -63,24 +60,17 @@ function QuantityField({
             return;
         }
 
-        const nextQuantity = operation(normalizeQuantity(draft));
         setDraft(nextQuantity);
         onQuantityUpdate(nextQuantity, item.sku);
         onValidityChange(item.sku, true);
     };
 
     return (
-        <div className="flex items-start gap-1">
-            <IconButton
-                aria-label={ `Kurangi jumlah ${ item.name } sebesar 1 ${ formatUnitOfMeasure(item.baseUnitOfMeasure) }` }
-                disabled={ disabled || !canDecrementQuantityByOne(item.quantity) }
-                onClick={ () => adjustByOne(decrementQuantityByOne) }
-            >
-                <MinusIcon aria-hidden="true" />
-            </IconButton>
-
-            <TextField
-                className="min-w-0 flex-grow"
+            <BloomQuantityField
+                unitOfMeasure={ item.baseUnitOfMeasure }
+                decrementDisabled={ !!validateQuantity(draft, item.fractionalQuantityAllowed)
+                    || !canDecrementQuantityByOne(draft) }
+                onStep={ adjustByOne }
                 label={ `Jumlah ${ item.name }` }
                 size="small"
                 value={ draft }
@@ -90,12 +80,12 @@ function QuantityField({
                 helperText={ error || (item.fractionalQuantityAllowed
                     ? 'Boleh pecahan, maksimal 4 desimal.'
                     : 'Hanya jumlah utuh.') }
-                onChange={ event => {
-                    setDraft(event.target.value);
+                onChange={ value => {
+                    setDraft(value);
                     setError('');
                     onValidityChange(
                         item.sku,
-                        !validateQuantity(event.target.value, item.fractionalQuantityAllowed)
+                        !validateQuantity(value, item.fractionalQuantityAllowed)
                     );
                 } }
                 onBlur={ () => {
@@ -122,21 +112,7 @@ function QuantityField({
                         onEditComplete();
                     }
                 } }
-                slotProps={ {
-                    htmlInput: {
-                        inputMode: item.fractionalQuantityAllowed ? 'decimal' : 'numeric'
-                    }
-                } }
             />
-
-            <IconButton
-                aria-label={ `Tambah jumlah ${ item.name } sebesar 1 ${ formatUnitOfMeasure(item.baseUnitOfMeasure) }` }
-                disabled={ disabled }
-                onClick={ () => adjustByOne(incrementQuantityByOne) }
-            >
-                <PlusIcon aria-hidden="true" />
-            </IconButton>
-        </div>
     );
 }
 

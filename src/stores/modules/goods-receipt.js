@@ -12,9 +12,7 @@ const createGoodsReceiptState = () => ({
     goodsReceiptListStatus: 'idle',
     goodsReceiptListError: null,
     goodsReceiptDetailStatus: 'idle',
-    goodsReceiptDetailError: null,
-    isSubmitting: false,
-    errors: null
+    goodsReceiptDetailError: null
 });
 
 const createGoodsReceiptAction = set => ({
@@ -91,20 +89,7 @@ const createGoodsReceiptAction = set => ({
         });
     },
 
-    createGoodsReceipt: async (payload, options) => {
-        set({ isSubmitting: true, errors: null })
-        try {
-            const { data: response } = await api.createGoodsReceipt(payload, options)
-            return response
-        } catch (error) {
-            console.error('Error create goods receipt: ', error);
-            const errData = error?.response?.data || error;
-            set({ errors: errData })
-            throw errData
-        } finally {
-            set({ isSubmitting: false })
-        }
-    }
+
 })
 
 const useGoodsReceiptStore = create((set, get) => ({

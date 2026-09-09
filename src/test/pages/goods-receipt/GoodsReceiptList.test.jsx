@@ -57,7 +57,7 @@ describe('GoodsReceiptList FE-25 read workflow', () => {
         expect(screen.getByRole('link', { name: 'Detail' })).toHaveAttribute(
             'href', `/goods-receipts/${ encodeURIComponent(receipt.code) }`
         );
-        expect(screen.queryByRole('link', { name: /buat penerimaan/i })).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /buat penerimaan/i })).toHaveAttribute('href', '/goods-receipts/new');
 
         const [params, config, options] = goodsReceiptApi.getGoodsReceiptList.mock.calls[0];
         expect(params).toMatchObject({ page: 2, size: 5, supplierName: 'Bloom' });

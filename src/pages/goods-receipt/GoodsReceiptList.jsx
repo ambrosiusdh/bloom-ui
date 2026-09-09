@@ -182,6 +182,7 @@ export default function GoodsReceiptList() {
             <header>
                 <h2 className="font-bold text-2xl">Riwayat Penerimaan Barang</h2>
                 <p className="mt-1 text-gray-600">Nilai penerimaan dan pembayaran dikonfirmasi langsung oleh server.</p>
+                <Button component={ Link } to="/goods-receipts/new" variant="contained" className="mt-3">Buat penerimaan</Button>
             </header>
 
             { error && (

@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Roadmap
 
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 
 ## 1. How to use this roadmap
 
@@ -85,7 +85,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-23 | Supplier list and detail | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-24 | Supplier create/edit/deactivate | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-23 | `gpt-5.6-terra`, high |
 | FE-25 | Goods-receipt list and detail | BLOCKED | BLOCKED | FE-09, FE-23 | `gpt-5.6-sol`, high |
-| FE-26 | Goods-receipt creation | BLOCKED | BLOCKED | FE-25 | `gpt-5.6-sol`, xhigh |
+| FE-26 | Goods-receipt creation | REVIEW | PLAN_RECOMMENDED | FE-25 | `gpt-5.6-sol`, xhigh |
 | FE-27 | Supplier payable views | BLOCKED | BLOCKED | FE-25 | `gpt-5.6-sol`, high |
 | FE-28 | Single-receipt supplier payment | BLOCKED | BLOCKED | FE-15, FE-27 | `gpt-5.6-sol`, xhigh |
 | FE-29 | Unexpected expense list/create | BLOCKED | BLOCKED | FE-15 | `gpt-5.6-sol`, high |
@@ -621,7 +621,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Block condition:** Response lacks financial fields, requires per-row supplier/item requests, or calendar-day filters lack an explicit business/store timezone contract for their `Instant` boundaries.
 - **Split trigger:** Split detail from list if the combined diff exceeds the cap.
 
-**Implementation note (2026-09-09):** The backend list/detail responses expose supplier ID/code/name, receipt and payment statuses, server-calculated total/paid/outstanding values, persisted decimal line quantities with UOM and stock location, references, timestamps, and code/supplier/date filters with paging. The frontend read workflow renders those fields directly with loading, error/retry, empty, canonical-query, page-boundary, stale-response, keyboard, and responsive behavior. It issues one request per list load and one request only when a user opens detail. The existing `/goods-receipts/new` route remains, but Release 1 navigation intentionally hides it until FE-26 replaces its contract-incompatible request; no payment, enrichment, or client-side financial calculation was added. Final approval is blocked because the date DTO accepts `Instant` while neither backend nor frontend contract names the fixed business/store timezone; the current conversion consequently follows the operator device timezone and must not be presented as the final store-timezone rule.
+**Implementation note (2026-09-09):** The backend list/detail responses expose supplier ID/code/name, receipt and payment statuses, server-calculated total/paid/outstanding values, persisted decimal line quantities with UOM and stock location, references, timestamps, and code/supplier/date filters with paging. The frontend read workflow renders those fields directly with loading, error/retry, empty, canonical-query, page-boundary, stale-response, keyboard, and responsive behavior. It issues one request per list load and one request only when a user opens detail. FE-25 originally hid the existing `/goods-receipts/new` entry until its request was aligned; FE-26 now replaces creation and exposes the entry from receipt history; no payment, enrichment, or client-side financial calculation was added. Final approval is blocked because the date DTO accepts `Instant` while neither backend nor frontend contract names the fixed business/store timezone; the current conversion consequently follows the operator device timezone and must not be presented as the final store-timezone rule.
 
 **Copy-ready implementation prompt**
 
@@ -630,8 +630,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-26 — Goods-receipt creation
 
 - **Domain:** Goods receipt posting.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `PLAN_RECOMMENDED`.
+- **Status:** `REVIEW`.
+- **Execution class:** `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-25.
 - **Backend gate:** Create request uses supplier identifier, decimal line quantity/purchase price and location; service calculates total, posts receipt movements atomically, defines optional initial payment semantics, and returns full posted result.
 - **User-visible change:** Users can post received stock to the chosen location and see the server-confirmed receipt and debt result.
@@ -643,6 +643,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Shared quantity-component checkpoint:** Compare the verified FE-26 line-input contract with FE-18 and the FE-13 target. If their editing mechanics match, extract a decimal-string-based `BloomQuantityField` for draft preservation, comma/dot input, UOM labelling, and accessible `+`/`−` stepping. Keep zero policy, direction, location, availability, request mapping, and domain errors outside the shared control; do not reuse legacy `BloomInputNumber` unchanged.
 - **Block condition:** Backend still expects free-text supplier, integer quantity, client total, or non-atomic movement/payment calls.
 - **Split trigger:** If line editor and submission exceed the limit, extract a receipt-local line editor first with tests, then post flow; do not ship an unsafe partially wired submit.
+
+**Implementation note (2026-09-09):** Creation gate verified against the current controller, nested request/response DTOs, quantity/money validators, transactional goods-receipt/stock-movement/payment services, mapper and exception handling. Implemented receipt-only posting, explicit received time/offset, separate repeated item lines, safe same-key replay, preserved draft/recovery, and server financial/status display. FE-25's calendar-filter timezone approval remains separate and blocked. See [interaction/request and validation plan](fe-26-receipt-creation.md). Review quantity/line mechanics and atomic posting/recovery as two logical slices because the complete change exceeds the roadmap's usual diff cap; no split exception or merge approval is implied.
 
 **Copy-ready implementation prompt**
 
