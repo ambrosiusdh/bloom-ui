@@ -1,22 +1,28 @@
+import { renderToString } from 'react-dom/server';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import cashApi from '@api/cash-session.js';
 import receiptApi from '@api/goods-receipt.js';
-import { createSupplierPayment } from '@api/supplier-payment.js';
+import { createSupplierPayment, SUPPLIER_PAYMENT_TIMEOUT_MS } from '@api/supplier-payment.js';
 import GoodsReceiptInfoCard from '@components/goods-receipt/GoodsReceiptInfoCard.jsx';
 import SupplierPayment from '@components/goods-receipt/SupplierPayment.jsx';
+import authStore from '@stores/modules/auth.js';
 import cashStore from '@stores/modules/cash-session.js';
 import receiptStore from '@stores/modules/goods-receipt.js';
-import paymentStore, { validatePayment } from '@stores/modules/supplier-payment.js';
+import paymentStore, { paymentRequest, validatePayment } from '@stores/modules/supplier-payment.js';
 import { act, render, screen, waitFor, within } from '@/test/render.jsx';
 
-vi.mock('@api/supplier-payment.js', () => ({ createSupplierPayment: vi.fn() }));
+vi.mock('@api/supplier-payment.js', () => ({ createSupplierPayment: vi.fn(), SUPPLIER_PAYMENT_TIMEOUT_MS: 15000 }));
 vi.mock('@api/goods-receipt.js', () => ({ default: { getGoodsReceiptDetails: vi.fn() } }));
 vi.mock('@api/cash-session.js', () => ({ default: { getCurrentSession: vi.fn() } }));
 const receipt = { code: 'GR-28', supplierName: 'Pemasok Satu', status: 'POSTED', paymentStatus: 'UNPAID',
     totalAmount: '100', paidAmount: '0', outstandingAmount: '100' };
 const response = data => ({ data: { data } });
+const intent = () => {
+    const { code, owner, draft } = paymentStore.getState();
+    return { code, owner, request: paymentRequest(draft, '2026-09-10T02:00:00Z') };
+};
 const success = async (code, request, key) => response({ id: 28, receiptCode: code, idempotencyKey: key,
     amount: request.amount, paymentMethod: request.paymentMethod, cashSessionId: request.paymentMethod === 'CASH' ? 15 : null, voided: false });
 function Workflow() {
@@ -38,6 +44,7 @@ describe('FE-28 receipt payment', () => {
         vi.resetAllMocks();
         sessionStorage.clear();
         paymentStore.setState(paymentStore.getInitialState());
+        authStore.setState({ authStatus: 'authenticated', currentUser: { username: 'cashier-a' } });
         cashStore.setState(cashStore.getInitialState());
         receiptStore.setState({ goodsReceiptDetails: receipt });
         receiptApi.getGoodsReceiptDetails.mockResolvedValue(response({ ...receipt, paidAmount: '35', outstandingAmount: '65', paymentStatus: 'PARTIALLY_PAID' }));
@@ -166,12 +173,12 @@ describe('FE-28 receipt payment', () => {
         const store = () => paymentStore.getState();
         store().select(receipt.code);
         store().edit({ amount: '25', paymentMethod: 'CASH', reference: '', note: '' });
-        cashStore.setState({ drawerActionsEnabled: true });
+        cashStore.setState({ currentStatus: 'ready', drawerActionsEnabled: true });
         createSupplierPayment.mockImplementationOnce(() => {
             expect(JSON.parse(sessionStorage.getItem('bloom-supplier-payment-v1')).state.attempt).toEqual(store().attempt);
             return Promise.reject(new Error('timeout'));
         });
-        await store().submit('2026-09-10T02:00:00Z');
+        await store().submit(intent());
         const attempt = store().attempt;
         const durable = sessionStorage.getItem('bloom-supplier-payment-v1');
         paymentStore.setState(paymentStore.getInitialState());
@@ -201,7 +208,7 @@ describe('FE-28 receipt payment', () => {
         if (failure === 'malformed') createSupplierPayment.mockResolvedValue(response({ id: 28 }));
         if (failure === 'storage') spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('denied'); });
         try {
-            await store().submit('2026-09-10T02:00:00Z');
+            await store().submit(intent());
             if (failure === 'storage') expect(createSupplierPayment).not.toHaveBeenCalled();
             else {
                 expect(store().attempt).not.toBeNull();
@@ -210,5 +217,153 @@ describe('FE-28 receipt payment', () => {
             }
             expect(store().outcome).toBe(({ keyConflict: 'keyConflict', malformed: 'uncertain', storage: 'storageUnavailable' })[failure]);
         } finally { spy?.mockRestore(); }
+    });
+
+    it.each(['ready', 'error'])('retains success across navigation during POST and %s receipt refresh until acknowledged', async refreshStatus => {
+        let resolve;
+        createSupplierPayment.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+        if (refreshStatus === 'error') receiptApi.getGoodsReceiptDetails.mockRejectedValueOnce(new Error('offline'));
+        const user = userEvent.setup(); render(<Workflow />);
+        await user.type(screen.getByLabelText('Nominal pembayaran'), '25'); await confirm(user);
+        await act(() => receiptStore.setState({ goodsReceiptDetails: { ...receipt, code: 'OTHER' } }));
+        await act(async () => resolve(await success(...createSupplierPayment.mock.calls[0])));
+        expect(paymentStore.getState()).toMatchObject({ code: receipt.code, pending: false, refreshStatus, result: { id: 28 } });
+        expect(screen.getByRole('link', { name: `Buka penerimaan ${ receipt.code }` })).toHaveAttribute('href', `/goods-receipts/${ receipt.code }`);
+        expect(screen.queryByLabelText('Nominal pembayaran')).not.toBeInTheDocument();
+        await act(() => receiptStore.setState({ goodsReceiptDetails: receipt }));
+        if (refreshStatus === 'error') {
+            expect(screen.queryByRole('button', { name: /berikutnya/ })).not.toBeInTheDocument();
+            await user.click(screen.getByRole('button', { name: 'Muat ulang nilai penerimaan' }));
+        }
+        await user.click(await screen.findByRole('button', { name: 'Catat pembayaran berikutnya' }));
+        await act(() => receiptStore.setState({ goodsReceiptDetails: { ...receipt, code: 'OTHER' } }));
+        expect(paymentStore.getState().code).toBe('OTHER');
+        expect(screen.getByLabelText('Nominal pembayaran')).toHaveValue('');
+        expect(createSupplierPayment).toHaveBeenCalledTimes(1);
+    });
+
+    it('requires explicit completion for a fully paid receipt before switching receipts', async () => {
+        receiptApi.getGoodsReceiptDetails.mockResolvedValue(response({ ...receipt, outstandingAmount: '0', paymentStatus: 'PAID' }));
+        const user = userEvent.setup(); render(<Workflow />);
+        await user.click(screen.getByRole('button', { name: /Isi seluruh/ })); await confirm(user);
+        await act(() => paymentStore.getState().select('OTHER'));
+        expect(paymentStore.getState().result?.id).toBe(28);
+        await user.click(screen.getByRole('button', { name: 'Selesai' }));
+        expect(screen.getByRole('heading', { name: 'Bayar pemasok untuk penerimaan ini' })).toHaveFocus();
+        expect(paymentStore.getState().result).toBeNull();
+    });
+
+    it('posts the frozen reviewed intent even if the live draft changes', async () => {
+        const user = userEvent.setup(); render(<Workflow />);
+        await user.type(screen.getByLabelText('Nominal pembayaran'), '25');
+        await user.type(screen.getByLabelText('Catatan (opsional)'), 'Catatan awal');
+        await user.click(screen.getByRole('button', { name: 'Tinjau pembayaran' }));
+        await act(() => paymentStore.getState().edit({ amount: '99', paymentMethod: 'CASH', reference: 'BARU', note: 'Berubah' }));
+        const dialog = screen.getByRole('dialog');
+        expect(within(dialog).getByText('Rp 25 · Transfer bank')).toBeInTheDocument();
+        expect(within(dialog).getByText('Catatan: Catatan awal')).toBeInTheDocument();
+        await user.click(within(dialog).getByRole('button', { name: 'Catat pembayaran' }));
+        await screen.findByText(/Pembayaran tercatat/);
+        expect(createSupplierPayment.mock.calls[0][1]).toMatchObject({ amount: '25', paymentMethod: 'BANK_TRANSFER', reference: null, note: 'Catatan awal' });
+    });
+
+    it('hides and refuses another account recovery without deleting the original attempt', async () => {
+        const store = () => paymentStore.getState();
+        store().select(receipt.code); store().edit({ amount: '25', paymentMethod: 'QRIS', reference: 'PRIVATE', note: 'Private note' });
+        createSupplierPayment.mockRejectedValueOnce(new Error('timeout'));
+        await store().submit(intent());
+        const attempt = store().attempt;
+        authStore.setState({ authStatus: 'checking' });
+        await store().submit();
+        authStore.setState({ authStatus: 'authenticated', currentUser: { username: 'cashier-b' } });
+        render(<Workflow />);
+        expect(screen.getByText(/dikunci untuk akun asal/)).toBeInTheDocument();
+        expect(screen.queryByText(attempt.key)).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Catatan (opsional)')).not.toBeInTheDocument();
+        await act(async () => { store().select('OTHER'); store().next(); await store().submit(); await store().refresh(); });
+        expect(createSupplierPayment).toHaveBeenCalledTimes(1);
+        expect(receiptApi.getGoodsReceiptDetails).not.toHaveBeenCalled();
+        expect(store().attempt).toEqual(attempt);
+        await act(() => authStore.setState({ currentUser: { username: 'cashier-a' } }));
+        await act(() => paymentStore.persist.rehydrate());
+        const user = userEvent.setup();
+        await user.click(screen.getByRole('button', { name: 'Pulihkan pembayaran yang sama' }));
+        await screen.findByText(/Pembayaran tercatat/);
+        expect(createSupplierPayment.mock.calls[1]).toEqual(createSupplierPayment.mock.calls[0]);
+    });
+
+    it('retains late success for its owner and postpones balance writes after account change', async () => {
+        const store = () => paymentStore.getState();
+        store().select(receipt.code); store().edit({ amount: '25', paymentMethod: 'QRIS', reference: '', note: '' });
+        let resolve;
+        createSupplierPayment.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+        const posting = store().submit(intent());
+        authStore.setState({ currentUser: { username: 'cashier-b' } });
+        resolve(await success(...createSupplierPayment.mock.calls[0])); await posting;
+        expect(store()).toMatchObject({ owner: 'cashier-a', result: { id: 28 }, refreshStatus: 'idle' });
+        expect(receiptApi.getGoodsReceiptDetails).not.toHaveBeenCalled();
+        render(<Workflow />);
+        expect(screen.queryByText(/Pembayaran tercatat/)).not.toBeInTheDocument();
+        await act(() => authStore.setState({ currentUser: { username: 'cashier-a' } }));
+        await screen.findByText(/Pembayaran tercatat/);
+        await waitFor(() => expect(store().refreshStatus).toBe('ready'));
+    });
+
+    it('quarantines legacy ownerless recovery rather than assigning it to the next login', async () => {
+        paymentStore.setState({ code: 'LEGACY', attempt: { code: 'LEGACY', key: 'legacy-key', request: {} } });
+        render(<Workflow />);
+        expect(screen.getByText(/Pemulihan lama belum memiliki identitas akun/)).toBeInTheDocument();
+        await act(() => paymentStore.getState().submit());
+        expect(createSupplierPayment).not.toHaveBeenCalled();
+        expect(paymentStore.getState().attempt.key).toBe('legacy-key');
+    });
+
+    it('keeps CASH disabled while rechecking a previously enabled session', async () => {
+        cashStore.setState({ currentStatus: 'ready', currentSession: { id: 15, status: 'OPEN' }, drawerActionsEnabled: true });
+        let resolve;
+        cashApi.getCurrentSession.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+        const user = userEvent.setup(); render(<Workflow />); await choose(user, 'Tunai (CASH)');
+        expect(screen.getByText(/Memeriksa sesi kas/)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Tinjau pembayaran' })).toBeDisabled();
+        await act(() => resolve(response(null)));
+    });
+
+    it('explains a rejected payment time so the user can fix the clock before reconfirming', async () => {
+        createSupplierPayment.mockRejectedValue({ status: 400, validationErrors: [{ field: 'paidAt', message: 'future' }] });
+        const user = userEvent.setup(); render(<Workflow />);
+        await user.type(screen.getByLabelText('Nominal pembayaran'), '25'); await confirm(user);
+        expect(screen.getByText(/Sinkronkan tanggal\/jam perangkat/)).toBeInTheDocument();
+        expect(paymentStore.getState().attempt).toBeNull();
+    });
+
+    it('treats the transport deadline as uncertain and retries with the identical key and payload', async () => {
+        vi.useFakeTimers();
+        try {
+            const store = () => paymentStore.getState();
+            store().select(receipt.code); store().edit({ amount: '25', paymentMethod: 'QRIS', reference: '', note: '' });
+            createSupplierPayment.mockImplementationOnce(() => new Promise((_, reject) => setTimeout(
+                () => reject({ name: 'ApiError', status: null, category: 'network' }), SUPPLIER_PAYMENT_TIMEOUT_MS)));
+            const posting = store().submit(intent());
+            expect(store().pending).toBe(true);
+            await vi.advanceTimersByTimeAsync(SUPPLIER_PAYMENT_TIMEOUT_MS); await posting;
+            expect(store()).toMatchObject({ pending: false, outcome: 'uncertain' });
+            expect(store().attempt).not.toBeNull();
+            await store().submit();
+            expect(createSupplierPayment.mock.calls[1]).toEqual(createSupplierPayment.mock.calls[0]);
+            expect(receiptApi.getGoodsReceiptDetails).toHaveBeenCalledWith(receipt.code, { timeout: SUPPLIER_PAYMENT_TIMEOUT_MS });
+        } finally { vi.useRealTimers(); }
+    });
+
+    it('validates trimmed optional text consistently with the request', () => {
+        const draft = { amount: '25', paymentMethod: 'QRIS', reference: ' '.repeat(256), note: ` ${ 'x'.repeat(255) } ` };
+        expect(validatePayment(draft)).toBe('');
+        expect(paymentRequest(draft, 'time')).toMatchObject({ reference: null, note: 'x'.repeat(255) });
+    });
+
+    it('renders initialization without claiming that an empty store contains another payment', () => {
+        const html = renderToString(<SupplierPayment receipt={ receipt } />);
+        expect(html).toContain('Memverifikasi akun');
+        expect(html).not.toContain('Selesaikan pembayaran sebelumnya');
+        expect(html).not.toContain('/goods-receipts/');
     });
 });

@@ -678,7 +678,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Status:** `REVIEW`.
 - **Execution class:** `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-15, FE-27.
-- **Backend gate:** Payment endpoint applies one payment to one receipt, supports partial payment and `CASH`/`BANK_TRANSFER`/`QRIS`, rejects overpayment, enforces open session for CASH, returns updated receipt/payment/drawer-relevant state, and defines reversal/error/idempotency behavior.
+- **Backend gate:** Payment endpoint applies one payment to one receipt, supports partial payment and `CASH`/`BANK_TRANSFER`/`QRIS`, rejects overpayment, enforces open session for CASH, and returns the confirmed payment record with its drawer-session identity. The receipt detail endpoint supplies updated paid/outstanding/payment status. Reversal/error/idempotency behavior is defined.
 - **User-visible change:** User can record a partial or full payment for one selected receipt; only CASH requires and affects the open drawer.
 - **Exact scope:** One-receipt payment form/confirmation, method-dependent session behavior, pending/idempotency/conflict/success, updated payable display, and tests.
 - **Out of scope:** Multi-receipt allocation, supplier prepayment/credit, automatic allocation, payment reversal UI, frontend outstanding calculation.
@@ -793,4 +793,4 @@ These questions cannot be safely answered by the current frontend implementation
 1. What future post-close correction workflow should be approved? The implemented supplier-payment policy permits CASH void only while its original session is open; the newer V18 runbook documents this boundary, while the historical domain document still needs alignment.
 2. What are the actual scanner model/interface, suffix/terminator, and rapid-scan characteristics on the store laptop?
 
-The UOM vocabulary, first-movement lock, and simple one-receipt supplier-payment allocation are product-confirmed for frontend planning, but their backend domain document and implementation must still be aligned before dependent PRs move from `BLOCKED`.
+UOM vocabulary and first-movement-lock gates must still be verified for their dependent PRs. FE-28's one-receipt payment gate has been verified against the implemented service/database rules and the newer payment correction runbook; its historical backend domain wording needs editorial alignment, as recorded in the FE-28 transaction plan.

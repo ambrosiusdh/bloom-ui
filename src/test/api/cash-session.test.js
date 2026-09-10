@@ -48,6 +48,11 @@ describe('cash session API', () => {
         }, undefined);
     });
 
+    it('forwards the supplier-payment session verification deadline', async () => {
+        await cashSessionApi.getCurrentSession({ timeout: 15000 });
+        expect(apiRequest).toHaveBeenCalledWith({ url: '/api/cash-sessions/current', method: 'GET', timeout: 15000 }, { timeout: 15000 });
+    });
+
     it('gets the server reconciliation preview for one session', async () => {
         const options = { signal: new AbortController().signal };
 

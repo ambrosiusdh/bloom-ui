@@ -9,7 +9,8 @@ const getSessionHistory = (payload, options) => api({
 
 const getCurrentSession = options => api({
     url: CASH_SESSION.current,
-    method: 'GET'
+    method: 'GET',
+    ...(options?.timeout ? { timeout: options.timeout } : {})
 }, options);
 
 const openSession = (payload, options) => api({
