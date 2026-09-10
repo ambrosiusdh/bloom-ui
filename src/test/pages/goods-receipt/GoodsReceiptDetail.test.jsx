@@ -4,7 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import goodsReceiptApi from '@api/goods-receipt.js';
 import GoodsReceiptDetail from '@pages/goods-receipt/GoodsReceiptDetail.jsx';
+import useAuthStore from '@stores/modules/auth.js';
 import useGoodsReceiptStore from '@stores/modules/goods-receipt.js';
+import useSupplierPaymentStore from '@stores/modules/supplier-payment.js';
 import { render, screen } from '@/test/render.jsx';
 
 vi.mock('@api/goods-receipt.js', () => ({ default: {
@@ -29,6 +31,8 @@ const renderDetail = (reference = receipt.code) => render(
 describe('GoodsReceiptDetail FE-25 read workflow', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        useSupplierPaymentStore.setState(useSupplierPaymentStore.getInitialState());
+        useAuthStore.setState({ authStatus: 'authenticated', currentUser: { username: 'cashier-a' } });
         useGoodsReceiptStore.setState({
             goodsReceiptDetails: null, goodsReceiptDetailStatus: 'idle', goodsReceiptDetailError: null
         });
@@ -73,5 +77,17 @@ describe('GoodsReceiptDetail FE-25 read workflow', () => {
 
         expect(await screen.findByRole('alert')).toHaveTextContent('Nomor penerimaan barang tidak valid.');
         expect(goodsReceiptApi.getGoodsReceiptDetails).not.toHaveBeenCalled();
+    });
+
+    it('refreshes after returning to a completed payment even when the initial detail read is stale', async () => {
+        useSupplierPaymentStore.setState({ code: receipt.code, owner: 'cashier-a', outcome: 'success', refreshStatus: 'ready',
+            result: { id: 28, receiptCode: receipt.code, amount: '10000', paymentMethod: 'QRIS', voided: false } });
+        goodsReceiptApi.getGoodsReceiptDetails
+            .mockResolvedValueOnce({ data: { data: receipt } })
+            .mockResolvedValue({ data: { data: { ...receipt, paidAmount: '12500', outstandingAmount: '0', paymentStatus: 'PAID' } } });
+        renderDetail();
+        expect(await screen.findByLabelText('Status pembayaran: Lunas')).toBeInTheDocument();
+        expect(screen.getByText('Belum dibayar').nextSibling).toHaveTextContent('Rp 0');
+        expect(goodsReceiptApi.getGoodsReceiptDetails).toHaveBeenCalledTimes(2);
     });
 });

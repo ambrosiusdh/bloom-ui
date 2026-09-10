@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Roadmap
 
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 
 ## 1. How to use this roadmap
 
@@ -87,7 +87,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-25 | Goods-receipt list and detail | BLOCKED | BLOCKED | FE-09, FE-23 | `gpt-5.6-sol`, high |
 | FE-26 | Goods-receipt creation | REVIEW | PLAN_RECOMMENDED | FE-25 | `gpt-5.6-sol`, xhigh |
 | FE-27 | Supplier payable views | REVIEW | DIRECT_IMPLEMENTATION | FE-25 | `gpt-5.6-sol`, high |
-| FE-28 | Single-receipt supplier payment | BLOCKED | BLOCKED | FE-15, FE-27 | `gpt-5.6-sol`, xhigh |
+| FE-28 | Single-receipt supplier payment | REVIEW | PLAN_RECOMMENDED | FE-15, FE-27 | `gpt-5.6-sol`, xhigh |
 | FE-29 | Unexpected expense list/create | BLOCKED | BLOCKED | FE-15 | `gpt-5.6-sol`, high |
 | FE-30 | Unexpected expense void/reversal | BLOCKED | BLOCKED | FE-29 | `gpt-5.6-sol`, high |
 | FE-31 | Release 1 dashboard read models | BLOCKED | BLOCKED | FE-17, FE-22, FE-27, FE-29 | `gpt-5.6-sol`, high |
@@ -675,10 +675,10 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-28 — Single-receipt supplier payment
 
 - **Domain:** Supplier payment.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `PLAN_RECOMMENDED`.
+- **Status:** `REVIEW`.
+- **Execution class:** `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-15, FE-27.
-- **Backend gate:** Payment endpoint applies one payment to one receipt, supports partial payment and `CASH`/`BANK_TRANSFER`/`QRIS`, rejects overpayment, enforces open session for CASH, returns updated receipt/payment/drawer-relevant state, and defines reversal/error/idempotency behavior.
+- **Backend gate:** Payment endpoint applies one payment to one receipt, supports partial payment and `CASH`/`BANK_TRANSFER`/`QRIS`, rejects overpayment, enforces open session for CASH, and returns the confirmed payment record with its drawer-session identity. The receipt detail endpoint supplies updated paid/outstanding/payment status. Reversal/error/idempotency behavior is defined.
 - **User-visible change:** User can record a partial or full payment for one selected receipt; only CASH requires and affects the open drawer.
 - **Exact scope:** One-receipt payment form/confirmation, method-dependent session behavior, pending/idempotency/conflict/success, updated payable display, and tests.
 - **Out of scope:** Multi-receipt allocation, supplier prepayment/credit, automatic allocation, payment reversal UI, frontend outstanding calculation.
@@ -687,6 +687,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Validation:** Tests for each method, partial/full, overpay, CASH without/with session, duplicate/ambiguous submit, server-updated outstanding/status; keyboard/confirmation; tests/build/lint.
 - **Block condition:** Allocation, overpayment, idempotency/recovery, reversal, or CASH session semantics are undefined/unimplemented.
 - **Split trigger:** If payment-method interactions exceed the limit, extract shared one-receipt submission state and split CASH from non-cash UI without enabling unsupported allocation.
+
+**Implementation note (2026-09-10):** Verified current payment controller/DTO/validation/service, receipt balance reads, idempotency, conflicts, drawer movement, and the newer payment migration runbook's correction boundary. Receipt detail now supports one-receipt partial/full payments, durable exact-key replay after ambiguous responses/navigation/reload, CASH-only session gating, and separately refreshed backend receipt values. The main backend domain document retains stale unresolved-payment wording; the [transaction plan](fe-28-supplier-payment.md) records the precise implementation/supplement used. Reversal UI and FE-25 timezone filtering are excluded.
 
 **Copy-ready implementation prompt**
 
@@ -788,7 +790,7 @@ If any becomes necessary, add a new evidence-backed roadmap entry instead of exp
 
 These questions cannot be safely answered by the current frontend implementation:
 
-1. What exact supplier-payment reversal and post-close correction policy applies to CASH payments and expenses?
+1. What future post-close correction workflow should be approved? The implemented supplier-payment policy permits CASH void only while its original session is open; the newer V18 runbook documents this boundary, while the historical domain document still needs alignment.
 2. What are the actual scanner model/interface, suffix/terminator, and rapid-scan characteristics on the store laptop?
 
-The UOM vocabulary, first-movement lock, and simple one-receipt supplier-payment allocation are product-confirmed for frontend planning, but their backend domain document and implementation must still be aligned before dependent PRs move from `BLOCKED`.
+UOM vocabulary and first-movement-lock gates must still be verified for their dependent PRs. FE-28's one-receipt payment gate has been verified against the implemented service/database rules and the newer payment correction runbook; its historical backend domain wording needs editorial alignment, as recorded in the FE-28 transaction plan.

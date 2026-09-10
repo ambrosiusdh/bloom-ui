@@ -17,6 +17,8 @@ const STRUCTURED_DOMAIN_CODES = new Set([
 ]);
 
 const DOMAIN_ERROR_TYPES = Object.freeze({
+    SupplierPaymentConflictException: 'supplier_payment_conflict',
+    SupplierPaymentIdempotencyConflictException: 'supplier_payment_idempotency_conflict',
     GoodsReceiptIdempotencyConflictException: API_DOMAIN_ERROR_CODE.GOODS_RECEIPT_IDEMPOTENCY_CONFLICT,
     CashSessionConflictException: API_DOMAIN_ERROR_CODE.CASH_SESSION_CONFLICT,
     CheckoutIdempotencyConflictException: API_DOMAIN_ERROR_CODE.CHECKOUT_IDEMPOTENCY_CONFLICT
