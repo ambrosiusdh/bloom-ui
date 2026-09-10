@@ -54,6 +54,7 @@ Release 1 work must preserve this baseline unless a narrowly scoped PR proves th
 
 - FE-26 goods-receipt creation is implemented for review: stable supplier code/item SKU, decimal-string UOM-aware quantities and purchase prices, explicit per-line location and received time/UTC offset, one confirmed idempotent atomic POST, tab-persisted draft/recovery, and server-confirmed receipt/payment results. Optional initial payment is omitted. Shared `BloomQuantityField` mechanics are used by receipt entry and the FE-18 cashier wrapper; workflow validation and FE-13 direction/zero rules remain local.
 - FE-27 supplier payable views are implemented for review: `/payables` pages the backend goods-receipt read model and renders its receipt/payment statuses and financial values directly; supplier detail reads exactly one backend aggregate for that supplier. The workflow links supplier and receipt detail without per-row enrichment or browser-side debt aggregation. It intentionally omits a payment-status filter because the backend does not expose one, and omits calendar date filtering so it does not expand FE-25's unresolved store-timezone boundary.
+- FE-28 single-receipt supplier payment is implemented for review: receipt detail accepts partial/full CASH, BANK_TRANSFER, or QRIS payments with confirmation, durable same-request/key recovery, duplicate prevention, conflict handling, and focused success. Only CASH requires the verified current session. Receipt amounts/status are refreshed from the backend after posting; failed refreshes cannot trigger another payment. See [transaction plan and gate evidence](../plans/fe-28-supplier-payment.md).
 
 ### 2.2 Current implemented routes
 
@@ -104,7 +105,7 @@ These credentials are test fixtures for local development and browser verificati
 | Scanner | A physical barcode scanner is intended | Confirmed; device transport/terminator behavior still requires verification |
 | Cash session | At most one globally open session | Confirmed |
 | Expense correction | Posted expenses are voided/reversed, not deleted | Confirmed |
-| Supplier payment allocation | One payment applies to one goods receipt; partial payment allowed; overpayment rejected | Product-confirmed; backend contract/code alignment required |
+| Supplier payment allocation | One payment applies to one goods receipt; partial payment allowed; overpayment rejected | Confirmed; verified against current payment service and database enforcement for FE-28 |
 | Supplier credit/prepayment | Not supported | Confirmed |
 | Multi-receipt allocation | Not supported | Confirmed; deferred beyond Release 1 |
 | Customer credit | Not supported | Confirmed |
@@ -419,9 +420,9 @@ The following must be verified or completed before their dependent frontend PRs 
 - Printer endpoint success/error semantics in the target environment.
 - Goods-receipt creation is available at `POST /api/goods-receipts` with required `Idempotency-Key`, stable `supplierCode`, `receivedDate` Instant, and decimal item/price/location lines. The service computes totals and posts receipt/movements atomically, replays identical requests, and conflicts on changed same-key payloads. `initialPayment` is optional; FE-26 omits it and renders returned total/paid/outstanding/status. The form requires an explicitly selected UTC offset rather than assuming a fixed store timezone.
 - Goods-receipt read fields are implemented, but the fixed business/store timezone for converting calendar-day filters to the endpoint's `Instant` boundaries remains undefined.
-- Accounts-payable and single-receipt payment endpoints, including overpayment and reversal behavior.
+- Single-receipt payment is available at `POST /api/goods-receipts/{code}/payments` with required `Idempotency-Key`. It serializes identical replay, rejects changed payloads/overpayment, and links only CASH to the globally open session. Its response is the payment record; the existing receipt detail GET supplies updated paid/outstanding/status. CASH paidAt cannot predate session opening. The current payment service and newer V18 migration runbook define reasoned, audit-preserving voids and reject CASH void after the original session closes; reversal UI remains outside FE-28. Historical unresolved-payment text in the main backend domain document still needs editorial alignment with this implementation/supplement.
 - Expense create/list/detail/void contracts.
-- Post-close correction policy for drawer-affecting expenses and supplier payments.
+- Future post-close correction workflows remain outside Release 1; the implemented supplier-payment rule rejects voiding CASH payments from closed sessions.
 - Dashboard read models required by Release 1.
 
 Until these are resolved, the frontend roadmap must name the gate and avoid inventing the contract.

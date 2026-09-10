@@ -5,7 +5,9 @@ import { ArrowLeft } from 'lucide-react';
 
 import GoodsReceiptInfoCard from '@components/goods-receipt/GoodsReceiptInfoCard.jsx';
 import GoodsReceiptItemsTable from '@components/goods-receipt/GoodsReceiptItemsTable.jsx';
+import SupplierPayment from '@components/goods-receipt/SupplierPayment.jsx';
 import { useGoodsReceiptStore, useBreadcrumbStore } from '@stores/index.js';
+import useSupplierPaymentStore from '@stores/modules/supplier-payment.js';
 import { isValidGoodsReceiptReference } from '@utils/goods-receipt-utils.js';
 
 const GoodsReceiptDetail = () => {
@@ -48,6 +50,10 @@ const GoodsReceiptDetail = () => {
                     { signal: controller.signal },
                     { useLoader: false }
                 );
+                // A detail read started during posting may have returned the earlier balance.
+                if (!controller.signal.aborted && useSupplierPaymentStore.getState().result?.receiptCode === receiptReference) {
+                    await useSupplierPaymentStore.getState().refresh();
+                }
             } catch {
                 // The store owns the request error. Aborted requests are ignored there.
             }
@@ -115,6 +121,8 @@ const GoodsReceiptDetail = () => {
             </div>
 
             <GoodsReceiptInfoCard receipt={ goodsReceiptDetails } />
+
+            <SupplierPayment key={ receiptReference } receipt={ goodsReceiptDetails } />
 
             <GoodsReceiptItemsTable goodsReceiptItems={ goodsReceiptDetails?.items || [] } />
         </div>
