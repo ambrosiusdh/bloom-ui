@@ -1,9 +1,15 @@
-import { getMoneySign, validateCashAmount } from '@components/cash-session/cash-session-money.js';
+import {
+    getMoneySign,
+    validateCashAmount
+} from '@components/cash-session/cash-session-money.js';
 
 export const EXPENSE_CATEGORIES = {
-    STORE_OPERATIONAL: 'Operasional toko', FOOD_AND_DRINK: 'Makanan dan minuman',
-    CHARITY: 'Amal', EMERGENCY_PURCHASE: 'Pembelian mendesak',
-    OWNER_WITHDRAWAL: 'Penarikan pemilik', OTHER: 'Lainnya'
+    STORE_OPERATIONAL: 'Operasional toko',
+    FOOD_AND_DRINK: 'Makanan dan minuman',
+    CHARITY: 'Amal',
+    EMERGENCY_PURCHASE: 'Pembelian mendesak',
+    OWNER_WITHDRAWAL: 'Penarikan pemilik',
+    OTHER: 'Lainnya'
 };
 
 export const hasExpectedExpenseSession = request => Number.isSafeInteger(request?.expectedCashSessionId)
@@ -11,7 +17,9 @@ export const hasExpectedExpenseSession = request => Number.isSafeInteger(request
 
 export const expenseRequest = (draft, expectedCashSessionId) => ({
     expectedCashSessionId,
-    amount: draft.amount.trim(), category: draft.category, description: draft.description.trim() || null
+    amount: draft.amount.trim(),
+    category: draft.category,
+    description: draft.description.trim() || null
 });
 
 export const validateExpense = draft => ({

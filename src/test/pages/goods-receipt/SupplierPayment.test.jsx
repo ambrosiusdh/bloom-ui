@@ -4,16 +4,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import cashApi from '@api/cash-session.js';
 import receiptApi from '@api/goods-receipt.js';
-import { createSupplierPayment, SUPPLIER_PAYMENT_TIMEOUT_MS } from '@api/supplier-payment.js';
+import supplierPaymentApi, { SUPPLIER_PAYMENT_TIMEOUT_MS } from '@api/supplier-payment.js';
 import GoodsReceiptInfoCard from '@components/goods-receipt/GoodsReceiptInfoCard.jsx';
 import SupplierPayment from '@components/goods-receipt/SupplierPayment.jsx';
 import authStore from '@stores/modules/auth.js';
 import cashStore from '@stores/modules/cash-session.js';
 import receiptStore from '@stores/modules/goods-receipt.js';
-import paymentStore, { paymentRequest, validatePayment } from '@stores/modules/supplier-payment.js';
+import paymentStore from '@stores/modules/supplier-payment.js';
+import { paymentRequest, validatePayment } from '@utils/supplier-payment-utils.js';
 import { act, render, screen, waitFor, within } from '@/test/render.jsx';
 
-vi.mock('@api/supplier-payment.js', () => ({ createSupplierPayment: vi.fn(), SUPPLIER_PAYMENT_TIMEOUT_MS: 15000 }));
+vi.mock('@api/supplier-payment.js', () => ({ default: { createSupplierPayment: vi.fn() }, SUPPLIER_PAYMENT_TIMEOUT_MS: 15000 }));
 vi.mock('@api/goods-receipt.js', () => ({ default: { getGoodsReceiptDetails: vi.fn() } }));
 vi.mock('@api/cash-session.js', () => ({ default: { getCurrentSession: vi.fn() } }));
 const receipt = { code: 'GR-28', supplierName: 'Pemasok Satu', status: 'POSTED', paymentStatus: 'UNPAID',
@@ -49,7 +50,7 @@ describe('FE-28 receipt payment', () => {
         receiptStore.setState({ goodsReceiptDetails: receipt });
         receiptApi.getGoodsReceiptDetails.mockResolvedValue(response({ ...receipt, paidAmount: '35', outstandingAmount: '65', paymentStatus: 'PARTIALLY_PAID' }));
         cashApi.getCurrentSession.mockResolvedValue(response(null));
-        createSupplierPayment.mockImplementation(success);
+        supplierPaymentApi.createSupplierPayment.mockImplementation(success);
     });
 
     it.each(['Transfer bank', 'QRIS', 'Tunai (CASH)'])('confirms a partial %s payment and renders only refreshed server values', async method => {
@@ -63,7 +64,7 @@ describe('FE-28 receipt payment', () => {
         await waitFor(() => expect(saved.closest('[role="status"]')).toHaveFocus());
         expect(screen.getByText('Belum dibayar').nextSibling).toHaveTextContent('Rp 65');
         expect(screen.getByLabelText('Status pembayaran: Dibayar sebagian')).toBeInTheDocument();
-        expect(createSupplierPayment).toHaveBeenCalledWith('GR-28', {
+        expect(supplierPaymentApi.createSupplierPayment).toHaveBeenCalledWith('GR-28', {
             amount: '20.125', paymentMethod: ({ 'Transfer bank': 'BANK_TRANSFER', QRIS: 'QRIS', 'Tunai (CASH)': 'CASH' })[method],
             reference: 'REF-28', note: null, paidAt: expect.any(String)
         }, expect.stringMatching(/^payment-/));
@@ -87,7 +88,7 @@ describe('FE-28 receipt payment', () => {
         await user.keyboard('{Escape}');
         await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
         await waitFor(() => expect(review).toHaveFocus());
-        expect(createSupplierPayment).not.toHaveBeenCalled();
+        expect(supplierPaymentApi.createSupplierPayment).not.toHaveBeenCalled();
         await confirm(user);
         expect(await screen.findByLabelText('Status pembayaran: Lunas')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /berikutnya/ })).not.toBeInTheDocument();
@@ -104,18 +105,18 @@ describe('FE-28 receipt payment', () => {
         await choose(user, 'QRIS');
         await user.click(screen.getByRole('button', { name: 'Tinjau pembayaran' }));
         expect(screen.getByLabelText('Nominal pembayaran')).toHaveFocus();
-        expect(createSupplierPayment).not.toHaveBeenCalled();
+        expect(supplierPaymentApi.createSupplierPayment).not.toHaveBeenCalled();
     });
 
     it('blocks duplicates and edits, then survives reload and replays the exact ambiguous request', async () => {
         let reject;
-        createSupplierPayment.mockImplementationOnce(() => new Promise((_, fail) => { reject = fail; }));
+        supplierPaymentApi.createSupplierPayment.mockImplementationOnce(() => new Promise((_, fail) => { reject = fail; }));
         const user = userEvent.setup(); const view = render(<Workflow />);
         await user.type(screen.getByLabelText('Nominal pembayaran'), '25'); await confirm(user);
         expect(screen.getByLabelText('Nominal pembayaran')).toBeDisabled();
         await act(() => paymentStore.getState().submit('different time'));
-        expect(createSupplierPayment).toHaveBeenCalledTimes(1);
-        const original = createSupplierPayment.mock.calls[0];
+        expect(supplierPaymentApi.createSupplierPayment).toHaveBeenCalledTimes(1);
+        const original = supplierPaymentApi.createSupplierPayment.mock.calls[0];
         await act(async () => reject(new Error('timeout')));
         expect((await screen.findByText(/Hasil pembayaran belum pasti/)).closest('[role="alert"]')).toHaveFocus();
         view.unmount();
@@ -123,11 +124,11 @@ describe('FE-28 receipt payment', () => {
         render(<Workflow />);
         await user.click(screen.getByRole('button', { name: 'Pulihkan pembayaran yang sama' }));
         expect(await screen.findByText(/Pembayaran tercatat/)).toBeInTheDocument();
-        expect(createSupplierPayment.mock.calls[1]).toEqual(original);
+        expect(supplierPaymentApi.createSupplierPayment.mock.calls[1]).toEqual(original);
     });
 
     it.each([['supplier_payment_conflict', /melebihi sisa tagihan/], ['cash_session_conflict', /Sesi kas mungkin sudah ditutup/]])('preserves rejected input and refreshes after %s', async (domainCode, message) => {
-        createSupplierPayment.mockRejectedValue({ status: 409, domainCode });
+        supplierPaymentApi.createSupplierPayment.mockRejectedValue({ status: 409, domainCode });
         const user = userEvent.setup(); render(<Workflow />);
         if (domainCode === 'cash_session_conflict') {
             cashApi.getCurrentSession.mockResolvedValue(response({ id: 15, status: 'OPEN' }));
@@ -155,7 +156,7 @@ describe('FE-28 receipt payment', () => {
         expect(screen.getByText(/Pembayaran tercatat/)).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Muat ulang nilai penerimaan' }));
         await screen.findByRole('button', { name: /berikutnya/ });
-        expect(createSupplierPayment).toHaveBeenCalledTimes(1);
+        expect(supplierPaymentApi.createSupplierPayment).toHaveBeenCalledTimes(1);
     });
 
     it.each(['0', '-1', '1.12345', '1234567890123456', ''])('rejects invalid amount %s', amount => {
@@ -174,7 +175,7 @@ describe('FE-28 receipt payment', () => {
         store().select(receipt.code);
         store().edit({ amount: '25', paymentMethod: 'CASH', reference: '', note: '' });
         cashStore.setState({ currentStatus: 'ready', drawerActionsEnabled: true });
-        createSupplierPayment.mockImplementationOnce(() => {
+        supplierPaymentApi.createSupplierPayment.mockImplementationOnce(() => {
             expect(JSON.parse(sessionStorage.getItem('bloom-supplier-payment-v1')).state.attempt).toEqual(store().attempt);
             return Promise.reject(new Error('timeout'));
         });
@@ -187,16 +188,16 @@ describe('FE-28 receipt payment', () => {
         cashStore.setState({ drawerActionsEnabled: false });
         store().select('OTHER');
         expect(store().code).toBe(receipt.code);
-        createSupplierPayment.mockRejectedValueOnce({ status: 409, domainCode: 'cash_session_conflict' });
+        supplierPaymentApi.createSupplierPayment.mockRejectedValueOnce({ status: 409, domainCode: 'cash_session_conflict' });
         await store().submit();
         expect(store().attempt).toEqual(attempt);
-        createSupplierPayment.mockImplementationOnce(async (...args) => {
+        supplierPaymentApi.createSupplierPayment.mockImplementationOnce(async (...args) => {
             const data = await success(...args); data.data.data.voided = true; return data;
         });
         await store().submit();
         render(<Workflow />);
         expect(await screen.findByText(/sudah dibatalkan/)).toBeInTheDocument();
-        expect(createSupplierPayment.mock.calls.every(args => JSON.stringify(args) === JSON.stringify(createSupplierPayment.mock.calls[0]))).toBe(true);
+        expect(supplierPaymentApi.createSupplierPayment.mock.calls.every(args => JSON.stringify(args) === JSON.stringify(supplierPaymentApi.createSupplierPayment.mock.calls[0]))).toBe(true);
     });
 
     it.each(['keyConflict', 'malformed', 'storage'])('does not offer a fresh payment after %s recovery failure', async failure => {
@@ -204,12 +205,12 @@ describe('FE-28 receipt payment', () => {
         store().select(receipt.code);
         store().edit({ amount: '25', paymentMethod: 'QRIS', reference: '', note: '' });
         let spy;
-        if (failure === 'keyConflict') createSupplierPayment.mockRejectedValue({ status: 409, domainCode: 'supplier_payment_idempotency_conflict' });
-        if (failure === 'malformed') createSupplierPayment.mockResolvedValue(response({ id: 28 }));
+        if (failure === 'keyConflict') supplierPaymentApi.createSupplierPayment.mockRejectedValue({ status: 409, domainCode: 'supplier_payment_idempotency_conflict' });
+        if (failure === 'malformed') supplierPaymentApi.createSupplierPayment.mockResolvedValue(response({ id: 28 }));
         if (failure === 'storage') spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('denied'); });
         try {
             await store().submit(intent());
-            if (failure === 'storage') expect(createSupplierPayment).not.toHaveBeenCalled();
+            if (failure === 'storage') expect(supplierPaymentApi.createSupplierPayment).not.toHaveBeenCalled();
             else {
                 expect(store().attempt).not.toBeNull();
                 store().next();
@@ -221,12 +222,12 @@ describe('FE-28 receipt payment', () => {
 
     it.each(['ready', 'error'])('retains success across navigation during POST and %s receipt refresh until acknowledged', async refreshStatus => {
         let resolve;
-        createSupplierPayment.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+        supplierPaymentApi.createSupplierPayment.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
         if (refreshStatus === 'error') receiptApi.getGoodsReceiptDetails.mockRejectedValueOnce(new Error('offline'));
         const user = userEvent.setup(); render(<Workflow />);
         await user.type(screen.getByLabelText('Nominal pembayaran'), '25'); await confirm(user);
         await act(() => receiptStore.setState({ goodsReceiptDetails: { ...receipt, code: 'OTHER' } }));
-        await act(async () => resolve(await success(...createSupplierPayment.mock.calls[0])));
+        await act(async () => resolve(await success(...supplierPaymentApi.createSupplierPayment.mock.calls[0])));
         expect(paymentStore.getState()).toMatchObject({ code: receipt.code, pending: false, refreshStatus, result: { id: 28 } });
         expect(screen.getByRole('link', { name: `Buka penerimaan ${ receipt.code }` })).toHaveAttribute('href', `/goods-receipts/${ receipt.code }`);
         expect(screen.queryByLabelText('Nominal pembayaran')).not.toBeInTheDocument();
@@ -239,7 +240,7 @@ describe('FE-28 receipt payment', () => {
         await act(() => receiptStore.setState({ goodsReceiptDetails: { ...receipt, code: 'OTHER' } }));
         expect(paymentStore.getState().code).toBe('OTHER');
         expect(screen.getByLabelText('Nominal pembayaran')).toHaveValue('');
-        expect(createSupplierPayment).toHaveBeenCalledTimes(1);
+        expect(supplierPaymentApi.createSupplierPayment).toHaveBeenCalledTimes(1);
     });
 
     it('requires explicit completion for a fully paid receipt before switching receipts', async () => {
@@ -264,13 +265,13 @@ describe('FE-28 receipt payment', () => {
         expect(within(dialog).getByText('Catatan: Catatan awal')).toBeInTheDocument();
         await user.click(within(dialog).getByRole('button', { name: 'Catat pembayaran' }));
         await screen.findByText(/Pembayaran tercatat/);
-        expect(createSupplierPayment.mock.calls[0][1]).toMatchObject({ amount: '25', paymentMethod: 'BANK_TRANSFER', reference: null, note: 'Catatan awal' });
+        expect(supplierPaymentApi.createSupplierPayment.mock.calls[0][1]).toMatchObject({ amount: '25', paymentMethod: 'BANK_TRANSFER', reference: null, note: 'Catatan awal' });
     });
 
     it('hides and refuses another account recovery without deleting the original attempt', async () => {
         const store = () => paymentStore.getState();
         store().select(receipt.code); store().edit({ amount: '25', paymentMethod: 'QRIS', reference: 'PRIVATE', note: 'Private note' });
-        createSupplierPayment.mockRejectedValueOnce(new Error('timeout'));
+        supplierPaymentApi.createSupplierPayment.mockRejectedValueOnce(new Error('timeout'));
         await store().submit(intent());
         const attempt = store().attempt;
         authStore.setState({ authStatus: 'checking' });
@@ -281,7 +282,7 @@ describe('FE-28 receipt payment', () => {
         expect(screen.queryByText(attempt.key)).not.toBeInTheDocument();
         expect(screen.queryByLabelText('Catatan (opsional)')).not.toBeInTheDocument();
         await act(async () => { store().select('OTHER'); store().next(); await store().submit(); await store().refresh(); });
-        expect(createSupplierPayment).toHaveBeenCalledTimes(1);
+        expect(supplierPaymentApi.createSupplierPayment).toHaveBeenCalledTimes(1);
         expect(receiptApi.getGoodsReceiptDetails).not.toHaveBeenCalled();
         expect(store().attempt).toEqual(attempt);
         await act(() => authStore.setState({ currentUser: { username: 'cashier-a' } }));
@@ -289,17 +290,17 @@ describe('FE-28 receipt payment', () => {
         const user = userEvent.setup();
         await user.click(screen.getByRole('button', { name: 'Pulihkan pembayaran yang sama' }));
         await screen.findByText(/Pembayaran tercatat/);
-        expect(createSupplierPayment.mock.calls[1]).toEqual(createSupplierPayment.mock.calls[0]);
+        expect(supplierPaymentApi.createSupplierPayment.mock.calls[1]).toEqual(supplierPaymentApi.createSupplierPayment.mock.calls[0]);
     });
 
     it('retains late success for its owner and postpones balance writes after account change', async () => {
         const store = () => paymentStore.getState();
         store().select(receipt.code); store().edit({ amount: '25', paymentMethod: 'QRIS', reference: '', note: '' });
         let resolve;
-        createSupplierPayment.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+        supplierPaymentApi.createSupplierPayment.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
         const posting = store().submit(intent());
         authStore.setState({ currentUser: { username: 'cashier-b' } });
-        resolve(await success(...createSupplierPayment.mock.calls[0])); await posting;
+        resolve(await success(...supplierPaymentApi.createSupplierPayment.mock.calls[0])); await posting;
         expect(store()).toMatchObject({ owner: 'cashier-a', result: { id: 28 }, refreshStatus: 'idle' });
         expect(receiptApi.getGoodsReceiptDetails).not.toHaveBeenCalled();
         render(<Workflow />);
@@ -314,7 +315,7 @@ describe('FE-28 receipt payment', () => {
         render(<Workflow />);
         expect(screen.getByText(/Pemulihan lama belum memiliki identitas akun/)).toBeInTheDocument();
         await act(() => paymentStore.getState().submit());
-        expect(createSupplierPayment).not.toHaveBeenCalled();
+        expect(supplierPaymentApi.createSupplierPayment).not.toHaveBeenCalled();
         expect(paymentStore.getState().attempt.key).toBe('legacy-key');
     });
 
@@ -329,7 +330,7 @@ describe('FE-28 receipt payment', () => {
     });
 
     it('explains a rejected payment time so the user can fix the clock before reconfirming', async () => {
-        createSupplierPayment.mockRejectedValue({ status: 400, validationErrors: [{ field: 'paidAt', message: 'future' }] });
+        supplierPaymentApi.createSupplierPayment.mockRejectedValue({ status: 400, validationErrors: [{ field: 'paidAt', message: 'future' }] });
         const user = userEvent.setup(); render(<Workflow />);
         await user.type(screen.getByLabelText('Nominal pembayaran'), '25'); await confirm(user);
         expect(screen.getByText(/Sinkronkan tanggal\/jam perangkat/)).toBeInTheDocument();
@@ -341,7 +342,7 @@ describe('FE-28 receipt payment', () => {
         try {
             const store = () => paymentStore.getState();
             store().select(receipt.code); store().edit({ amount: '25', paymentMethod: 'QRIS', reference: '', note: '' });
-            createSupplierPayment.mockImplementationOnce(() => new Promise((_, reject) => setTimeout(
+            supplierPaymentApi.createSupplierPayment.mockImplementationOnce(() => new Promise((_, reject) => setTimeout(
                 () => reject({ name: 'ApiError', status: null, category: 'network' }), SUPPLIER_PAYMENT_TIMEOUT_MS)));
             const posting = store().submit(intent());
             expect(store().pending).toBe(true);
@@ -349,7 +350,7 @@ describe('FE-28 receipt payment', () => {
             expect(store()).toMatchObject({ pending: false, outcome: 'uncertain' });
             expect(store().attempt).not.toBeNull();
             await store().submit();
-            expect(createSupplierPayment.mock.calls[1]).toEqual(createSupplierPayment.mock.calls[0]);
+            expect(supplierPaymentApi.createSupplierPayment.mock.calls[1]).toEqual(supplierPaymentApi.createSupplierPayment.mock.calls[0]);
             expect(receiptApi.getGoodsReceiptDetails).toHaveBeenCalledWith(receipt.code, { timeout: SUPPLIER_PAYMENT_TIMEOUT_MS });
         } finally { vi.useRealTimers(); }
     });

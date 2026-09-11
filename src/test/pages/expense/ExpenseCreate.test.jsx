@@ -2,7 +2,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 
 import cashApi from '@api/cash-session.js';
-import { createExpense } from '@api/expense.js';
+import expenseApi from '@api/expense.js';
 import ExpenseCreate from '@pages/expense/ExpenseCreate.jsx';
 import authStore from '@stores/modules/auth.js';
 import cashStore from '@stores/modules/cash-session.js';
@@ -10,7 +10,7 @@ import expenseStore from '@stores/modules/expense.js';
 import { EXPENSE_CATEGORIES, expenseRequest, hasExpectedExpenseSession, validateExpense } from '@utils/expense-utils.js';
 import { act, render, screen, waitFor, within } from '@/test/render.jsx';
 
-vi.mock('@api/expense.js', () => ({ createExpense: vi.fn(), EXPENSE_TIMEOUT_MS: 15000 }));
+vi.mock('@api/expense.js', () => ({ default: { createExpense: vi.fn() }, EXPENSE_TIMEOUT_MS: 15000 }));
 vi.mock('@api/cash-session.js', () => ({ default: { getCurrentSession: vi.fn() } }));
 const response = data => ({ data: { data } });
 const session = { id: 15, status: 'OPEN' };
@@ -29,7 +29,7 @@ beforeEach(() => {
     authStore.setState({ authStatus: 'authenticated', currentUser: { username: 'cashier-a' } });
     cashStore.setState(cashStore.getInitialState());
     cashApi.getCurrentSession.mockResolvedValue(response(session));
-    createExpense.mockResolvedValue(response(saved));
+    expenseApi.createExpense.mockResolvedValue(response(saved));
 });
 
 it('validates the exact six categories, positive decimal amount, and conditional description', () => {
@@ -59,7 +59,7 @@ it('blocks new posting for loading, absent, closed, or failed sessions and suppo
     expect(screen.getByRole('button', { name: 'Tinjau pengeluaran' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Periksa sesi kas' }));
     expect(screen.getByRole('button', { name: 'Tinjau pengeluaran' })).toBeEnabled();
-    expect(createExpense).not.toHaveBeenCalled();
+    expect(expenseApi.createExpense).not.toHaveBeenCalled();
 });
 
 it('focuses associated validation errors and supports keyboard confirmation, cancel, and server-confirmed success', async () => {
@@ -82,12 +82,12 @@ it('focuses associated validation errors and supports keyboard confirmation, can
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(review).toHaveFocus());
-    expect(createExpense).not.toHaveBeenCalled();
+    expect(expenseApi.createExpense).not.toHaveBeenCalled();
     await confirm(user);
     const feedback = await screen.findByText('Pengeluaran tercatat.');
     await waitFor(() => expect(feedback.closest('[role="status"]')).toHaveFocus());
     expect(screen.getByRole('article')).toHaveTextContent('Dari server');
-    expect(createExpense).toHaveBeenCalledWith({ expectedCashSessionId: 15, amount: '25.125', category: 'OTHER', description: 'Darurat' }, expect.stringMatching(/^expense-/));
+    expect(expenseApi.createExpense).toHaveBeenCalledWith({ expectedCashSessionId: 15, amount: '25.125', category: 'OTHER', description: 'Darurat' }, expect.stringMatching(/^expense-/));
     expect(cashApi.getCurrentSession).toHaveBeenCalledWith({ timeout: 15000 });
     await user.click(screen.getByRole('button', { name: 'Catat pengeluaran berikutnya' }));
     expect(screen.getByLabelText(/Nominal pengeluaran/)).toHaveFocus();
@@ -96,12 +96,12 @@ it('focuses associated validation errors and supports keyboard confirmation, can
 
 it.each([null, { id: 16, status: 'OPEN' }])('recovers the exact request after reload without retargeting to current session %j', async currentSession => {
     let reject;
-    createExpense.mockImplementationOnce(() => new Promise((_, fail) => { reject = fail; }));
+    expenseApi.createExpense.mockImplementationOnce(() => new Promise((_, fail) => { reject = fail; }));
     const user = userEvent.setup(); const view = render(<ExpenseCreate />); await fill(user); await confirm(user);
     expect(screen.getByLabelText(/Nominal pengeluaran/)).toBeDisabled();
     await act(() => expenseStore.getState().submit(intent()));
-    expect(createExpense).toHaveBeenCalledTimes(1);
-    const original = createExpense.mock.calls[0];
+    expect(expenseApi.createExpense).toHaveBeenCalledTimes(1);
+    const original = expenseApi.createExpense.mock.calls[0];
     expect(JSON.parse(sessionStorage.getItem('bloom-expense-v1')).state.attempt.key).toBe(original[1]);
     expect(JSON.parse(sessionStorage.getItem('bloom-expense-v1')).state.attempt.request.expectedCashSessionId).toBe(15);
     await act(async () => reject(new Error('timeout')));
@@ -115,7 +115,7 @@ it.each([null, { id: 16, status: 'OPEN' }])('recovers the exact request after re
     render(<ExpenseCreate />);
     await user.click(screen.getByRole('button', { name: 'Pulihkan pengeluaran yang sama' }));
     expect(await screen.findByText('Pengeluaran tercatat.')).toBeInTheDocument();
-    expect(createExpense.mock.calls[1]).toEqual(original);
+    expect(expenseApi.createExpense.mock.calls[1]).toEqual(original);
     expect(screen.getByRole('article')).toHaveTextContent('Sesi kas #15');
 });
 
@@ -124,10 +124,10 @@ it('preserves drafts after a session race and requires another confirmation afte
     cashApi.getCurrentSession.mockResolvedValueOnce(response({ id: 16, status: 'OPEN' }));
     await confirm(user);
     expect(await screen.findByText(/Sesi kas sudah berubah/)).toBeInTheDocument();
-    expect(createExpense).not.toHaveBeenCalled();
+    expect(expenseApi.createExpense).not.toHaveBeenCalled();
     expect(screen.getByLabelText(/Nominal pengeluaran/)).toHaveValue('25,125');
     cashApi.getCurrentSession.mockResolvedValue(response({ id: 16, status: 'OPEN' }));
-    createExpense.mockRejectedValueOnce({ status: 409, domainCode: 'cash_session_conflict' });
+    expenseApi.createExpense.mockRejectedValueOnce({ status: 409, domainCode: 'cash_session_conflict' });
     await confirm(user);
     expect(await screen.findByText(/Sesi kas sudah berubah/)).toBeInTheDocument();
     expect(expenseStore.getState().attempt).toBeNull();
@@ -135,7 +135,7 @@ it('preserves drafts after a session race and requires another confirmation afte
 });
 
 it.each([400, 401, 403, 422])('preserves editable input on a definitive first-attempt HTTP %s rejection', async status => {
-    createExpense.mockRejectedValueOnce({ status });
+    expenseApi.createExpense.mockRejectedValueOnce({ status });
     const user = userEvent.setup(); render(<ExpenseCreate />); await fill(user); await confirm(user);
     expect(await screen.findByText(/Pengeluaran ditolak/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Nominal pengeluaran/)).toBeEnabled();
@@ -143,7 +143,7 @@ it.each([400, 401, 403, 422])('preserves editable input on a definitive first-at
 });
 
 it.each([409, 500, 401])('retains the uncertain original attempt after replay fails with HTTP %s', async status => {
-    createExpense.mockRejectedValueOnce(new Error('timeout')).mockRejectedValueOnce({ status });
+    expenseApi.createExpense.mockRejectedValueOnce(new Error('timeout')).mockRejectedValueOnce({ status });
     const user = userEvent.setup(); render(<ExpenseCreate />); await fill(user); await confirm(user);
     const original = expenseStore.getState().attempt;
     await user.click(screen.getByRole('button', { name: 'Pulihkan pengeluaran yang sama' }));
@@ -152,7 +152,7 @@ it.each([409, 500, 401])('retains the uncertain original attempt after replay fa
 });
 
 it('locks idempotency conflicts and hides recovery from a different account', async () => {
-    createExpense.mockRejectedValueOnce({ status: 409, domainCode: 'expense_idempotency_conflict' });
+    expenseApi.createExpense.mockRejectedValueOnce({ status: 409, domainCode: 'expense_idempotency_conflict' });
     const user = userEvent.setup(); render(<ExpenseCreate />); await fill(user); await confirm(user);
     expect(await screen.findByText(/Identitas pengeluaran ditolak/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pulihkan pengeluaran yang sama' })).not.toBeInTheDocument();
@@ -160,7 +160,7 @@ it('locks idempotency conflicts and hides recovery from a different account', as
     expect(screen.getByRole('alert')).toHaveTextContent('akun asal');
     expect(screen.queryByText(/Referensi pemulihan/)).not.toBeInTheDocument();
     await act(() => expenseStore.getState().submit());
-    expect(createExpense).toHaveBeenCalledTimes(1);
+    expect(expenseApi.createExpense).toHaveBeenCalledTimes(1);
 });
 
 it('never posts when durable recovery cannot be saved and treats malformed success as uncertain', async () => {
@@ -168,8 +168,8 @@ it('never posts when durable recovery cannot be saved and treats malformed succe
     const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
     await confirm(user);
     expect(await screen.findByText(/Pemulihan tidak dapat disimpan/)).toBeInTheDocument();
-    expect(createExpense).not.toHaveBeenCalled(); spy.mockRestore();
-    createExpense.mockResolvedValueOnce(response({ id: 29 }));
+    expect(expenseApi.createExpense).not.toHaveBeenCalled(); spy.mockRestore();
+    expenseApi.createExpense.mockResolvedValueOnce(response({ id: 29 }));
     await confirm(user);
     expect(await screen.findByText(/Hasil pengeluaran belum pasti/)).toBeInTheDocument();
     expect(expenseStore.getState().attempt).not.toBeNull();
@@ -180,14 +180,14 @@ it('does not post if the session preflight fails or the account changes during t
     cashApi.getCurrentSession.mockRejectedValueOnce(new Error('offline'));
     await confirm(user);
     expect(await screen.findByText(/Pengeluaran belum dikirim/)).toBeInTheDocument();
-    expect(createExpense).not.toHaveBeenCalled();
+    expect(expenseApi.createExpense).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Periksa sesi kas' }));
     let resolve;
     cashApi.getCurrentSession.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
     await confirm(user);
     await act(async () => authStore.setState({ currentUser: { username: 'cashier-b' } }));
     await act(async () => resolve(response(session)));
-    expect(createExpense).not.toHaveBeenCalled();
+    expect(expenseApi.createExpense).not.toHaveBeenCalled();
 });
 
 it('retains a confirmed result across a failed session refresh and navigation, without reposting', async () => {
@@ -199,12 +199,12 @@ it('retains a confirmed result across a failed session refresh and navigation, w
     view.unmount(); render(<ExpenseCreate />);
     expect(screen.getByRole('article')).toHaveTextContent('Dari server');
     await act(() => expenseStore.getState().submit());
-    expect(createExpense).toHaveBeenCalledTimes(1);
+    expect(expenseApi.createExpense).toHaveBeenCalledTimes(1);
 });
 
 it('keeps a late success private until the original account returns', async () => {
     let resolve;
-    createExpense.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+    expenseApi.createExpense.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
     const user = userEvent.setup(); render(<ExpenseCreate />); await fill(user); await confirm(user);
     await act(async () => authStore.setState({ currentUser: { username: 'cashier-b' } }));
     await act(async () => resolve(response(saved)));
@@ -212,7 +212,7 @@ it('keeps a late success private until the original account returns', async () =
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
     await act(async () => authStore.setState({ currentUser: { username: 'cashier-a' } }));
     expect(screen.getByRole('article')).toHaveTextContent('Dari server');
-    expect(createExpense).toHaveBeenCalledTimes(1);
+    expect(expenseApi.createExpense).toHaveBeenCalledTimes(1);
 });
 
 it('requires a usable confirmed session ID before starting a new attempt', async () => {
@@ -223,7 +223,7 @@ it('requires a usable confirmed session ID before starting a new attempt', async
             ...intent(), request: { ...intent().request, expectedCashSessionId }
         }));
     }
-    expect(createExpense).not.toHaveBeenCalled();
+    expect(expenseApi.createExpense).not.toHaveBeenCalled();
     expect(expenseStore.getState().attempt).toBeNull();
     expect(hasExpectedExpenseSession({ expectedCashSessionId: 15 })).toBe(true);
 });
@@ -250,33 +250,33 @@ it.each([undefined, 0])('locks persisted old/invalid session intent (%s) without
     expect(expenseStore.getState().attempt).toEqual(original);
     expect(expenseStore.getState().draft.amount).toBe('25.125');
     expect(JSON.parse(sessionStorage.getItem('bloom-expense-v1')).state.attempt).toEqual(original);
-    expect(createExpense).not.toHaveBeenCalled();
+    expect(expenseApi.createExpense).not.toHaveBeenCalled();
 });
 
 it('does not accept a returned record for a different cash session as success', async () => {
-    createExpense.mockResolvedValueOnce(response({ ...saved, cashSessionId: 16 }));
+    expenseApi.createExpense.mockResolvedValueOnce(response({ ...saved, cashSessionId: 16 }));
     const user = userEvent.setup(); render(<ExpenseCreate />); await fill(user); await confirm(user);
     expect(await screen.findByText(/Hasil pengeluaran belum pasti/)).toBeInTheDocument();
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
     expect(expenseStore.getState().attempt.request.expectedCashSessionId).toBe(15);
     await user.click(screen.getByRole('button', { name: 'Pulihkan pengeluaran yang sama' }));
     expect(await screen.findByText('Pengeluaran tercatat.')).toBeInTheDocument();
-    expect(createExpense.mock.calls[1]).toEqual(createExpense.mock.calls[0]);
+    expect(expenseApi.createExpense.mock.calls[1]).toEqual(expenseApi.createExpense.mock.calls[0]);
 });
 
 it('requires fresh confirmation and a new key after a definitive session conflict', async () => {
-    createExpense.mockImplementationOnce(async () => {
+    expenseApi.createExpense.mockImplementationOnce(async () => {
         cashApi.getCurrentSession.mockResolvedValue(response({ id: 16, status: 'OPEN' }));
         throw { status: 409, domainCode: 'cash_session_conflict' };
     }).mockResolvedValueOnce(response({ ...saved, cashSessionId: 16 }));
     const user = userEvent.setup(); render(<ExpenseCreate />); await fill(user); await confirm(user);
     expect(await screen.findByText(/Sesi kas sudah berubah/)).toBeInTheDocument();
-    expect(createExpense).toHaveBeenCalledTimes(1);
-    expect(createExpense.mock.calls[0][0].expectedCashSessionId).toBe(15);
+    expect(expenseApi.createExpense).toHaveBeenCalledTimes(1);
+    expect(expenseApi.createExpense.mock.calls[0][0].expectedCashSessionId).toBe(15);
     await user.click(screen.getByRole('button', { name: 'Tinjau pengeluaran' }));
     expect(screen.getByRole('dialog')).toHaveTextContent('Sesi yang dikonfirmasi: #16');
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Catat pengeluaran' }));
     expect(await screen.findByText('Pengeluaran tercatat.')).toBeInTheDocument();
-    expect(createExpense.mock.calls[1][0]).toEqual({ ...createExpense.mock.calls[0][0], expectedCashSessionId: 16 });
-    expect(createExpense.mock.calls[1][1]).not.toBe(createExpense.mock.calls[0][1]);
+    expect(expenseApi.createExpense.mock.calls[1][0]).toEqual({ ...expenseApi.createExpense.mock.calls[0][0], expectedCashSessionId: 16 });
+    expect(expenseApi.createExpense.mock.calls[1][1]).not.toBe(expenseApi.createExpense.mock.calls[0][1]);
 });

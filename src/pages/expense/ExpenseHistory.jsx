@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Alert, Button, Card, CardContent, MenuItem, Pagination, Stack, TextField, Typography } from '@mui/material';
 
-import { getExpenses } from '@api/expense.js';
+import expenseApi from '@api/expense.js';
 import ExpenseRecord from '@components/expense/ExpenseRecord.jsx';
 
 const sizes = [10, 25, 50];
@@ -24,7 +24,7 @@ export default function ExpenseHistory() {
         if (!canonical) return;
         let active = true;
         setState({ status: 'loading', query, rows: [], pages: 0 });
-        getExpenses(page, size).then(({ data: response }) => {
+        expenseApi.getExpenseList({ page, size }).then(({ data: response }) => {
             const data = response?.data;
             if (!Array.isArray(data?.content) || !Number.isInteger(data.totalPages)) throw new Error('Invalid page');
             if (!active) return;

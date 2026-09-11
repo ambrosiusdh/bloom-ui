@@ -4,24 +4,27 @@ import {
     persist
 } from 'zustand/middleware';
 
+import { API_DOMAIN_ERROR_CODE } from '@api/error-contract.js';
 import goodsReceiptApi from '@api/goods-receipt.js';
-import {
-    createSupplierPayment,
-    SUPPLIER_PAYMENT_TIMEOUT_MS
-} from '@api/supplier-payment.js';
-import {
-    getMoneySign,
-    validateCashAmount
-} from '@components/cash-session/cash-session-money.js';
+import supplierPaymentApi, { SUPPLIER_PAYMENT_TIMEOUT_MS } from '@api/supplier-payment.js';
 import useAuthStore from '@stores/modules/auth.js';
 import useCashSessionStore from '@stores/modules/cash-session.js';
 import useGoodsReceiptStore from '@stores/modules/goods-receipt.js';
+import { validatePayment } from '@utils/supplier-payment-utils.js';
 
 const STORAGE_KEY = 'bloom-supplier-payment-v1';
-const initial = (code, owner = null) => ({
-    code, owner, draft: { amount: '', paymentMethod: 'BANK_TRANSFER', reference: '', note: '' },
-    attempt: null, result: null, outcome: 'editing', error: '', pending: false, refreshStatus: 'idle'
+const createSupplierPaymentState = (code, owner = null) => ({
+    code,
+    owner,
+    draft: { amount: '', paymentMethod: 'BANK_TRANSFER', reference: '', note: '' },
+    attempt: null,
+    result: null,
+    outcome: 'editing',
+    error: '',
+    pending: false,
+    refreshStatus: 'idle'
 });
+
 const currentOwner = () => {
     const auth = useAuthStore.getState();
     return auth.authStatus === 'authenticated' ? auth.currentUser?.username : null;
@@ -29,11 +32,6 @@ const currentOwner = () => {
 export const canUsePayment = (state, owner = currentOwner()) => !!owner && state.owner === owner;
 export const isPaymentLocked = state => state.pending || !!state.attempt || !!state.result
     || ['loading', 'error'].includes(state.refreshStatus);
-export const paymentRequest = (draft, paidAt) => ({
-    amount: draft.amount.trim(),
-    paymentMethod: draft.paymentMethod, paidAt,
-    reference: draft.reference?.trim() || null, note: draft.note?.trim() || null
-});
 const storage = {
     getItem: key => {
         try {
@@ -55,29 +53,34 @@ const storage = {
         }
     }
 };
-export const validatePayment = draft => validateCashAmount(draft.amount, 'Nominal pembayaran')
-    || (getMoneySign(draft.amount) <= 0 ? 'Nominal pembayaran harus lebih dari nol.' : '')
-    || (!['CASH', 'BANK_TRANSFER', 'QRIS'].includes(draft.paymentMethod) ? 'Pilih metode pembayaran.' : '')
-    || (draft.reference?.trim().length > 255 || draft.note?.trim().length > 255 ? 'Referensi dan catatan maksimal 255 karakter.' : '');
 
 // One unresolved payment per tab, including across navigation and authentication redirects.
 const useSupplierPaymentStore = create(persist((set, get) => ({
-    ...initial(''),
+    ...createSupplierPaymentState(''),
     select: code => {
         const owner = currentOwner();
-        if (owner && !isPaymentLocked(get()) && (get().code !== code || get().owner !== owner)) set(initial(code, owner));
-    },
-    edit: draft => {
-        if (canUsePayment(get()) && !isPaymentLocked(get())) set({ draft, error: '' });
-    },
-    next: () => {
-        if (canUsePayment(get()) && get().result && !get().pending && get().refreshStatus === 'ready') {
-            set(initial(get().code, get().owner));
+        if (owner && !isPaymentLocked(get()) && (get().code !== code || get().owner !== owner)) {
+            set(createSupplierPaymentState(code, owner));
         }
     },
+
+    edit: draft => {
+        if (canUsePayment(get()) && !isPaymentLocked(get())) {
+            set({ draft, error: '' });
+        }
+    },
+
+    next: () => {
+        if (canUsePayment(get()) && get().result && !get().pending && get().refreshStatus === 'ready') {
+            set(createSupplierPaymentState(get().code, get().owner));
+        }
+    },
+
     refresh: async () => {
         const { code, owner } = get();
-        if (!canUsePayment(get()) || get().refreshStatus === 'loading') return;
+        if (!canUsePayment(get()) || get().refreshStatus === 'loading') {
+            return;
+        }
         set({ refreshStatus: 'loading' });
         try {
             const { data: response } = await goodsReceiptApi.getGoodsReceiptDetails(code, { timeout: SUPPLIER_PAYMENT_TIMEOUT_MS });
@@ -86,7 +89,9 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
                 || ['totalAmount', 'paidAmount', 'outstandingAmount'].some(field => receipt[field] == null)) {
                 throw new Error('Incomplete receipt response');
             }
-            if (get().code !== code || get().owner !== owner) return;
+            if (get().code !== code || get().owner !== owner) {
+                return;
+            }
             if (!canUsePayment(get())) {
                 set({ refreshStatus: 'idle' });
                 return;
@@ -96,15 +101,22 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
             }
             set({ refreshStatus: 'ready' });
         } catch {
-            if (get().code === code && get().owner === owner) set({ refreshStatus: canUsePayment(get()) ? 'error' : 'idle' });
+            if (get().code === code && get().owner === owner) {
+                set({ refreshStatus: canUsePayment(get()) ? 'error' : 'idle' });
+            }
         }
     },
+
     submit: async confirmation => {
-        if (!canUsePayment(get()) || get().pending || get().result || get().outcome === 'keyConflict') return;
+        if (!canUsePayment(get()) || get().pending || get().result || get().outcome === 'keyConflict') {
+            return;
+        }
         const replay = !!get().attempt;
         const { code, owner } = get();
         if (!replay) {
-            if (isPaymentLocked(get()) || confirmation?.code !== code || confirmation?.owner !== owner) return;
+            if (isPaymentLocked(get()) || confirmation?.code !== code || confirmation?.owner !== owner) {
+                return;
+            }
             const error = validatePayment(confirmation.request);
             if (error) {
                 set({ error });
@@ -117,14 +129,16 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
             }
         }
         const attempt = get().attempt || {
-            code, key: `payment-${ crypto.randomUUID() }`,
+            code,
+            key: `payment-${ crypto.randomUUID() }`,
             request: { ...confirmation.request }
         };
         const { amount, paymentMethod, reference, note } = attempt.request;
         const draft = { amount, paymentMethod, reference: reference || '', note: note || '' };
         try {
             sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-                version: 0, state: {
+                version: 0,
+                state: {
                     code, owner, draft, attempt, result: null, outcome: 'uncertain'
                 }
             }));
@@ -134,7 +148,7 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
         }
         set({ draft, attempt, pending: true, outcome: 'pending', error: '' });
         try {
-            const { data: response } = await createSupplierPayment(attempt.code, attempt.request, attempt.key);
+            const { data: response } = await supplierPaymentApi.createSupplierPayment(attempt.code, attempt.request, attempt.key);
             const result = response?.data;
             if (!result?.id || result.receiptCode !== attempt.code || result.idempotencyKey !== attempt.key
                 || result.amount == null || result.paymentMethod !== attempt.request.paymentMethod
@@ -145,19 +159,23 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
             set({ result, attempt: null, outcome: 'success', refreshStatus: 'idle' });
             await get().refresh();
         } catch (error) {
-            const keyConflict = error.domainCode === 'supplier_payment_idempotency_conflict';
+            const keyConflict = error.domainCode === API_DOMAIN_ERROR_CODE.SUPPLIER_PAYMENT_IDEMPOTENCY_CONFLICT;
+            const sessionConflict = error.domainCode === API_DOMAIN_ERROR_CODE.CASH_SESSION_CONFLICT;
             const rejected = !replay && !keyConflict && [400, 401, 403, 404, 409, 422].includes(error.status);
             set({
-                attempt: rejected ? null : attempt, outcome: keyConflict ? 'keyConflict' : !rejected ? 'uncertain'
-                    : error.domainCode === 'cash_session_conflict' ? 'sessionConflict'
+                attempt: rejected ? null : attempt,
+                outcome: keyConflict ? 'keyConflict' : !rejected ? 'uncertain'
+                    : sessionConflict ? 'sessionConflict'
                         : error.status === 409 ? 'conflict'
                             : error.validationErrors?.some(({ field }) => field === 'paidAt') ? 'clockInvalid' : 'rejected'
             });
-            if (error.domainCode === 'cash_session_conflict' && canUsePayment(get())) {
+            if (sessionConflict && canUsePayment(get())) {
                 await useCashSessionStore.getState().getCurrentSession({ timeout: SUPPLIER_PAYMENT_TIMEOUT_MS }).catch(() => {
                 });
             }
-            if (rejected) await get().refresh();
+            if (rejected) {
+                await get().refresh();
+            }
         } finally {
             set({ pending: false });
         }
@@ -167,7 +185,8 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
         }
     }
 }), {
-    name: STORAGE_KEY, storage: createJSONStorage(() => storage),
+    name: STORAGE_KEY,
+    storage: createJSONStorage(() => storage),
     partialize: ({ code, owner, draft, attempt, result, outcome }) => ({
         code, owner, draft, attempt, result,
         outcome: attempt && outcome !== 'keyConflict' ? 'uncertain' : outcome

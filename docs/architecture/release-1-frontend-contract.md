@@ -298,6 +298,23 @@ State ownership should remain explicit:
 - backend responses as the source of truth for domain records and calculations;
 - URL state for shareable filters or selected identifiers when useful.
 
+Expense and supplier-payment consistency alignment (2026-09-11): both API modules
+use the existing default API-object export and centralized endpoint definitions.
+Expense reads accept `(params, config, options)`; creates accept the payload,
+idempotency key, and loader options (plus receipt code for supplier payment).
+Their 15-second timeouts remain enforced. Pure request mapping and validation live
+in domain-specific `src/utils` files; Zustand stores own posting, recovery, and
+server refresh, using shared API error-code constants. Expense history retains
+page-local read state and URL paging because that state is not shared. Existing
+storage keys, persisted payloads, session binding, and backend authority are
+unchanged. FE-28 and FE-29 remain `REVIEW`; review these maintenance changes as
+separate supplier-payment and expense slices when preparing PRs.
+
+Alignment verification: 89 tests across 8 focused API/store/workflow test files
+passed, including duplicate/recovery/session/account and keyboard/focus coverage.
+Repository-wide ESLint and the production build passed; existing Browserslist-data
+and large-bundle warnings remain. No live expense or supplier payment was posted.
+
 ### 8.2 Request lifecycle
 
 Each touched workflow must define:

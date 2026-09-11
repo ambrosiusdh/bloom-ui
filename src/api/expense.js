@@ -1,12 +1,29 @@
 import api from '@api/index.js';
+import { EXPENSE } from '@api/path/index.js';
 
 export const EXPENSE_TIMEOUT_MS = 15000;
 
-export const getExpenses = (page = 1, size = 10) => api({
-    url: '/api/expenses', method: 'GET', params: { page, size }, timeout: EXPENSE_TIMEOUT_MS
-});
+const getExpenseList = async (params = { page: 1, size: 10 }, config, options) => {
+    return api({
+        ...config,
+        url: EXPENSE.list,
+        method: 'GET',
+        params,
+        timeout: EXPENSE_TIMEOUT_MS
+    }, options);
+};
 
-export const createExpense = (request, key) => api({
-    url: '/api/expenses', method: 'POST', data: request,
-    headers: { 'Idempotency-Key': key }, timeout: EXPENSE_TIMEOUT_MS
-});
+const createExpense = async (payload, idempotencyKey, options) => {
+    return api({
+        url: EXPENSE.create,
+        method: 'POST',
+        data: payload,
+        headers: { 'Idempotency-Key': idempotencyKey },
+        timeout: EXPENSE_TIMEOUT_MS
+    }, options);
+};
+
+export default {
+    getExpenseList,
+    createExpense
+};
