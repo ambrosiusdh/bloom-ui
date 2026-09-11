@@ -11,6 +11,7 @@ import useAuthStore from '@stores/modules/auth.js';
 import useCashSessionStore from '@stores/modules/cash-session.js';
 import {
     canVoidExpense,
+    validExpenseVoidRecord,
     validateExpenseVoidReason
 } from '@utils/expense-utils.js';
 
@@ -27,7 +28,7 @@ const initial = {
     notice: '',
     session: null,
     refreshError: false,
-    revision: 0
+    historyRevision: 0
 };
 
 const storage = {
@@ -61,10 +62,6 @@ const currentOwner = () => {
 
 export const canUseExpenseVoid = state => !!currentOwner() && state.owner === currentOwner();
 
-const validRecord = (record, original) => record?.id === original.id && record.cashSessionId === original.cashSessionId
-    && record.amount != null && !!record.category && !!record.createdAt && !!record.createdBy
-    && typeof record.voided === 'boolean' && (!record.voided || (!!record.voidedReason && !!record.voidedAt && !!record.voidedBy));
-
 // Replays target one immutable expense ID. Never invent a key or replace the confirmed reason.
 const useExpenseVoidStore = create(persist((set, get) => {
     const refresh = async (afterPost = false) => {
@@ -77,12 +74,20 @@ const useExpenseVoidStore = create(persist((set, get) => {
         try {
             const { data: response } = await expenseApi.getExpense(original.id);
             const record = response?.data;
-            if (!validRecord(record, original) || (original.voided && !record.voided)) throw new Error('Invalid expense result');
+            if (!validExpenseVoidRecord(record, original)) {
+                throw new Error('Invalid expense result');
+            }
+
+            // An ordinary verification does not invalidate history or replace its trigger.
+            const historyChanged = record.voided !== original.voided
+                || record.canVoid !== original.canVoid
+                || record.voidBlockReason !== original.voidBlockReason;
+
             set({
                 record,
                 outcome: record.voided ? 'confirmed' : get().attempt ? 'uncertain' : 'ready',
                 ...(record.voided ? { attempt: null } : {}),
-                revision: get().revision + 1
+                historyRevision: get().historyRevision + (historyChanged ? 1 : 0)
             });
         } catch {
             set({
@@ -91,7 +96,9 @@ const useExpenseVoidStore = create(persist((set, get) => {
             });
         }
 
-        if (!canUseExpenseVoid(get())) return;
+        if (!canUseExpenseVoid(get())) {
+            return;
+        }
         if (afterPost || get().record.voided || get().attempt) {
             const results = await Promise.allSettled([
                 cashSessionApi.getSessionDetails(original.cashSessionId, { timeout: EXPENSE_TIMEOUT_MS }),
@@ -100,19 +107,25 @@ const useExpenseVoidStore = create(persist((set, get) => {
             const session = results[0].status === 'fulfilled' ? results[0].value.data?.data : null;
             if (session?.id === original.cashSessionId && session.expectedClosingCash != null && ['OPEN', 'CLOSED'].includes(session.status)) {
                 set({ session });
-            } else set({ refreshError: true });
-            if (results[1].status === 'rejected') set({ refreshError: true });
+            } else {
+                set({ refreshError: true });
+            }
+            if (results[1].status === 'rejected') {
+                set({ refreshError: true });
+            }
         }
     };
 
     return {
         ...initial,
         begin: async record => {
-            if (!currentOwner() || get().pending || get().attempt || (get().record && get().outcome === 'confirmed')) return;
+            if (!currentOwner() || get().pending || get().attempt || (get().record && get().outcome === 'confirmed')) {
+                return;
+            }
 
             set({
                 ...initial,
-                revision: get().revision,
+                historyRevision: get().historyRevision,
                 owner: currentOwner(),
                 record,
                 open: true,
@@ -125,27 +138,37 @@ const useExpenseVoidStore = create(persist((set, get) => {
         },
 
         resume: () => {
-            if (canUseExpenseVoid(get())) set({ open: true });
+            if (canUseExpenseVoid(get())) {
+                set({ open: true });
+            }
         },
 
         close: () => {
-            if (!canUseExpenseVoid(get()) || get().pending) return;
+            if (!canUseExpenseVoid(get()) || get().pending) {
+                return;
+            }
             set({ open: false });
         },
 
         dismiss: () => {
-            if (canUseExpenseVoid(get()) && !get().pending && !get().open && !get().attempt) set({
-                ...initial,
-                revision: get().revision
-            });
+            if (canUseExpenseVoid(get()) && !get().pending && !get().open && !get().attempt) {
+                set({
+                    ...initial,
+                    historyRevision: get().historyRevision
+                });
+            }
         },
 
         edit: reason => {
-            if (canUseExpenseVoid(get()) && !get().pending && !get().attempt && get().outcome === 'ready') set({ reason });
+            if (canUseExpenseVoid(get()) && !get().pending && !get().attempt && get().outcome === 'ready') {
+                set({ reason });
+            }
         },
 
         refresh: async () => {
-            if (!canUseExpenseVoid(get()) || !get().record || get().pending) return;
+            if (!canUseExpenseVoid(get()) || !get().record || get().pending) {
+                return;
+            }
             set({ pending: true });
             await refresh();
             set({ pending: false });
@@ -155,7 +178,9 @@ const useExpenseVoidStore = create(persist((set, get) => {
             const state = get();
             if (!canUseExpenseVoid(state) || state.pending || state.record?.voided
                 || (!state.attempt && (state.outcome !== 'ready' || !canVoidExpense(state.record)))
-                || validateExpenseVoidReason(state.attempt || state.reason)) return;
+                || validateExpenseVoidReason(state.attempt || state.reason)) {
+                return;
+            }
 
             const attempt = state.attempt || state.reason.trim();
 
@@ -185,12 +210,14 @@ const useExpenseVoidStore = create(persist((set, get) => {
 
             try {
                 const { data: response } = await expenseApi.voidExpense(state.record.id, { reason: attempt });
-                if (!validRecord(response?.data, state.record) || !response.data.voided) throw new Error('Unconfirmed void');
+                if (!validExpenseVoidRecord(response?.data, state.record) || !response.data.voided) {
+                    throw new Error('Unconfirmed void');
+                }
                 set({
                     record: response.data,
                     attempt: null,
                     outcome: 'confirmed',
-                    revision: get().revision + 1
+                    historyRevision: get().historyRevision + 1
                 });
             } catch (error) {
                 const rejected = !state.attempt && ([400, 401, 403, 404, 422].includes(error.status)
@@ -205,7 +232,9 @@ const useExpenseVoidStore = create(persist((set, get) => {
                 // Refresh before offering another confirmation; a failed replay never disproves the first request.
             }
 
-            if (canUseExpenseVoid(get())) await refresh(true);
+            if (canUseExpenseVoid(get())) {
+                await refresh(true);
+            }
             set({ pending: false });
         }
     };
