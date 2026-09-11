@@ -1,9 +1,18 @@
 import api from '@api/index.js';
+import { SUPPLIER_PAYMENT } from '@api/path/index.js';
 
 export const SUPPLIER_PAYMENT_TIMEOUT_MS = 15000;
 
-export const createSupplierPayment = (code, request, key) => api({
-    url: `/api/goods-receipts/${ encodeURIComponent(code) }/payments`,
-    method: 'POST', data: request, headers: { 'Idempotency-Key': key },
-    timeout: SUPPLIER_PAYMENT_TIMEOUT_MS
-});
+const createSupplierPayment = async (code, payload, idempotencyKey, options) => {
+    return api({
+        url: SUPPLIER_PAYMENT.create(code),
+        method: 'POST',
+        data: payload,
+        headers: { 'Idempotency-Key': idempotencyKey },
+        timeout: SUPPLIER_PAYMENT_TIMEOUT_MS
+    }, options);
+};
+
+export default {
+    createSupplierPayment
+};

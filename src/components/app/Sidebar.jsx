@@ -61,7 +61,8 @@ const navigationGroups = [
         id: 'navigation-cash',
         label: 'Kas',
         items: [
-            { to: '/cash-sessions', icon: HistoryIcon, label: 'Riwayat Sesi Kas' }
+            { to: '/cash-sessions', icon: HistoryIcon, label: 'Riwayat Sesi Kas' },
+            { to: '/expenses', icon: HandCoinsIcon, label: 'Pengeluaran' }
         ]
     }
 ];

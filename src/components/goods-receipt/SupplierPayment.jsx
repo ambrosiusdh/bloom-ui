@@ -30,12 +30,14 @@ import useAuthStore from '@stores/modules/auth.js';
 import useCashSessionStore from '@stores/modules/cash-session.js';
 import useSupplierPaymentStore, {
     canUsePayment,
-    isPaymentLocked,
-    paymentRequest,
-    validatePayment
+    isPaymentLocked
 } from '@stores/modules/supplier-payment.js';
+import {
+    paymentRequest,
+    SUPPLIER_PAYMENT_METHODS,
+    validatePayment
+} from '@utils/supplier-payment-utils.js';
 
-const methods = { BANK_TRANSFER: 'Transfer bank', QRIS: 'QRIS', CASH: 'Tunai (CASH)' };
 const messages = {
     pending: 'Menyimpan pembayaran. Tunggu hasilnya sebelum membayar lagi.',
     uncertain: 'Hasil pembayaran belum pasti. Periksa koneksi, lalu pulihkan pembayaran yang sama. Jangan membuat pembayaran baru.',
@@ -134,7 +136,7 @@ export default function SupplierPayment({ receipt }) {
                                tabIndex={ -1 }
                                ref={ feedbackRef }>
                             { result.voided ? 'Pembayaran yang dipulihkan sudah dibatalkan.' : 'Pembayaran tercatat.' }
-                            { ` #${ result.id } · ${ result.receiptCode } · ${ formatRupiah(result.amount) } · ${ methods[result.paymentMethod] }` }
+                            { ` #${ result.id } · ${ result.receiptCode } · ${ formatRupiah(result.amount) } · ${ SUPPLIER_PAYMENT_METHODS[result.paymentMethod] }` }
                             { result.cashSessionId && ` · Sesi kas #${ result.cashSessionId }` }
                         </Alert>
                     ) : messages[outcome] && (
@@ -184,7 +186,7 @@ export default function SupplierPayment({ receipt }) {
                                            onChange={ event => edit('paymentMethod', event.target.value) }
                                            disabled={ blocked }
                                            fullWidth>
-                                    { Object.entries(methods).map(([value, label]) => <MenuItem key={ value }
+                                    { Object.entries(SUPPLIER_PAYMENT_METHODS).map(([value, label]) => <MenuItem key={ value }
                                                                                                 value={ value }>{ label }</MenuItem>) }
                                 </TextField>
                             </Stack>
@@ -228,7 +230,7 @@ export default function SupplierPayment({ receipt }) {
                 <DialogTitle id="payment-confirm-title">Konfirmasi pembayaran pemasok</DialogTitle>
                 <DialogContent id="payment-confirm-body" sx={ { overflowWrap: 'anywhere' } }>
                     <p>{ confirmation?.supplierName } · { confirmation?.code }</p>
-                    <p>{ formatRupiah(confirmation?.request.amount) } · { methods[confirmation?.request.paymentMethod] }</p>
+                    <p>{ formatRupiah(confirmation?.request.amount) } · { SUPPLIER_PAYMENT_METHODS[confirmation?.request.paymentMethod] }</p>
                     <p>Sisa tagihan terakhir: { formatRupiah(confirmation?.outstandingAmount) }.</p>
                     { confirmation?.request.reference && <p>Referensi: { confirmation.request.reference }</p> }
                     { confirmation?.request.note && <p>Catatan: { confirmation.request.note }</p> }

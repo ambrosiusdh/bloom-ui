@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Contract
 
-Last updated: 2026-09-10
+Last updated: 2026-09-11
 
 ## 1. Purpose
 
@@ -56,6 +56,7 @@ Release 1 work must preserve this baseline unless a narrowly scoped PR proves th
 - FE-27 supplier payable views are implemented for review: `/payables` pages the backend goods-receipt read model and renders its receipt/payment statuses and financial values directly; supplier detail reads exactly one backend aggregate for that supplier. The workflow links supplier and receipt detail without per-row enrichment or browser-side debt aggregation. It intentionally omits a payment-status filter because the backend does not expose one, and omits calendar date filtering so it does not expand FE-25's unresolved store-timezone boundary.
 - FE-28 single-receipt supplier payment is implemented for review: receipt detail accepts partial/full CASH, BANK_TRANSFER, or QRIS payments with confirmation, durable same-request/key recovery, duplicate prevention, conflict handling, and focused success. Only CASH requires the verified current session. Receipt amounts/status are refreshed from the backend after posting; failed refreshes cannot trigger another payment. See [transaction plan and gate evidence](../plans/fe-28-supplier-payment.md).
 - FE-28 review corrections retain the confirmed payment across navigation until a successful receipt refresh and explicit completion, bind recovery to the verified backend username, freeze all confirmed request fields, and bound each payment-related request to 15 seconds. Uncertain attempts survive timeouts and account changes; another account cannot display or replay them. Legacy recovery without an owner remains locked for manual verification. FE-28 remains `REVIEW`.
+- FE-29 expense history and creation are implemented for review: `/expenses` renders paged backend audit records across all sessions; `/expenses/new` accepts decimal amount, one of six backend categories, and the supported description field labelled “Alasan / catatan”. New posting requires a verified open session, confirmation, and a fresh session check. The confirmed `expectedCashSessionId` is sent and persisted with the exact request/key; retries never retarget another session, and old uncertain attempts without a verified session remain locked for manual reconciliation. Account isolation, duplicate prevention, preserved conflict input, matching-session returned-record success, and session refresh are implemented. No edit/delete/void or drawer calculation is included. Status: `REVIEW`; see the [contract evidence and history/create review split](../plans/fe-29-expenses.md).
 
 ### 2.2 Current implemented routes
 
@@ -297,6 +298,23 @@ State ownership should remain explicit:
 - backend responses as the source of truth for domain records and calculations;
 - URL state for shareable filters or selected identifiers when useful.
 
+Expense and supplier-payment consistency alignment (2026-09-11): both API modules
+use the existing default API-object export and centralized endpoint definitions.
+Expense reads accept `(params, config, options)`; creates accept the payload,
+idempotency key, and loader options (plus receipt code for supplier payment).
+Their 15-second timeouts remain enforced. Pure request mapping and validation live
+in domain-specific `src/utils` files; Zustand stores own posting, recovery, and
+server refresh, using shared API error-code constants. Expense history retains
+page-local read state and URL paging because that state is not shared. Existing
+storage keys, persisted payloads, session binding, and backend authority are
+unchanged. FE-28 and FE-29 remain `REVIEW`; review these maintenance changes as
+separate supplier-payment and expense slices when preparing PRs.
+
+Alignment verification: 89 tests across 8 focused API/store/workflow test files
+passed, including duplicate/recovery/session/account and keyboard/focus coverage.
+Repository-wide ESLint and the production build passed; existing Browserslist-data
+and large-bundle warnings remain. No live expense or supplier payment was posted.
+
 ### 8.2 Request lifecycle
 
 Each touched workflow must define:
@@ -422,7 +440,7 @@ The following must be verified or completed before their dependent frontend PRs 
 - Goods-receipt creation is available at `POST /api/goods-receipts` with required `Idempotency-Key`, stable `supplierCode`, `receivedDate` Instant, and decimal item/price/location lines. The service computes totals and posts receipt/movements atomically, replays identical requests, and conflicts on changed same-key payloads. `initialPayment` is optional; FE-26 omits it and renders returned total/paid/outstanding/status. The form requires an explicitly selected UTC offset rather than assuming a fixed store timezone.
 - Goods-receipt read fields are implemented, but the fixed business/store timezone for converting calendar-day filters to the endpoint's `Instant` boundaries remains undefined.
 - Single-receipt payment is available at `POST /api/goods-receipts/{code}/payments` with required `Idempotency-Key`. It serializes identical replay, rejects changed payloads/overpayment, and links only CASH to the globally open session. Its response is the payment record; the existing receipt detail GET supplies updated paid/outstanding/status. CASH paidAt cannot predate session opening. The current payment service and newer V18 migration runbook define reasoned, audit-preserving voids and reject CASH void after the original session closes; reversal UI remains outside FE-28. Historical unresolved-payment text in the main backend domain document still needs editorial alignment with this implementation/supplement.
-- Expense create/list/detail/void contracts.
+- Expense list/create contracts are verified: authenticated `GET /api/expenses` reads all sessions with one-based paging and fixed newest-first ordering, without filters; `POST /api/expenses` requires positive `expectedCashSessionId`, positive decimal `amount`, fixed `category`, optional `description` (required for OTHER), and `Idempotency-Key`. The service atomically records the expense and movement against that specified open session, replays identical requests before session eligibility checks, and conflicts on changed same-key content or session. No key-status lookup exists; FE-29 uses exact-request/key POST recovery with its original session ID and checks the returned session. Old uncertain recovery without the confirmed ID must be manually reconciled; deployment requires all serving backend instances to enforce this contract. Detail/void UI remains outside FE-29.
 - Future post-close correction workflows remain outside Release 1; the implemented supplier-payment rule rejects voiding CASH payments from closed sessions.
 - Dashboard read models required by Release 1.
 

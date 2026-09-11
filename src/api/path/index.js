@@ -74,12 +74,23 @@ const SUPPLIER = {
     outstandingBalance: code => `/api/suppliers/${ encodeURIComponent(code) }/outstanding-balance`
 }
 
+const EXPENSE = {
+    list: '/api/expenses',
+    create: '/api/expenses'
+}
+
+const SUPPLIER_PAYMENT = {
+    create: code => `/api/goods-receipts/${ encodeURIComponent(code) }/payments`
+}
+
 export {
     AUTH,
     ITEM,
     ITEM_CATEGORY,
     SALE,
     GOODS_RECEIPT,
+    EXPENSE,
+    SUPPLIER_PAYMENT,
     STOCK_ADJUSTMENT,
     STOCK_MOVEMENT,
     STOCK_TRANSFER,

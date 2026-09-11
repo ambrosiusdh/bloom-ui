@@ -7,7 +7,10 @@ export const API_DOMAIN_ERROR_CODE = Object.freeze({
     SALE_QRIS_PAYMENT_MISMATCH: 'sale_qris_payment_mismatch',
     CASH_SESSION_CONFLICT: 'cash_session_conflict',
     CHECKOUT_IDEMPOTENCY_CONFLICT: 'checkout_idempotency_conflict',
-    GOODS_RECEIPT_IDEMPOTENCY_CONFLICT: 'goods_receipt_idempotency_conflict'
+    GOODS_RECEIPT_IDEMPOTENCY_CONFLICT: 'goods_receipt_idempotency_conflict',
+    EXPENSE_IDEMPOTENCY_CONFLICT: 'expense_idempotency_conflict',
+    SUPPLIER_PAYMENT_CONFLICT: 'supplier_payment_conflict',
+    SUPPLIER_PAYMENT_IDEMPOTENCY_CONFLICT: 'supplier_payment_idempotency_conflict'
 });
 
 const STRUCTURED_DOMAIN_CODES = new Set([
@@ -17,8 +20,9 @@ const STRUCTURED_DOMAIN_CODES = new Set([
 ]);
 
 const DOMAIN_ERROR_TYPES = Object.freeze({
-    SupplierPaymentConflictException: 'supplier_payment_conflict',
-    SupplierPaymentIdempotencyConflictException: 'supplier_payment_idempotency_conflict',
+    ExpenseIdempotencyConflictException: API_DOMAIN_ERROR_CODE.EXPENSE_IDEMPOTENCY_CONFLICT,
+    SupplierPaymentConflictException: API_DOMAIN_ERROR_CODE.SUPPLIER_PAYMENT_CONFLICT,
+    SupplierPaymentIdempotencyConflictException: API_DOMAIN_ERROR_CODE.SUPPLIER_PAYMENT_IDEMPOTENCY_CONFLICT,
     GoodsReceiptIdempotencyConflictException: API_DOMAIN_ERROR_CODE.GOODS_RECEIPT_IDEMPOTENCY_CONFLICT,
     CashSessionConflictException: API_DOMAIN_ERROR_CODE.CASH_SESSION_CONFLICT,
     CheckoutIdempotencyConflictException: API_DOMAIN_ERROR_CODE.CHECKOUT_IDEMPOTENCY_CONFLICT

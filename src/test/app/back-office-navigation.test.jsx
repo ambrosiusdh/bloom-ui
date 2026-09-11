@@ -81,13 +81,15 @@ describe('back-office navigation', () => {
             '/suppliers',
             '/payables',
             '/sales',
-            '/cash-sessions'
+            '/cash-sessions',
+            '/expenses'
         ]);
         expect(screen.getByRole('link', { name: 'Kasir' })).toHaveAttribute('href', '/cashier');
         expect(screen.getByRole('button', { name: 'Keluar' })).toHaveClass('bg-transparent', 'hover:bg-maroon-700');
         expect(within(navigation).getByRole('link', { name: 'Utang Pemasok' }))
             .toHaveAttribute('href', '/payables');
-        expect(screen.queryByText(/pengeluaran/i)).not.toBeInTheDocument();
+        expect(within(navigation).getByRole('link', { name: 'Pengeluaran' }))
+            .toHaveAttribute('href', '/expenses');
     });
 
     it('marks a destination active throughout its existing child routes', () => {

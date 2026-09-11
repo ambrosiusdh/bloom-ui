@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Roadmap
 
-Last updated: 2026-09-10
+Last updated: 2026-09-11
 
 ## 1. How to use this roadmap
 
@@ -88,7 +88,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-26 | Goods-receipt creation | REVIEW | PLAN_RECOMMENDED | FE-25 | `gpt-5.6-sol`, xhigh |
 | FE-27 | Supplier payable views | REVIEW | DIRECT_IMPLEMENTATION | FE-25 | `gpt-5.6-sol`, high |
 | FE-28 | Single-receipt supplier payment | REVIEW | PLAN_RECOMMENDED | FE-15, FE-27 | `gpt-5.6-sol`, xhigh |
-| FE-29 | Unexpected expense list/create | BLOCKED | BLOCKED | FE-15 | `gpt-5.6-sol`, high |
+| FE-29 | Unexpected expense list/create | REVIEW | PLAN_RECOMMENDED | FE-15 | `gpt-5.6-sol`, high |
 | FE-30 | Unexpected expense void/reversal | BLOCKED | BLOCKED | FE-29 | `gpt-5.6-sol`, high |
 | FE-31 | Release 1 dashboard read models | BLOCKED | BLOCKED | FE-17, FE-22, FE-27, FE-29 | `gpt-5.6-sol`, high |
 
@@ -697,10 +697,10 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-29 — Unexpected expense list/create
 
 - **Domain:** Unexpected expenses.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `PLAN_RECOMMENDED`.
+- **Status:** `REVIEW`.
+- **Execution class:** `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-15.
-- **Backend gate:** Expense list/create endpoints require an open session, define amount/category/reason/note, return posted record, enforce validation/idempotency/conflict, and expose paging/filter semantics.
+- **Backend gate:** Verified: authenticated expense history reads all sessions; creation requires `expectedCashSessionId` from the confirmed open session, decimal amount, fixed category, and optional description (required for OTHER), and returns the posted record. The backend locks that session without substituting another; identical session/content replays even after close. Idempotent conflicts and one-based paging with fixed sort are implemented; no list filters or separate create reason/note fields exist.
 - **User-visible change:** User can review and post an unexpected drawer expense such as snacks, charity, urgent purchase, or owner withdrawal.
 - **Exact scope:** Expense list and create interaction, session gating, confirmation, pending/conflict/success, input preservation, and tests.
 - **Out of scope:** Void/reversal, edit/delete, category administration, reporting, frontend drawer calculation.
@@ -709,6 +709,10 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Validation:** Tests for open/closed session, validation, duplicate/ambiguous submit, success refresh, Rupiah/date, keyboard/focus/responsive; tests/build/lint.
 - **Block condition:** Expense endpoint/session enforcement/idempotency is absent or correction policy would require editing/deleting posted data.
 - **Split trigger:** If list and create exceed size, ship list first, then create; do not combine void behavior.
+
+**Implementation note (2026-09-11):** Backend controller/DTO/service/validation/session/key-lock/database gates verified. Implemented history and create as separate JavaScript pages, with durable same-key recovery, account isolation, confirmation/session preflight, conflict input preservation, returned-record success, session refresh, and focused tests. Prepare history and create as two dependent review diffs to meet the roadmap size limit; no exception is assumed. See [FE-29 contract evidence, transaction behavior, and review split](fe-29-expenses.md). FE-30 remains excluded.
+
+**Session-binding alignment (2026-09-11):** Confirmation now captures and persists the backend-required `expectedCashSessionId`. Replays keep the original session/request/key after rollover, mismatched-session responses remain unresolved, and pre-upgrade uncertain attempts missing the session ID are locked for manual reconciliation. Status remains `REVIEW`.
 
 **Copy-ready implementation prompt**
 
