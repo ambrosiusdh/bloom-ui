@@ -12,6 +12,15 @@ export const EXPENSE_CATEGORIES = {
     OTHER: 'Lainnya'
 };
 
+export const canVoidExpense = record => record?.canVoid === true && record.voidBlockReason === null && record.voided === false;
+export const expenseVoidEligibility = record => canVoidExpense(record) ? 'Dapat dibatalkan menurut server.'
+    : record?.voidBlockReason === 'ALREADY_VOIDED' ? 'Sudah dibatalkan. Catatan audit tetap tersimpan.'
+        : record?.voidBlockReason === 'CASH_SESSION_CLOSED' ? 'Sesi kas sudah ditutup. Pembatalan setelah tutup kas tidak tersedia.'
+            : 'Kelayakan pembatalan belum dapat dipastikan. Muat ulang data.';
+
+export const validateExpenseVoidReason = reason => !reason.trim() ? 'Alasan pembatalan wajib diisi.'
+    : reason.length > 255 ? 'Alasan pembatalan maksimal 255 karakter.' : '';
+
 export const hasExpectedExpenseSession = request => Number.isSafeInteger(request?.expectedCashSessionId)
     && request.expectedCashSessionId > 0;
 

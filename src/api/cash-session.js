@@ -22,6 +22,7 @@ const openSession = (payload, options) => api({
 const getSessionDetails = (sessionId, options) => api({
     url: CASH_SESSION.detail(sessionId),
     method: 'GET',
+    ...(options?.timeout ? { timeout: options.timeout } : {}),
     ...(options?.signal ? { signal: options.signal } : {})
 }, options);
 

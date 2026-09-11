@@ -23,7 +23,23 @@ const createExpense = async (payload, idempotencyKey, options) => {
     }, options);
 };
 
+const getExpense = (expenseId, config, options) => api({
+    ...config,
+    url: EXPENSE.detail(expenseId),
+    method: 'GET',
+    timeout: EXPENSE_TIMEOUT_MS
+}, options);
+
+const voidExpense = (expenseId, payload, options) => api({
+    url: EXPENSE.void(expenseId),
+    method: 'POST',
+    data: payload,
+    timeout: EXPENSE_TIMEOUT_MS
+}, options);
+
 export default {
     getExpenseList,
-    createExpense
+    createExpense,
+    getExpense,
+    voidExpense
 };

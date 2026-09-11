@@ -56,3 +56,11 @@ it('preserves the same payload/key and normalized error when posting with loader
         timeout: 15000
     }, options);
 });
+
+it('reads eligibility and posts only the void reason without inventing a key or version precondition', async () => {
+    const { signal } = new AbortController();
+    await expenseApi.getExpense(29, { signal }, { useLoader: false });
+    expect(requestApi).toHaveBeenLastCalledWith({ url: '/api/expenses/29', method: 'GET', signal, timeout: 15000 }, { useLoader: false });
+    await expenseApi.voidExpense(29, { reason: 'Duplikat' });
+    expect(requestApi).toHaveBeenLastCalledWith({ url: '/api/expenses/29/void', method: 'POST', data: { reason: 'Duplikat' }, timeout: 15000 }, undefined);
+});

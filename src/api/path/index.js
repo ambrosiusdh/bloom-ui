@@ -76,7 +76,9 @@ const SUPPLIER = {
 
 const EXPENSE = {
     list: '/api/expenses',
-    create: '/api/expenses'
+    create: '/api/expenses',
+    detail: expenseId => `/api/expenses/${ expenseId }`,
+    void: expenseId => `/api/expenses/${ expenseId }/void`
 }
 
 const SUPPLIER_PAYMENT = {

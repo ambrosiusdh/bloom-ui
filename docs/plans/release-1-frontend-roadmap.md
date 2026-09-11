@@ -89,7 +89,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-27 | Supplier payable views | REVIEW | DIRECT_IMPLEMENTATION | FE-25 | `gpt-5.6-sol`, high |
 | FE-28 | Single-receipt supplier payment | REVIEW | PLAN_RECOMMENDED | FE-15, FE-27 | `gpt-5.6-sol`, xhigh |
 | FE-29 | Unexpected expense list/create | REVIEW | PLAN_RECOMMENDED | FE-15 | `gpt-5.6-sol`, high |
-| FE-30 | Unexpected expense void/reversal | BLOCKED | BLOCKED | FE-29 | `gpt-5.6-sol`, high |
+| FE-30 | Unexpected expense void/reversal | REVIEW | PLAN_RECOMMENDED | FE-29 | `gpt-5.6-sol`, high |
 | FE-31 | Release 1 dashboard read models | BLOCKED | BLOCKED | FE-17, FE-22, FE-27, FE-29 | `gpt-5.6-sol`, high |
 
 `PLANNED` means the PR can be scheduled in dependency order after the required fresh inspection. It does not mean the existing screen is complete or that an unfinished dependency can be skipped.
@@ -721,8 +721,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-30 — Unexpected expense void/reversal
 
 - **Domain:** Expense correction.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `PLAN_RECOMMENDED`.
+- **Status:** `REVIEW`.
+- **Execution class:** `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-29.
 - **Backend gate:** Void/reversal endpoint, eligibility, reason, audit result, drawer/session and post-close correction policy, idempotency/conflict behavior are defined and implemented.
 - **User-visible change:** Eligible posted expenses can be corrected through an auditable void/reversal, never deletion.
@@ -733,6 +733,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Validation:** Tests for eligible/ineligible/already-voided/post-close/conflict/duplicate submit, focus/confirmation, tests/build/lint.
 - **Block condition:** Post-close correction or reversal/drawer semantics remain undecided.
 - **Split trigger:** If post-close correction becomes a separate workflow, keep this PR to the exact supported policy and roadmap the extra domain behavior separately.
+
+**Implementation note (2026-09-11):** Backend gate cleared: `ExpenseResponse` and its mapper now return `canVoid` and typed `voidBlockReason`, with matching backend documentation and tests. Implemented expense-history eligibility, fresh-detail reasoned confirmation, durable same-expense/reason recovery, duplicate guards, stale/already-voided/post-close handling, stored audit rendering, and backend expense/original-session refresh. Resource-level idempotency is preserved; no new key or version precondition is invented. Full frontend suite: 57 files / 341 tests passed; build and touched-file lint passed. See [contract evidence, interaction, and verification limits](fe-30-expense-reversal.md).
 
 **Copy-ready implementation prompt**
 
