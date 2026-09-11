@@ -721,8 +721,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-30 — Unexpected expense void/reversal
 
 - **Domain:** Expense correction.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `PLAN_RECOMMENDED`.
+- **Status:** `BLOCKED` for merge; frontend implementation and review fixes are present.
+- **Execution class:** `BLOCKED` on authenticated recovery identity.
 - **Dependencies:** FE-29.
 - **Backend gate:** Void/reversal endpoint, eligibility, reason, audit result, drawer/session and post-close correction policy, idempotency/conflict behavior are defined and implemented.
 - **User-visible change:** Eligible posted expenses can be corrected through an auditable void/reversal, never deletion.
@@ -732,11 +732,16 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Expected output:** Expense history preserves original and reversal state with backend-confirmed drawer consequences.
 - **Validation:** Tests for eligible/ineligible/already-voided/post-close/conflict/duplicate submit, focus/confirmation, tests/build/lint.
 - **Block condition:** Post-close correction or reversal/drawer semantics remain undecided.
+- **Additional verified blocker:** Authentication exposes only username/name/role, and backend user deletion/recreation permits username reuse. Durable recovery needs an implemented immutable account-identity contract and frontend migration that locks legacy username-only attempts.
 - **Split trigger:** If post-close correction becomes a separate workflow, keep this PR to the exact supported policy and roadmap the extra domain behavior separately.
+
+**Implementation note (2026-09-11):** Backend gate cleared: `ExpenseResponse` and its mapper now return `canVoid` and typed `voidBlockReason`, with matching backend documentation and tests. Implemented expense-history eligibility, fresh-detail reasoned confirmation, durable same-expense/reason recovery, duplicate guards, stale/already-voided/post-close handling, stored audit rendering, and backend expense/original-session refresh. Resource-level idempotency is preserved; no new key or version precondition is invented. Full frontend suite: 57 files / 341 tests passed; build and touched-file lint passed. See [contract evidence, interaction, and verification limits](fe-30-expense-reversal.md).
 
 **Copy-ready implementation prompt**
 
 > Implement FE-30 only after expense reversal eligibility, reason, audit result, idempotency, drawer impact, and post-close correction policy are implemented in the backend. Add only the JavaScript void/reversal interaction to the expense workflow: show eligibility, require a reasoned accessible confirmation, prevent duplicates, handle stale/already-voided/post-close conflicts, and render/refresh backend-confirmed results. Add focused tests. Never delete or silently edit a posted expense and do not touch sale or supplier-payment corrections.
+
+**Review follow-up:** History now invalidates only for changed backend state or confirmed posting; recovery compares original facts with exact decimal normalization, preserves confirmed audit against stale reads, and retains the deliberate per-tab lock. Formatting and focused regressions are expanded. The supplied replacement history's unsupported search was rejected. Merge remains blocked on the verified authentication identity gap; see [review disposition and backend prerequisite](fe-30-expense-reversal.md#review-disposition-and-remaining-backend-prerequisite).
 
 ### FE-31 — Release 1 dashboard read models
 

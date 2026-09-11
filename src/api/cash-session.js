@@ -19,11 +19,16 @@ const openSession = (payload, options) => api({
     data: payload?.data
 }, options);
 
-const getSessionDetails = (sessionId, options) => api({
-    url: CASH_SESSION.detail(sessionId),
-    method: 'GET',
-    ...(options?.signal ? { signal: options.signal } : {})
-}, options);
+const getSessionDetails = (sessionId, configOrOptions, options) => {
+    const { useLoader, timeout, signal } = configOrOptions || {};
+
+    return api({
+        url: CASH_SESSION.detail(sessionId),
+        method: 'GET',
+        ...(timeout ? { timeout } : {}),
+        ...(signal ? { signal } : {})
+    }, options ?? (useLoader === undefined ? undefined : { useLoader }));
+};
 
 const getExpectedCash = (sessionId, options) => api({
     url: CASH_SESSION.expectedCash(sessionId),

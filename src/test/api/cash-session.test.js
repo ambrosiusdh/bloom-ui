@@ -14,7 +14,11 @@ describe('cash session API', () => {
 
     it('gets paginated cash-session history with supported filters', async () => {
         const payload = {
-            params: { page: 2, size: 20, status: 'CLOSED' },
+            params: {
+                page: 2,
+                size: 20,
+                status: 'CLOSED'
+            },
             signal: new AbortController().signal
         };
 
@@ -50,7 +54,11 @@ describe('cash session API', () => {
 
     it('forwards the supplier-payment session verification deadline', async () => {
         await cashSessionApi.getCurrentSession({ timeout: 15000 });
-        expect(apiRequest).toHaveBeenCalledWith({ url: '/api/cash-sessions/current', method: 'GET', timeout: 15000 }, { timeout: 15000 });
+        expect(apiRequest).toHaveBeenCalledWith({
+            url: '/api/cash-sessions/current',
+            method: 'GET',
+            timeout: 15000
+        }, { timeout: 15000 });
     });
 
     it('gets the server reconciliation preview for one session', async () => {
@@ -84,6 +92,27 @@ describe('cash session API', () => {
             url: '/api/cash-sessions/17',
             method: 'GET',
             signal: options.signal
-        }, options);
+        }, undefined);
+    });
+
+    it('separates session-detail HTTP configuration from legacy and explicit loader options', async () => {
+        const signal = new AbortController().signal;
+        const config = {
+            signal,
+            timeout: 15000,
+            useLoader: true
+        };
+        const request = {
+            url: '/api/cash-sessions/15',
+            method: 'GET',
+            signal,
+            timeout: 15000
+        };
+
+        await cashSessionApi.getSessionDetails(15, config);
+        expect(apiRequest).toHaveBeenLastCalledWith(request, { useLoader: true });
+
+        await cashSessionApi.getSessionDetails(15, config, { useLoader: false });
+        expect(apiRequest).toHaveBeenLastCalledWith(request, { useLoader: false });
     });
 });
