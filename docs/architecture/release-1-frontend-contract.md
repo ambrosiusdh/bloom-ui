@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Contract
 
-Last updated: 2026-09-11
+Last updated: 2026-09-12
 
 ## 1. Purpose
 
@@ -53,10 +53,11 @@ Bloom UI is currently a JavaScript React application:
 Release 1 work must preserve this baseline unless a narrowly scoped PR proves that a dependency change is necessary for its immediate domain. TypeScript migration, TanStack Query adoption, global store replacement, router restructuring, and a global design-system rewrite are not Release 1 prerequisites.
 
 - FE-26 goods-receipt creation is implemented for review: stable supplier code/item SKU, decimal-string UOM-aware quantities and purchase prices, explicit per-line location and received time/UTC offset, one confirmed idempotent atomic POST, tab-persisted draft/recovery, and server-confirmed receipt/payment results. Optional initial payment is omitted. Shared `BloomQuantityField` mechanics are used by receipt entry and the FE-18 cashier wrapper; workflow validation and FE-13 direction/zero rules remain local.
-- FE-27 supplier payable views are implemented for review: `/payables` pages the backend goods-receipt read model and renders its receipt/payment statuses and financial values directly; supplier detail reads exactly one backend aggregate for that supplier. The workflow links supplier and receipt detail without per-row enrichment or browser-side debt aggregation. It intentionally omits a payment-status filter because the backend does not expose one, and omits calendar date filtering so it does not expand FE-25's unresolved store-timezone boundary.
+- FE-27 supplier payable views are implemented: `/payables` pages the backend goods-receipt read model and renders its receipt/payment statuses and financial values directly; supplier detail reads exactly one backend aggregate for that supplier. The workflow links supplier and receipt detail without per-row enrichment or browser-side debt aggregation. It intentionally omits a payment-status filter because the backend does not expose one, and omits calendar date filtering so it does not expand FE-25's unresolved store-timezone boundary.
 - FE-28 single-receipt supplier payment is implemented for review: receipt detail accepts partial/full CASH, BANK_TRANSFER, or QRIS payments with confirmation, durable same-request/key recovery, duplicate prevention, conflict handling, and focused success. Only CASH requires the verified current session. Receipt amounts/status are refreshed from the backend after posting; failed refreshes cannot trigger another payment. See [transaction plan and gate evidence](../plans/fe-28-supplier-payment.md).
 - FE-28 review corrections retain the confirmed payment across navigation until a successful receipt refresh and explicit completion, bind recovery to the verified backend username, freeze all confirmed request fields, and bound each payment-related request to 15 seconds. Uncertain attempts survive timeouts and account changes; another account cannot display or replay them. Legacy recovery without an owner remains locked for manual verification. FE-28 remains `REVIEW`.
-- FE-29 expense history and creation are implemented for review: `/expenses` renders paged backend audit records across all sessions; `/expenses/new` accepts decimal amount, one of six backend categories, and the supported description field labelled “Alasan / catatan”. New posting requires a verified open session, confirmation, and a fresh session check. The confirmed `expectedCashSessionId` is sent and persisted with the exact request/key; retries never retarget another session, and old uncertain attempts without a verified session remain locked for manual reconciliation. Account isolation, duplicate prevention, preserved conflict input, matching-session returned-record success, and session refresh are implemented. No edit/delete/void or drawer calculation is included. Status: `REVIEW`; see the [contract evidence and history/create review split](../plans/fe-29-expenses.md).
+- FE-29 expense history and creation are implemented: `/expenses` renders paged backend audit records across all sessions; `/expenses/new` accepts decimal amount, one of six backend categories, and the supported description field labelled “Alasan / catatan”. New posting requires a verified open session, confirmation, and a fresh session check. The confirmed `expectedCashSessionId` is sent and persisted with the exact request/key; retries never retarget another session, and old uncertain attempts without a verified session remain locked for manual reconciliation. Account isolation, duplicate prevention, preserved conflict input, matching-session returned-record success, and session refresh are implemented. No edit/delete/void or drawer calculation is included; see the [contract evidence and history/create review split](../plans/fe-29-expenses.md).
+- FE-31 Release 1 operational dashboard is implemented: one backend operational-overview request supplies today's persisted sales, the current cash-session summary and active expense count/amount, and supplier payables. The screen distinguishes zero metrics from no open session, derives staleness from backend `freshUntil`, preserves last-successful data on refresh failure, formats values in Indonesian, and maps only approved semantic drill-downs to completed routes. No profitability claim, reporting suite, legacy chart, or cross-endpoint frontend aggregation is included; see the [widget and request plan](../plans/fe-31-dashboard.md).
 
 ### 2.2 Current implemented routes
 
@@ -307,8 +308,8 @@ in domain-specific `src/utils` files; Zustand stores own posting, recovery, and
 server refresh, using shared API error-code constants. Expense history retains
 page-local read state and URL paging because that state is not shared. Existing
 storage keys, persisted payloads, session binding, and backend authority are
-unchanged. FE-28 and FE-29 remain `REVIEW`; review these maintenance changes as
-separate supplier-payment and expense slices when preparing PRs.
+unchanged. FE-28 remains `REVIEW`; FE-29 later completed review and merged as a
+separate expense slice.
 
 Alignment verification: 89 tests across 8 focused API/store/workflow test files
 passed, including duplicate/recovery/session/account and keyboard/focus coverage.

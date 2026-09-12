@@ -5,7 +5,7 @@ import useDashboardStore from '@stores/modules/dashboard.js';
 
 vi.mock('@api/dashboard.js', () => ({
     default: {
-        getDashboardOverview: vi.fn()
+        getOperationalOverview: vi.fn()
     }
 }));
 
@@ -45,9 +45,9 @@ describe('dashboard store', () => {
 
     it('exposes loading and stores only the backend overview response', async () => {
         const request = deferred();
-        dashboardApi.getDashboardOverview.mockReturnValue(request.promise);
+        dashboardApi.getOperationalOverview.mockReturnValue(request.promise);
 
-        const resultPromise = useDashboardStore.getState().getDashboardOverview();
+        const resultPromise = useDashboardStore.getState().getOperationalOverview();
 
         expect(useDashboardStore.getState()).toMatchObject({
             dashboardData: null,
@@ -74,10 +74,10 @@ describe('dashboard store', () => {
             dashboardData: overview,
             lastSuccessfulAt: 1234
         });
-        dashboardApi.getDashboardOverview.mockRejectedValue(refreshError);
+        dashboardApi.getOperationalOverview.mockRejectedValue(refreshError);
 
         await expect(
-            useDashboardStore.getState().getDashboardOverview()
+            useDashboardStore.getState().getOperationalOverview()
         ).rejects.toBe(refreshError);
 
         expect(useDashboardStore.getState()).toMatchObject({
@@ -91,12 +91,12 @@ describe('dashboard store', () => {
     it('does not let an older request overwrite a newer response', async () => {
         const olderRequest = deferred();
         const newerRequest = deferred();
-        dashboardApi.getDashboardOverview
+        dashboardApi.getOperationalOverview
             .mockReturnValueOnce(olderRequest.promise)
             .mockReturnValueOnce(newerRequest.promise);
 
-        const olderResult = useDashboardStore.getState().getDashboardOverview();
-        const newerResult = useDashboardStore.getState().getDashboardOverview();
+        const olderResult = useDashboardStore.getState().getOperationalOverview();
+        const newerResult = useDashboardStore.getState().getOperationalOverview();
 
         newerRequest.resolve({ data: { data: newerOverview } });
         await expect(newerResult).resolves.toEqual({ data: newerOverview });
@@ -115,12 +115,12 @@ describe('dashboard store', () => {
 
     it('does not let an older failure replace a newer successful state', async () => {
         const olderRequest = deferred();
-        dashboardApi.getDashboardOverview
+        dashboardApi.getOperationalOverview
             .mockReturnValueOnce(olderRequest.promise)
             .mockResolvedValueOnce({ data: { data: newerOverview } });
 
-        const olderResult = useDashboardStore.getState().getDashboardOverview();
-        await useDashboardStore.getState().getDashboardOverview();
+        const olderResult = useDashboardStore.getState().getOperationalOverview();
+        await useDashboardStore.getState().getOperationalOverview();
         olderRequest.reject(new Error('Permintaan lama gagal'));
         await expect(olderResult).rejects.toThrow('Permintaan lama gagal');
 

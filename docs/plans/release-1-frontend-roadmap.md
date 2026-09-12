@@ -86,11 +86,11 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-24 | Supplier create/edit/deactivate | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-23 | `gpt-5.6-terra`, high |
 | FE-25 | Goods-receipt list and detail | BLOCKED | BLOCKED | FE-09, FE-23 | `gpt-5.6-sol`, high |
 | FE-26 | Goods-receipt creation | REVIEW | PLAN_RECOMMENDED | FE-25 | `gpt-5.6-sol`, xhigh |
-| FE-27 | Supplier payable views | REVIEW | DIRECT_IMPLEMENTATION | FE-25 | `gpt-5.6-sol`, high |
+| FE-27 | Supplier payable views | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-25 | `gpt-5.6-sol`, high |
 | FE-28 | Single-receipt supplier payment | REVIEW | PLAN_RECOMMENDED | FE-15, FE-27 | `gpt-5.6-sol`, xhigh |
-| FE-29 | Unexpected expense list/create | REVIEW | PLAN_RECOMMENDED | FE-15 | `gpt-5.6-sol`, high |
+| FE-29 | Unexpected expense list/create | IMPLEMENTED | PLAN_RECOMMENDED | FE-15 | `gpt-5.6-sol`, high |
 | FE-30 | Unexpected expense void/reversal | BLOCKED | BLOCKED | FE-29 | `gpt-5.6-sol`, high |
-| FE-31 | Release 1 dashboard read models | BLOCKED | BLOCKED | FE-17, FE-22, FE-27, FE-29 | `gpt-5.6-sol`, high |
+| FE-31 | Release 1 dashboard read models | IMPLEMENTED | PLAN_RECOMMENDED | FE-17, FE-22, FE-27, FE-29 | `gpt-5.6-sol`, high |
 
 `PLANNED` means the PR can be scheduled in dependency order after the required fresh inspection. It does not mean the existing screen is complete or that an unfinished dependency can be skipped.
 
@@ -653,7 +653,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-27 — Supplier payable views
 
 - **Domain:** Supplier debt/accounts payable read model.
-- **Status:** `REVIEW`.
+- **Status:** `IMPLEMENTED`.
 - **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-25.
 - **Backend gate:** Payable summary and receipt-level outstanding read endpoints expose server-calculated amounts, status, supplier/receipt references, dates, paging/filter semantics.
@@ -697,7 +697,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-29 — Unexpected expense list/create
 
 - **Domain:** Unexpected expenses.
-- **Status:** `REVIEW`.
+- **Status:** `IMPLEMENTED`.
 - **Execution class:** `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-15.
 - **Backend gate:** Verified: authenticated expense history reads all sessions; creation requires `expectedCashSessionId` from the confirmed open session, decimal amount, fixed category, and optional description (required for OTHER), and returns the posted record. The backend locks that session without substituting another; identical session/content replays even after close. Idempotent conflicts and one-based paging with fixed sort are implemented; no list filters or separate create reason/note fields exist.
@@ -712,7 +712,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 
 **Implementation note (2026-09-11):** Backend controller/DTO/service/validation/session/key-lock/database gates verified. Implemented history and create as separate JavaScript pages, with durable same-key recovery, account isolation, confirmation/session preflight, conflict input preservation, returned-record success, session refresh, and focused tests. Prepare history and create as two dependent review diffs to meet the roadmap size limit; no exception is assumed. See [FE-29 contract evidence, transaction behavior, and review split](fe-29-expenses.md). FE-30 remains excluded.
 
-**Session-binding alignment (2026-09-11):** Confirmation now captures and persists the backend-required `expectedCashSessionId`. Replays keep the original session/request/key after rollover, mismatched-session responses remain unresolved, and pre-upgrade uncertain attempts missing the session ID are locked for manual reconciliation. Status remains `REVIEW`.
+**Session-binding alignment (2026-09-11):** Confirmation now captures and persists the backend-required `expectedCashSessionId`. Replays keep the original session/request/key after rollover, mismatched-session responses remain unresolved, and pre-upgrade uncertain attempts missing the session ID are locked for manual reconciliation. Review subsequently completed and FE-29 is `IMPLEMENTED`.
 
 **Copy-ready implementation prompt**
 
@@ -746,8 +746,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-31 — Release 1 dashboard read models
 
 - **Domain:** Release 1 operational dashboard.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `PLAN_RECOMMENDED`.
+- **Status:** `IMPLEMENTED`.
+- **Execution class:** `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-17, FE-22, FE-27, FE-29.
 - **Backend gate:** Explicit dashboard read model(s) return the approved operational metrics with definitions, freshness, authorization, and drill-down references.
 - **User-visible change:** Back-office users see approved Release 1 operational summaries and can navigate to relevant domain records.
@@ -758,6 +758,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Validation:** Contract/component tests for zero/error/stale values and drill-down links, Indonesian formatting, accessibility/responsive checks, tests/build/lint.
 - **Block condition:** Metric definitions or backend read models are missing, or required drill-down domains are incomplete.
 - **Split trigger:** More than two or three independent widgets are approved at once; deliver each metric group as a separate dashboard-domain PR.
+
+**Implementation note (2026-09-12):** The backend gate is satisfied by authenticated `GET /api/dashboard/operational-overview`, with explicit Jakarta business-day and freshness metadata, semantic drill-down references, fixed-query server aggregates, and documented zero/no-session behavior. The frontend now requests that read model once and renders exactly three responsive widget groups: sales today, current cash-session operations, and supplier payables. It retains server-confirmed data across refresh failures, labels it stale from `freshUntil`, maps only recognized destinations to completed routes, and omits the legacy revenue/category/stock widgets from the Release 1 view. See [widget, state, and verification plan](fe-31-dashboard.md).
 
 **Copy-ready implementation prompt**
 
