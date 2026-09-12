@@ -1,6 +1,6 @@
 # FE-28 — One-receipt payment transaction
 
-Status: `BLOCKED` for production approval on immutable recovery account identity. Transaction implementation, review corrections, and merge are present.
+Status: `IMPLEMENTED`. Transaction behavior, review corrections, and immutable recovery-account identity migration are present.
 
 2026-09-10. Scope: payment entry on receipt detail; no allocation, prepayment,
 credit, reversal UI, or browser balance arithmetic.
@@ -54,21 +54,22 @@ Each POST, receipt refresh, and payment-triggered current-session read uses a
 ApiError without a response status, so timeout follows the existing uncertain
 branch and preserves the exact key/request; it is not treated as rollback.
 
-Recovery ownership currently uses the backend `/api/auth/current` username (the
-current response exposes no user ID). The same verified username may resume after login.
-Another account cannot render/edit/replay/acknowledge the retained workflow;
-late responses retain the original owner and cannot update another account's receipt view.
+Recovery ownership uses the backend `/api/auth/current` immutable `accountId`.
+The same exact account ID may resume after login even if profile text changes.
+Another account—including a recreated account with the same username—cannot
+render/edit/replay/acknowledge the retained workflow; late responses retain the
+original owner ID and cannot update another account's receipt view.
 An unsubmitted draft may be reset on account change. Unresolved attempts are never
-deleted for logout or a different login. Legacy ownerless attempts/results remain
-quarantined for manual backend verification rather than guessed ownership. This
+deleted for logout or a different login. Legacy ownerless or username-only attempts/results
+remain quarantined for manual backend verification rather than guessed ownership. This
 is a UI recovery boundary, not a replacement for backend authorization or browser
 profile isolation. Separate tabs can still intentionally submit separate keys;
 tab-scoped storage does not deduplicate independent partial payments.
 
-The username comparison does not protect against deletion and later recreation of
-the same username. Production approval requires a stable, non-recycled account
-identifier in `/api/auth/current`, then an FE-28-only migration that binds new
-recovery to it and leaves username-only/ownerless recovery quarantined.
+The shared authentication prerequisite and FE-28-only migration were completed on
+2026-09-13. Login/current return the generated user primary key as string `accountId`;
+legacy sessions missing it are rejected. Tests cover same-username account recreation,
+legacy quarantine, valid same-ID recovery, and late-response isolation.
 
 ## Review disposition
 
@@ -110,7 +111,8 @@ overpay/session conflict, durable ambiguous recovery, voided replay, and read fa
 - Review follow-up browser checks at 1366×900 and 390×844 verify wrapped long
   confirmation notes, full-payment completion, and hidden/blocked retained
   payment details when switching from the original account to another account.
-- No live backend payment was posted and no backend code was modified. Temporary
+- No live backend payment was posted. Temporary
   fixture/report files are removed after verification. Transaction review is
-  complete; production approval remains blocked on immutable recovery identity,
-  and backend historical contract wording remains explicitly documented above.
+  complete. The 2026-09-13 identity gate passed in the shared 5-file / 91-test
+  recovery regression run; the full frontend suite then passed 64 files / 384 tests,
+  followed by the production build and touched-file lint.

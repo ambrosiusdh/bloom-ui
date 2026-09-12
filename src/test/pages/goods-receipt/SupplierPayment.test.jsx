@@ -21,8 +21,12 @@ const receipt = { code: 'GR-28', supplierName: 'Pemasok Satu', status: 'POSTED',
     totalAmount: '100', paidAmount: '0', outstandingAmount: '100' };
 const response = data => ({ data: { data } });
 const intent = () => {
-    const { code, owner, draft } = paymentStore.getState();
-    return { code, owner, request: paymentRequest(draft, '2026-09-10T02:00:00Z') };
+    const { code, ownerAccountId, draft } = paymentStore.getState();
+    return {
+        code,
+        ownerAccountId,
+        request: paymentRequest(draft, '2026-09-10T02:00:00Z')
+    };
 };
 const success = async (code, request, key) => response({ id: 28, receiptCode: code, idempotencyKey: key,
     amount: request.amount, paymentMethod: request.paymentMethod, cashSessionId: request.paymentMethod === 'CASH' ? 15 : null, voided: false });
@@ -45,7 +49,13 @@ describe('FE-28 receipt payment', () => {
         vi.resetAllMocks();
         sessionStorage.clear();
         paymentStore.setState(paymentStore.getInitialState());
-        authStore.setState({ authStatus: 'authenticated', currentUser: { username: 'cashier-a' } });
+        authStore.setState({
+            authStatus: 'authenticated',
+            currentUser: {
+                accountId: '101',
+                username: 'cashier-a'
+            }
+        });
         cashStore.setState(cashStore.getInitialState());
         receiptStore.setState({ goodsReceiptDetails: receipt });
         receiptApi.getGoodsReceiptDetails.mockResolvedValue(response({ ...receipt, paidAmount: '35', outstandingAmount: '65', paymentStatus: 'PARTIALLY_PAID' }));
@@ -276,7 +286,13 @@ describe('FE-28 receipt payment', () => {
         const attempt = store().attempt;
         authStore.setState({ authStatus: 'checking' });
         await store().submit();
-        authStore.setState({ authStatus: 'authenticated', currentUser: { username: 'cashier-b' } });
+        authStore.setState({
+            authStatus: 'authenticated',
+            currentUser: {
+                accountId: '202',
+                username: 'cashier-a'
+            }
+        });
         render(<Workflow />);
         expect(screen.getByText(/dikunci untuk akun asal/)).toBeInTheDocument();
         expect(screen.queryByText(attempt.key)).not.toBeInTheDocument();
@@ -285,7 +301,12 @@ describe('FE-28 receipt payment', () => {
         expect(supplierPaymentApi.createSupplierPayment).toHaveBeenCalledTimes(1);
         expect(receiptApi.getGoodsReceiptDetails).not.toHaveBeenCalled();
         expect(store().attempt).toEqual(attempt);
-        await act(() => authStore.setState({ currentUser: { username: 'cashier-a' } }));
+        await act(() => authStore.setState({
+            currentUser: {
+                accountId: '101',
+                username: 'cashier-a'
+            }
+        }));
         await act(() => paymentStore.persist.rehydrate());
         const user = userEvent.setup();
         await user.click(screen.getByRole('button', { name: 'Pulihkan pembayaran yang sama' }));
@@ -299,19 +320,44 @@ describe('FE-28 receipt payment', () => {
         let resolve;
         supplierPaymentApi.createSupplierPayment.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
         const posting = store().submit(intent());
-        authStore.setState({ currentUser: { username: 'cashier-b' } });
+        authStore.setState({
+            currentUser: {
+                accountId: '202',
+                username: 'cashier-a'
+            }
+        });
         resolve(await success(...supplierPaymentApi.createSupplierPayment.mock.calls[0])); await posting;
-        expect(store()).toMatchObject({ owner: 'cashier-a', result: { id: 28 }, refreshStatus: 'idle' });
+        expect(store()).toMatchObject({
+            ownerAccountId: '101',
+            result: { id: 28 },
+            refreshStatus: 'idle'
+        });
         expect(receiptApi.getGoodsReceiptDetails).not.toHaveBeenCalled();
         render(<Workflow />);
         expect(screen.queryByText(/Pembayaran tercatat/)).not.toBeInTheDocument();
-        await act(() => authStore.setState({ currentUser: { username: 'cashier-a' } }));
+        await act(() => authStore.setState({
+            currentUser: {
+                accountId: '101',
+                username: 'cashier-a'
+            }
+        }));
         await screen.findByText(/Pembayaran tercatat/);
         await waitFor(() => expect(store().refreshStatus).toBe('ready'));
     });
 
-    it('quarantines legacy ownerless recovery rather than assigning it to the next login', async () => {
-        paymentStore.setState({ code: 'LEGACY', attempt: { code: 'LEGACY', key: 'legacy-key', request: {} } });
+    it.each([
+        ['ownerless', {}],
+        ['username-only', { owner: 'cashier-a' }]
+    ])('quarantines %s legacy recovery rather than assigning it to the next login', async (_, legacyOwner) => {
+        paymentStore.setState({
+            ...legacyOwner,
+            code: 'LEGACY',
+            attempt: {
+                code: 'LEGACY',
+                key: 'legacy-key',
+                request: {}
+            }
+        });
         render(<Workflow />);
         expect(screen.getByText(/Pemulihan lama belum memiliki identitas akun/)).toBeInTheDocument();
         await act(() => paymentStore.getState().submit());

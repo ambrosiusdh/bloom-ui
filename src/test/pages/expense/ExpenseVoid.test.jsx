@@ -88,7 +88,10 @@ beforeEach(() => {
     cashStore.setState(cashStore.getInitialState());
     authStore.setState({
         authStatus: 'authenticated',
-        currentUser: { username: 'cashier' }
+        currentUser: {
+            accountId: '101',
+            username: 'cashier'
+        }
     });
     expenseApi.getExpenseList.mockResolvedValue(response({
         content: [row],
@@ -295,12 +298,36 @@ it('blocks another account from displaying or replaying an unresolved attempt', 
     expenseApi.voidExpense.mockRejectedValue(new Error('offline'));
     expenseApi.getExpense.mockRejectedValue(new Error('offline'));
     await store.getState().submit();
-    authStore.setState({ currentUser: { username: 'another' } });
+    authStore.setState({
+        currentUser: {
+            accountId: '202',
+            username: 'cashier'
+        }
+    });
     render(<ExpenseHistory />);
-    expect(screen.getByText(/dikunci untuk akun asal/)).toBeInTheDocument();
+    expect(screen.getByText(/dikunci untuk identitas akun asal/)).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await store.getState().submit();
     expect(expenseApi.voidExpense).toHaveBeenCalledTimes(1);
+});
+
+it('quarantines username-only reversal recovery without displaying or replaying it', async () => {
+    store.setState({
+        owner: 'cashier',
+        ownerAccountId: null,
+        record: row,
+        reason: 'Legacy reason',
+        attempt: 'Legacy reason',
+        open: true,
+        outcome: 'uncertain'
+    });
+
+    render(<ExpenseHistory />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('identitas akun tetap');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await store.getState().submit();
+    expect(expenseApi.voidExpense).not.toHaveBeenCalled();
 });
 
 it('blocks sending if recovery cannot be saved and handles detail read failures without mutation', async () => {
@@ -420,7 +447,12 @@ it('preserves an unresolved attempt across owner changes and rehydration without
     sessionStorage.setItem('bloom-expense-void-v1', persisted);
     await store.persist.rehydrate();
 
-    authStore.setState({ currentUser: { username: 'another' } });
+    authStore.setState({
+        currentUser: {
+            accountId: '202',
+            username: 'cashier'
+        }
+    });
     render(<ExpenseHistory />);
     expect(await screen.findByRole('button', { name: 'Batalkan pengeluaran #29' })).toBeDisabled();
     await store.getState().begin({
@@ -432,7 +464,12 @@ it('preserves an unresolved attempt across owner changes and rehydration without
     expect(expenseApi.voidExpense).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-        authStore.setState({ currentUser: { username: 'cashier' } });
+        authStore.setState({
+            currentUser: {
+                accountId: '101',
+                username: 'cashier'
+            }
+        });
     });
     await waitFor(() => expect(store.getState().pending).toBe(false));
     expenseApi.voidExpense.mockResolvedValue(response(voided));

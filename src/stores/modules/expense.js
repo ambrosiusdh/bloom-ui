@@ -15,8 +15,8 @@ import {
 } from '@utils/expense-utils.js';
 
 const STORAGE_KEY = 'bloom-expense-v1';
-const createExpenseState = (owner = null) => ({
-    owner,
+const createExpenseState = (ownerAccountId = null) => ({
+    ownerAccountId,
     draft: { amount: '', category: 'STORE_OPERATIONAL', description: '' },
     attempt: null,
     result: null,
@@ -24,12 +24,20 @@ const createExpenseState = (owner = null) => ({
     outcome: 'editing'
 });
 
-const currentOwner = () => {
+const currentAccountId = () => {
     const auth = useAuthStore.getState();
-    return auth.authStatus === 'authenticated' ? auth.currentUser?.username : null;
+    return auth.authStatus === 'authenticated' ? auth.currentUser?.accountId : null;
 };
-export const canUseExpense = state => !!currentOwner() && state.owner === currentOwner();
+export const canUseExpense = state => !!currentAccountId()
+    && state.ownerAccountId === currentAccountId();
 export const isExpenseLocked = state => state.pending || !!state.attempt || !!state.result;
+const isFreshExpenseState = state => !state.ownerAccountId
+    && !state.attempt
+    && !state.result
+    && state.outcome === 'editing'
+    && !state.draft.amount
+    && state.draft.category === 'STORE_OPERATIONAL'
+    && !state.draft.description;
 export const hasExpenseSession = () => {
     const cash = useCashSessionStore.getState();
     return cash.currentStatus === 'ready' && cash.drawerActionsEnabled
@@ -63,8 +71,9 @@ const refreshSession = () => useCashSessionStore.getState().getCurrentSession({ 
 const useExpenseStore = create(persist((set, get) => ({
     ...createExpenseState(),
     select: () => {
-        if (currentOwner() && !isExpenseLocked(get()) && !canUseExpense(get())) {
-            set(createExpenseState(currentOwner()));
+        const accountId = currentAccountId();
+        if (accountId && !isExpenseLocked(get()) && isFreshExpenseState(get())) {
+            set(createExpenseState(accountId));
         }
     },
 
@@ -76,7 +85,7 @@ const useExpenseStore = create(persist((set, get) => ({
 
     next: () => {
         if (canUseExpense(get()) && get().result && !get().pending) {
-            set(createExpenseState(get().owner));
+            set(createExpenseState(get().ownerAccountId));
         }
     },
 
@@ -85,13 +94,13 @@ const useExpenseStore = create(persist((set, get) => ({
             return;
         }
         const replay = !!get().attempt;
-        const { owner } = get();
+        const { ownerAccountId } = get();
         // Never infer missing historical session intent from today's open session.
         if (replay && !hasExpectedExpenseSession(get().attempt.request)) {
             set({ outcome: 'unboundSession' });
             return;
         }
-        if (!replay && (confirmation?.owner !== owner || !hasExpenseSession()
+        if (!replay && (confirmation?.ownerAccountId !== ownerAccountId || !hasExpenseSession()
             || !hasExpectedExpenseSession(confirmation.request)
             || Object.values(validateExpense(confirmation.request)).some(Boolean))) {
             return;
@@ -106,6 +115,7 @@ const useExpenseStore = create(persist((set, get) => ({
                     return;
                 }
                 attempt = {
+                    ownerAccountId,
                     key: `expense-${ crypto.randomUUID() }`,
                     request: expenseRequest({
                         ...confirmation.request,
@@ -119,7 +129,11 @@ const useExpenseStore = create(persist((set, get) => ({
                 sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
                     version: 0,
                     state: {
-                        owner, draft, attempt, result: null, outcome: 'uncertain'
+                        ownerAccountId,
+                        draft,
+                        attempt,
+                        result: null,
+                        outcome: 'uncertain'
                     }
                 }));
             } catch {
@@ -128,6 +142,10 @@ const useExpenseStore = create(persist((set, get) => ({
             }
             set({ draft, attempt });
             const { data: response } = await expenseApi.createExpense(attempt.request, attempt.key);
+            if (get().ownerAccountId !== ownerAccountId) {
+                set({ outcome: 'uncertain' });
+                return;
+            }
             const result = response?.data;
             if (!result?.id || result.cashSessionId !== attempt.request.expectedCashSessionId || result.amount == null || !result.category
                 || typeof result.voided !== 'boolean' || typeof result.operationalExpense !== 'boolean'
@@ -160,8 +178,12 @@ const useExpenseStore = create(persist((set, get) => ({
 }), {
     name: STORAGE_KEY,
     storage: createJSONStorage(() => storage),
-    partialize: ({ owner, draft, attempt, result, outcome }) => ({
-        owner, draft, attempt, result, outcome: attempt && outcome !== 'keyConflict' ? 'uncertain' : outcome
+    partialize: ({ ownerAccountId, draft, attempt, result, outcome }) => ({
+        ownerAccountId,
+        draft,
+        attempt,
+        result,
+        outcome: attempt && outcome !== 'keyConflict' ? 'uncertain' : outcome
     })
 }));
 

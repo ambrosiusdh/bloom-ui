@@ -1,104 +1,141 @@
-import { create } from 'zustand'
+import { create } from 'zustand';
 
-import api from '@api/stock-adjustment.js'
+import api from '@api/stock-adjustment.js';
 
-const createStockAdjustmentState = () => ({
+let latestListRequestId = 0;
+let latestDetailRequestId = 0;
+
+const initialState = {
     stockAdjustmentList: [],
     stockAdjustmentPaging: {},
-    stockAdjustmentDetails: {},
-    parsedItems: [], /* Items from CSV parse */
-    isSubmitting: false,
-    errors: null
-});
+    stockAdjustmentDetails: null,
+    stockAdjustmentListStatus: 'idle',
+    stockAdjustmentListError: null,
+    stockAdjustmentDetailStatus: 'idle',
+    stockAdjustmentDetailError: null,
+    stockAdjustmentCreateStatus: 'idle',
+    stockAdjustmentCreateError: null,
+    lastCreatedStockAdjustment: null
+};
 
-const createStockAdjustmentAction = set => ({
-    getStockAdjustmentList: async (payload, options) => {
+const useStockAdjustmentStore = create((set, get) => ({
+    ...initialState,
+
+    getStockAdjustmentList: async (params, config, options) => {
+        const requestId = ++latestListRequestId;
+        set({
+            stockAdjustmentList: [],
+            stockAdjustmentPaging: {},
+            stockAdjustmentListStatus: 'loading',
+            stockAdjustmentListError: null
+        });
+
         try {
-            const { data: response } = await api.getStockAdjustmentList(payload, options)
-            const { content, ...stockAdjustmentPaging } = response.data
-            set({ stockAdjustmentList: content, stockAdjustmentPaging })
-            return response
+            const { data: response } = await api.getStockAdjustmentList(
+                params,
+                config,
+                options
+            );
+            if (requestId === latestListRequestId && !config?.signal?.aborted) {
+                const {
+                    content,
+                    ...paging
+                } = response.data || {};
+                set({
+                    stockAdjustmentList: Array.isArray(content) ? content : [],
+                    stockAdjustmentPaging: paging,
+                    stockAdjustmentListStatus: 'ready',
+                    stockAdjustmentListError: null
+                });
+            }
+            return response;
         } catch (error) {
-            console.error('Error getting stock adjustment list:', error);
-            throw error?.response?.data || error
+            if (requestId === latestListRequestId && !config?.signal?.aborted) {
+                set({
+                    stockAdjustmentList: [],
+                    stockAdjustmentPaging: {},
+                    stockAdjustmentListStatus: 'error',
+                    stockAdjustmentListError: error
+                });
+            }
+            throw error;
         }
     },
 
-    getStockAdjustmentDetails: async (payload, options) => {
+    getStockAdjustmentDetails: async (code, config, options) => {
+        const requestId = ++latestDetailRequestId;
+        set({
+            stockAdjustmentDetails: null,
+            stockAdjustmentDetailStatus: 'loading',
+            stockAdjustmentDetailError: null
+        });
+
         try {
-            const { data: response } = await api.getStockAdjustmentDetails(payload, options)
-            set({ stockAdjustmentDetails: response.data })
-            return response
+            const { data: response } = await api.getStockAdjustmentDetails(
+                code,
+                config,
+                options
+            );
+            if (requestId === latestDetailRequestId && !config?.signal?.aborted) {
+                set({
+                    stockAdjustmentDetails: response.data,
+                    stockAdjustmentDetailStatus: 'ready',
+                    stockAdjustmentDetailError: null
+                });
+            }
+            return response;
         } catch (error) {
-            console.error('Error getting stock adjustment details: ', error);
-            throw error?.response?.data || error
+            if (requestId === latestDetailRequestId && !config?.signal?.aborted) {
+                set({
+                    stockAdjustmentDetails: null,
+                    stockAdjustmentDetailStatus: 'error',
+                    stockAdjustmentDetailError: error
+                });
+            }
+            throw error;
         }
     },
 
     createStockAdjustment: async (payload, options) => {
-        set({ isSubmitting: true, errors: null })
-        try {
-            const { data: response } = await api.createStockAdjustment(payload, options)
-            return response
-        } catch (error) {
-            console.error('Error create stock adjustment: ', error);
-            const errData = error?.response?.data || error;
-            set({ errors: errData })
-            throw errData
-        } finally {
-            set({ isSubmitting: false })
+        if (get().stockAdjustmentCreateStatus === 'pending') {
+            return null;
         }
-    },
+        set({
+            stockAdjustmentCreateStatus: 'pending',
+            stockAdjustmentCreateError: null
+        });
 
-    uploadCsv: async (file, options) => {
         try {
-            const { data: response } = await api.parseStockAdjustmentCsv(file, options)
-            set({ parsedItems: response.data })
-            return response
-        } catch (error) {
-            console.error('Error parsing CSV: ', error);
-            throw error?.response?.data || error
-        }
-    },
-
-    downloadTemplate: async (options) => {
-        try {
-            const response = await api.downloadStockAdjustmentTemplate(options);
-
-            // Create blob link to download
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-
-            // Try to extract filename from content-disposition
-            const contentDisposition = response.headers['content-disposition'];
-            let fileName = 'stock_adjustment_template.xlsx';
-            if (contentDisposition) {
-                const fileNameMatch = contentDisposition.match(/filename="?(.+)"?/);
-                if (fileNameMatch && fileNameMatch.length === 2)
-                    fileName = fileNameMatch[1];
-            }
-
-            link.setAttribute('download', fileName);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-
+            const { data: response } = await api.createStockAdjustment(payload, options);
+            set({
+                stockAdjustmentCreateStatus: 'success',
+                stockAdjustmentCreateError: null,
+                lastCreatedStockAdjustment: response.data
+            });
             return response;
         } catch (error) {
-            console.error('Error downloading template: ', error);
-            throw error?.response?.data || error;
+            set({
+                stockAdjustmentCreateStatus: 'error',
+                stockAdjustmentCreateError: error
+            });
+            throw error;
         }
     },
 
-    clearParsedItems: () => {
-        set({ parsedItems: [] })
-    }
-})
+    clearStockAdjustmentDetails: () => {
+        latestDetailRequestId += 1;
+        set({
+            stockAdjustmentDetails: null,
+            stockAdjustmentDetailStatus: 'idle',
+            stockAdjustmentDetailError: null
+        });
+    },
 
-const useStockAdjustmentStore = create((set, get) => ({
-    ...createStockAdjustmentState(),
-    ...createStockAdjustmentAction(set, get)
+    clearCreatedStockAdjustment: () => set({
+        stockAdjustmentCreateStatus: 'idle',
+        stockAdjustmentCreateError: null,
+        lastCreatedStockAdjustment: null
+    })
 }));
 
 export default useStockAdjustmentStore;

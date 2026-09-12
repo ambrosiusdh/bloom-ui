@@ -1,7 +1,6 @@
+import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom';
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom';
 
 const authApi = vi.hoisted(() => ({
     getCurrentUser: vi.fn()
@@ -13,7 +12,6 @@ vi.mock('@components/app/Loader.jsx', () => ({ default: () => null }));
 vi.mock('@components/app/Sidebar.jsx', () => ({ default: () => <div>Sidebar</div> }));
 
 import useAuthStore from '@stores/modules/auth.js';
-
 import App from '@/App.jsx';
 
 const LoginLocation = () => {
@@ -62,7 +60,12 @@ describe('protected route auth gating', () => {
         await act(async () => {
             resolveSession({
                 status: 200,
-                data: { data: { username: 'kasir' } }
+                data: {
+                    data: {
+                        accountId: '101',
+                        username: 'kasir'
+                    }
+                }
             });
         });
 

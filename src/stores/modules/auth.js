@@ -20,7 +20,8 @@ const useAuthStore = create((set) => ({
                 return null;
             }
 
-            if (response.status !== 200 || !currentUser?.username) {
+            if (response.status !== 200 || !currentUser?.username
+                || typeof currentUser.accountId !== 'string' || !currentUser.accountId) {
                 set({ currentUser: null, authStatus: 'unauthenticated' })
                 return null;
             }

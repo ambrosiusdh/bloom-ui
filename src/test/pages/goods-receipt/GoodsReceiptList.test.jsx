@@ -61,12 +61,8 @@ describe('GoodsReceiptList FE-25 read workflow', () => {
 
         const [params, config, options] = goodsReceiptApi.getGoodsReceiptList.mock.calls[0];
         expect(params).toMatchObject({ page: 2, size: 5, supplierName: 'Bloom' });
-        expect(params.receivedDateFrom).toBe(
-            new Date('2026-09-01T00:00:00.000').toISOString()
-        );
-        expect(params.receivedDateTo).toBe(
-            new Date('2026-09-03T23:59:59.999').toISOString()
-        );
+        expect(params.receivedDateFrom).toBe('2026-09-01');
+        expect(params.receivedDateTo).toBe('2026-09-03');
         expect(config.signal).toBeInstanceOf(AbortSignal);
         expect(options).toEqual({ useLoader: false });
         expect(goodsReceiptApi.getGoodsReceiptDetails).not.toHaveBeenCalled();
@@ -119,5 +115,50 @@ describe('GoodsReceiptList FE-25 read workflow', () => {
         expect(goodsReceiptApi.getGoodsReceiptList).toHaveBeenCalledTimes(2);
         expect(goodsReceiptApi.getGoodsReceiptList.mock.calls[0][0]).toMatchObject({ page: 8 });
         expect(goodsReceiptApi.getGoodsReceiptList.mock.calls[1][0]).toMatchObject({ page: 3 });
+    });
+
+    it.each([
+        [
+            'tanggal mulai saja',
+            '/goods-receipts?receivedDateFrom=2026-12-31',
+            {
+                receivedDateFrom: '2026-12-31'
+            }
+        ],
+        [
+            'tanggal akhir saja',
+            '/goods-receipts?receivedDateTo=2027-01-01',
+            {
+                receivedDateTo: '2027-01-01'
+            }
+        ],
+        [
+            'hari yang sama',
+            '/goods-receipts?receivedDateFrom=2026-09-12&receivedDateTo=2026-09-12',
+            {
+                receivedDateFrom: '2026-09-12',
+                receivedDateTo: '2026-09-12'
+            }
+        ],
+        [
+            'batas bulan dan hari kabisat',
+            '/goods-receipts?receivedDateFrom=2028-02-29&receivedDateTo=2028-03-01',
+            {
+                receivedDateFrom: '2028-02-29',
+                receivedDateTo: '2028-03-01'
+            }
+        ]
+    ])('mengirim %s sebagai tanggal kalender tanpa konversi zona perangkat', async (_, route, expected) => {
+        goodsReceiptApi.getGoodsReceiptList.mockResolvedValue(response());
+
+        render(<GoodsReceiptList />, { route });
+
+        expect(await screen.findByText('Tidak ada penerimaan barang')).toBeInTheDocument();
+        expect(goodsReceiptApi.getGoodsReceiptList).toHaveBeenCalledTimes(1);
+        expect(goodsReceiptApi.getGoodsReceiptList.mock.calls[0][0]).toMatchObject({
+            page: 1,
+            size: 10,
+            ...expected
+        });
     });
 });

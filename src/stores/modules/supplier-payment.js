@@ -13,9 +13,9 @@ import useGoodsReceiptStore from '@stores/modules/goods-receipt.js';
 import { validatePayment } from '@utils/supplier-payment-utils.js';
 
 const STORAGE_KEY = 'bloom-supplier-payment-v1';
-const createSupplierPaymentState = (code, owner = null) => ({
+const createSupplierPaymentState = (code, ownerAccountId = null) => ({
     code,
-    owner,
+    ownerAccountId,
     draft: { amount: '', paymentMethod: 'BANK_TRANSFER', reference: '', note: '' },
     attempt: null,
     result: null,
@@ -25,13 +25,23 @@ const createSupplierPaymentState = (code, owner = null) => ({
     refreshStatus: 'idle'
 });
 
-const currentOwner = () => {
+const currentAccountId = () => {
     const auth = useAuthStore.getState();
-    return auth.authStatus === 'authenticated' ? auth.currentUser?.username : null;
+    return auth.authStatus === 'authenticated' ? auth.currentUser?.accountId : null;
 };
-export const canUsePayment = (state, owner = currentOwner()) => !!owner && state.owner === owner;
+export const canUsePayment = (state, accountId = currentAccountId()) =>
+    !!accountId && state.ownerAccountId === accountId;
 export const isPaymentLocked = state => state.pending || !!state.attempt || !!state.result
     || ['loading', 'error'].includes(state.refreshStatus);
+const isFreshPaymentState = state => !state.ownerAccountId
+    && !state.code
+    && !state.attempt
+    && !state.result
+    && state.outcome === 'editing'
+    && !state.draft.amount
+    && state.draft.paymentMethod === 'BANK_TRANSFER'
+    && !state.draft.reference
+    && !state.draft.note;
 const storage = {
     getItem: key => {
         try {
@@ -58,9 +68,14 @@ const storage = {
 const useSupplierPaymentStore = create(persist((set, get) => ({
     ...createSupplierPaymentState(''),
     select: code => {
-        const owner = currentOwner();
-        if (owner && !isPaymentLocked(get()) && (get().code !== code || get().owner !== owner)) {
-            set(createSupplierPaymentState(code, owner));
+        const accountId = currentAccountId();
+        if (!accountId || isPaymentLocked(get())) {
+            return;
+        }
+        if (canUsePayment(get(), accountId) && get().code !== code) {
+            set(createSupplierPaymentState(code, accountId));
+        } else if (isFreshPaymentState(get())) {
+            set(createSupplierPaymentState(code, accountId));
         }
     },
 
@@ -72,12 +87,12 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
 
     next: () => {
         if (canUsePayment(get()) && get().result && !get().pending && get().refreshStatus === 'ready') {
-            set(createSupplierPaymentState(get().code, get().owner));
+            set(createSupplierPaymentState(get().code, get().ownerAccountId));
         }
     },
 
     refresh: async () => {
-        const { code, owner } = get();
+        const { code, ownerAccountId } = get();
         if (!canUsePayment(get()) || get().refreshStatus === 'loading') {
             return;
         }
@@ -89,7 +104,7 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
                 || ['totalAmount', 'paidAmount', 'outstandingAmount'].some(field => receipt[field] == null)) {
                 throw new Error('Incomplete receipt response');
             }
-            if (get().code !== code || get().owner !== owner) {
+            if (get().code !== code || get().ownerAccountId !== ownerAccountId) {
                 return;
             }
             if (!canUsePayment(get())) {
@@ -101,7 +116,7 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
             }
             set({ refreshStatus: 'ready' });
         } catch {
-            if (get().code === code && get().owner === owner) {
+            if (get().code === code && get().ownerAccountId === ownerAccountId) {
                 set({ refreshStatus: canUsePayment(get()) ? 'error' : 'idle' });
             }
         }
@@ -112,9 +127,10 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
             return;
         }
         const replay = !!get().attempt;
-        const { code, owner } = get();
+        const { code, ownerAccountId } = get();
         if (!replay) {
-            if (isPaymentLocked(get()) || confirmation?.code !== code || confirmation?.owner !== owner) {
+            if (isPaymentLocked(get()) || confirmation?.code !== code
+                || confirmation?.ownerAccountId !== ownerAccountId) {
                 return;
             }
             const error = validatePayment(confirmation.request);
@@ -130,6 +146,7 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
         }
         const attempt = get().attempt || {
             code,
+            ownerAccountId,
             key: `payment-${ crypto.randomUUID() }`,
             request: { ...confirmation.request }
         };
@@ -139,7 +156,12 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
             sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
                 version: 0,
                 state: {
-                    code, owner, draft, attempt, result: null, outcome: 'uncertain'
+                    code,
+                    ownerAccountId,
+                    draft,
+                    attempt,
+                    result: null,
+                    outcome: 'uncertain'
                 }
             }));
         } catch {
@@ -149,6 +171,10 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
         set({ draft, attempt, pending: true, outcome: 'pending', error: '' });
         try {
             const { data: response } = await supplierPaymentApi.createSupplierPayment(attempt.code, attempt.request, attempt.key);
+            if (get().ownerAccountId !== ownerAccountId || get().code !== code) {
+                set({ outcome: 'uncertain' });
+                return;
+            }
             const result = response?.data;
             if (!result?.id || result.receiptCode !== attempt.code || result.idempotencyKey !== attempt.key
                 || result.amount == null || result.paymentMethod !== attempt.request.paymentMethod
@@ -187,8 +213,8 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
 }), {
     name: STORAGE_KEY,
     storage: createJSONStorage(() => storage),
-    partialize: ({ code, owner, draft, attempt, result, outcome }) => ({
-        code, owner, draft, attempt, result,
+    partialize: ({ code, ownerAccountId, draft, attempt, result, outcome }) => ({
+        code, ownerAccountId, draft, attempt, result,
         outcome: attempt && outcome !== 'keyConflict' ? 'uncertain' : outcome
     })
 }));

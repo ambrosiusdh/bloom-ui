@@ -1,8 +1,7 @@
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { MemoryRouter, useLocation } from 'react-router-dom';
 
 const authApi = vi.hoisted(() => ({
     doLogin: vi.fn(),
@@ -11,9 +10,8 @@ const authApi = vi.hoisted(() => ({
 
 vi.mock('@api/auth.js', () => ({ default: authApi }));
 
-import useAuthStore from '@stores/modules/auth.js';
-
 import Login from '@pages/login/Login.jsx';
+import useAuthStore from '@stores/modules/auth.js';
 
 const LocationDisplay = () => {
     const location = useLocation();
@@ -74,7 +72,12 @@ describe('Login', () => {
         authApi.doLogin.mockResolvedValue({ data: { code: 200, data: true } });
         authApi.getCurrentUser.mockResolvedValue({
             status: 200,
-            data: { data: { username: 'kasir' } }
+            data: {
+                data: {
+                    accountId: '101',
+                    username: 'kasir'
+                }
+            }
         });
 
         renderLogin('/login?redirect=%2Fitems');

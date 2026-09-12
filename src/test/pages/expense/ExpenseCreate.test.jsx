@@ -16,7 +16,10 @@ const response = data => ({ data: { data } });
 const session = { id: 15, status: 'OPEN' };
 const saved = { id: 29, cashSessionId: 15, amount: '25.1250', category: 'FOOD_AND_DRINK', description: 'Dari server',
     operationalExpense: true, voided: false, createdAt: '2026-09-10T02:00:00Z', createdBy: 'cashier-a' };
-const intent = () => ({ owner: expenseStore.getState().owner, request: expenseRequest(expenseStore.getState().draft, 15) });
+const intent = () => ({
+    ownerAccountId: expenseStore.getState().ownerAccountId,
+    request: expenseRequest(expenseStore.getState().draft, 15)
+});
 const fill = async user => { await user.type(screen.getByLabelText(/Nominal pengeluaran/), '25,125'); };
 const confirm = async user => {
     await user.click(screen.getByRole('button', { name: 'Tinjau pengeluaran' }));
@@ -26,7 +29,13 @@ const confirm = async user => {
 beforeEach(() => {
     vi.restoreAllMocks(); vi.resetAllMocks(); sessionStorage.clear();
     expenseStore.setState(expenseStore.getInitialState());
-    authStore.setState({ authStatus: 'authenticated', currentUser: { username: 'cashier-a' } });
+    authStore.setState({
+        authStatus: 'authenticated',
+        currentUser: {
+            accountId: '101',
+            username: 'cashier-a'
+        }
+    });
     cashStore.setState(cashStore.getInitialState());
     cashApi.getCurrentSession.mockResolvedValue(response(session));
     expenseApi.createExpense.mockResolvedValue(response(saved));
@@ -104,6 +113,7 @@ it.each([null, { id: 16, status: 'OPEN' }])('recovers the exact request after re
     const original = expenseApi.createExpense.mock.calls[0];
     expect(JSON.parse(sessionStorage.getItem('bloom-expense-v1')).state.attempt.key).toBe(original[1]);
     expect(JSON.parse(sessionStorage.getItem('bloom-expense-v1')).state.attempt.request.expectedCashSessionId).toBe(15);
+    expect(JSON.parse(sessionStorage.getItem('bloom-expense-v1')).state.attempt.ownerAccountId).toBe('101');
     await act(async () => reject(new Error('timeout')));
     expect((await screen.findByText(/Hasil pengeluaran belum pasti/)).closest('[role="alert"]')).toHaveFocus();
     view.unmount();
@@ -156,7 +166,12 @@ it('locks idempotency conflicts and hides recovery from a different account', as
     const user = userEvent.setup(); render(<ExpenseCreate />); await fill(user); await confirm(user);
     expect(await screen.findByText(/Identitas pengeluaran ditolak/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pulihkan pengeluaran yang sama' })).not.toBeInTheDocument();
-    await act(async () => authStore.setState({ currentUser: { username: 'cashier-b' } }));
+    await act(async () => authStore.setState({
+        currentUser: {
+            accountId: '202',
+            username: 'cashier-a'
+        }
+    }));
     expect(screen.getByRole('alert')).toHaveTextContent('akun asal');
     expect(screen.queryByText(/Referensi pemulihan/)).not.toBeInTheDocument();
     await act(() => expenseStore.getState().submit());
@@ -175,6 +190,30 @@ it('never posts when durable recovery cannot be saved and treats malformed succe
     expect(expenseStore.getState().attempt).not.toBeNull();
 });
 
+it('keeps recovery bound through logout and allows only the same account identity to resume', async () => {
+    expenseApi.createExpense.mockRejectedValueOnce(new Error('timeout'));
+    const user = userEvent.setup();
+    render(<ExpenseCreate />);
+    await fill(user);
+    await confirm(user);
+
+    const attempt = expenseStore.getState().attempt;
+    await act(async () => authStore.setState({
+        authStatus: 'unauthenticated',
+        currentUser: null
+    }));
+    expect(screen.queryByText(attempt.key)).not.toBeInTheDocument();
+
+    await act(async () => authStore.setState({
+        authStatus: 'authenticated',
+        currentUser: {
+            accountId: '101',
+            username: 'cashier-renamed'
+        }
+    }));
+    expect(await screen.findByText(/Referensi pemulihan:/)).toHaveTextContent(attempt.key);
+});
+
 it('does not post if the session preflight fails or the account changes during that check', async () => {
     const user = userEvent.setup(); render(<ExpenseCreate />); await fill(user);
     cashApi.getCurrentSession.mockRejectedValueOnce(new Error('offline'));
@@ -185,7 +224,12 @@ it('does not post if the session preflight fails or the account changes during t
     let resolve;
     cashApi.getCurrentSession.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
     await confirm(user);
-    await act(async () => authStore.setState({ currentUser: { username: 'cashier-b' } }));
+    await act(async () => authStore.setState({
+        currentUser: {
+            accountId: '202',
+            username: 'cashier-a'
+        }
+    }));
     await act(async () => resolve(response(session)));
     expect(expenseApi.createExpense).not.toHaveBeenCalled();
 });
@@ -206,11 +250,21 @@ it('keeps a late success private until the original account returns', async () =
     let resolve;
     expenseApi.createExpense.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
     const user = userEvent.setup(); render(<ExpenseCreate />); await fill(user); await confirm(user);
-    await act(async () => authStore.setState({ currentUser: { username: 'cashier-b' } }));
+    await act(async () => authStore.setState({
+        currentUser: {
+            accountId: '202',
+            username: 'cashier-a'
+        }
+    }));
     await act(async () => resolve(response(saved)));
     expect(screen.getByRole('alert')).toHaveTextContent('akun asal');
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
-    await act(async () => authStore.setState({ currentUser: { username: 'cashier-a' } }));
+    await act(async () => authStore.setState({
+        currentUser: {
+            accountId: '101',
+            username: 'cashier-a'
+        }
+    }));
     expect(screen.getByRole('article')).toHaveTextContent('Dari server');
     expect(expenseApi.createExpense).toHaveBeenCalledTimes(1);
 });
@@ -228,7 +282,7 @@ it('requires a usable confirmed session ID before starting a new attempt', async
     expect(hasExpectedExpenseSession({ expectedCashSessionId: 15 })).toBe(true);
 });
 
-it.each([undefined, 0])('locks persisted old/invalid session intent (%s) without inferring the current session', async expectedCashSessionId => {
+it.each([undefined, 0])('quarantines legacy username and pre-session intent (%s)', async expectedCashSessionId => {
     const request = { amount: '25.125', category: 'OTHER', description: 'Lama', expectedCashSessionId };
     const attempt = { key: 'expense-before-upgrade', request };
     sessionStorage.setItem('bloom-expense-v1', JSON.stringify({ version: 0, state: {
@@ -239,8 +293,8 @@ it.each([undefined, 0])('locks persisted old/invalid session intent (%s) without
     const original = expenseStore.getState().attempt;
     cashStore.setState({ currentSession: { id: 16, status: 'OPEN' }, currentStatus: 'ready', drawerActionsEnabled: true });
     render(<ExpenseCreate />);
-    expect(screen.getByText(/Pemulihan lama belum menyimpan sesi kas/).closest('[role="alert"]')).toHaveFocus();
-    expect(screen.getByLabelText(/Nominal pengeluaran/)).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent('identitas akun tetap');
+    expect(screen.queryByLabelText(/Nominal pengeluaran/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pulihkan pengeluaran yang sama' })).not.toBeInTheDocument();
     await act(async () => {
         expenseStore.getState().edit({ amount: '99', category: 'CHARITY', description: '' });

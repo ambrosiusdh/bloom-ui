@@ -57,10 +57,6 @@ const getQueryState = params => {
     };
 };
 
-const toInstant = (date, endOfDay = false) => date
-    ? new Date(`${ date }T${ endOfDay ? '23:59:59.999' : '00:00:00.000' }`).toISOString()
-    : undefined;
-
 const money = value => value == null ? '-' : formatRupiah(value);
 
 const StatusChip = ({ labels, value, type }) => (
@@ -137,8 +133,8 @@ export default function GoodsReceiptList() {
             page: queryState.page,
             size: queryState.size,
             ...(queryState.query ? { [queryState.filterKey]: queryState.query } : {}),
-            ...(queryState.startDate ? { receivedDateFrom: toInstant(queryState.startDate) } : {}),
-            ...(queryState.endDate ? { receivedDateTo: toInstant(queryState.endDate, true) } : {})
+            ...(queryState.startDate ? { receivedDateFrom: queryState.startDate } : {}),
+            ...(queryState.endDate ? { receivedDateTo: queryState.endDate } : {})
         };
         getGoodsReceiptList(params, { signal: controller.signal }, { useLoader: false }).catch(() => {});
         return () => controller.abort();
