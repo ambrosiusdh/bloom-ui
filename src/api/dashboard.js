@@ -8,6 +8,14 @@ const getDashboardOverview = async (options) => {
     }, options);
 }
 
+const getOperationalOverview = async (options) => {
+    return api({
+        url: DASHBOARD.operationalOverview,
+        method: 'GET'
+    }, options);
+}
+
 export default {
-    getDashboardOverview
+    getDashboardOverview,
+    getOperationalOverview
 }

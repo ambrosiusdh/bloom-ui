@@ -10,11 +10,11 @@ const useDashboardStore = create((set) => ({
     isLoading: false,
     error: null,
 
-    getDashboardOverview: async (options) => {
+    getOperationalOverview: async (options) => {
         const requestId = ++latestDashboardRequestId;
         set({ isLoading: true, error: null });
         try {
-            const { data: response } = await api.getDashboardOverview(options)
+            const { data: response } = await api.getOperationalOverview(options)
 
             if (requestId !== latestDashboardRequestId) {
                 return response

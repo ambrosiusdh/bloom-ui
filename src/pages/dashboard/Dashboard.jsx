@@ -1,31 +1,36 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Button, Paper, Typography } from '@mui/material';
-import {
-    ShoppingCart,
-    DollarSign,
-    Package,
-    RefreshCw,
-    TrendingUp
-} from 'lucide-react';
+import { Alert, Button, Typography } from '@mui/material';
+import { RefreshCw } from 'lucide-react';
 
-
-// Components
-import LowStockAlert from '@components/dashboard/LowStockAlert';
-import RecentTransactions from '@components/dashboard/RecentTransactions';
-import RevenueChart from '@components/dashboard/RevenueChart';
-import SummaryCard from '@components/dashboard/SummaryCard';
-import TopCategories from '@components/dashboard/TopCategories';
+import OperationalDashboardWidgets from '@components/dashboard/OperationalDashboardWidgets.jsx';
 import { useDashboardStore } from '@stores/index.js';
 
+const formatDashboardTimestamp = (value, timeZone) => {
+    const date = new Date(value);
+    if (!value || Number.isNaN(date.getTime())) return 'waktu tidak tersedia';
+
+    try {
+        return new Intl.DateTimeFormat('id-ID', {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+            timeZone
+        }).format(date);
+    } catch {
+        return new Intl.DateTimeFormat('id-ID', {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+        }).format(date);
+    }
+};
+
 export default function Dashboard() {
-    const [revenueFilter, setRevenueFilter] = useState('week');
     const [refreshMessage, setRefreshMessage] = useState('');
+    const [isStale, setIsStale] = useState(false);
     const errorAlertRef = useRef(null);
     const requestInFlightRef = useRef(false);
 
-    const getDashboardOverview = useDashboardStore(state => state.getDashboardOverview);
+    const getOperationalOverview = useDashboardStore(state => state.getOperationalOverview);
     const dashboardData = useDashboardStore(state => state.dashboardData);
-    const lastSuccessfulAt = useDashboardStore(state => state.lastSuccessfulAt);
     const isLoading = useDashboardStore(state => state.isLoading);
     const error = useDashboardStore(state => state.error);
     const hasDashboardData = dashboardData !== null;
@@ -36,7 +41,7 @@ export default function Dashboard() {
         requestInFlightRef.current = true;
         setRefreshMessage('');
         try {
-            await getDashboardOverview();
+            await getOperationalOverview();
             if (isRefresh) {
                 setRefreshMessage('Data dashboard berhasil diperbarui.');
             }
@@ -45,7 +50,7 @@ export default function Dashboard() {
         } finally {
             requestInFlightRef.current = false;
         }
-    }, [getDashboardOverview]);
+    }, [getOperationalOverview]);
 
     useEffect(() => {
         fetchDashboardData();
@@ -57,36 +62,48 @@ export default function Dashboard() {
         }
     }, [error]);
 
-    // Data Mapping
-    const summaryList = dashboardData?.summary || [];
-    const chartData = dashboardData?.revenueChart?.[revenueFilter] || [];
-    const recentTransactionsData = dashboardData?.recentTransactions || [];
-    const topCategoriesData = dashboardData?.topCategories || [];
-    const lowStockData = dashboardData?.lowStock || [];
+    useEffect(() => {
+        const freshUntil = Date.parse(dashboardData?.freshUntil);
+        if (!Number.isFinite(freshUntil)) {
+            setIsStale(Boolean(dashboardData));
+            return undefined;
+        }
 
-    // Helper to get icon based on label (since API doesn't provide icon)
-    const getIconForLabel = (label) => {
-        const lowerLabel = label?.toLowerCase() || '';
-        if (lowerLabel.includes('pendapatan')) return DollarSign;
-        if (lowerLabel.includes('pesanan') || lowerLabel.includes('transaksi')) return ShoppingCart;
-        if (lowerLabel.includes('barang') || lowerLabel.includes('item')) return Package;
-        return TrendingUp; // Default
-    };
+        let staleTimer;
+        const updateFreshness = () => {
+            const remainingFreshness = freshUntil - Date.now();
+            setIsStale(remainingFreshness <= 0);
+
+            if (remainingFreshness > 0) {
+                staleTimer = window.setTimeout(
+                    updateFreshness,
+                    Math.min(remainingFreshness, 2_147_483_647)
+                );
+            }
+        };
+
+        updateFreshness();
+
+        return () => window.clearTimeout(staleTimer);
+    }, [dashboardData]);
+
+    const lastUpdatedText = dashboardData
+        ? formatDashboardTimestamp(dashboardData.asOf, dashboardData.storeZoneId)
+        : null;
 
     return (
-        <div className="dashboard p-4 bg-gray-50 min-h-screen flex flex-col gap-6">
-            { /* Header */ }
-            <div className="dashboard__header flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
+        <div className="dashboard flex min-h-screen flex-col gap-6 bg-gray-50 p-4 md:p-6">
+            <div className="dashboard__header flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <Typography
                         variant="h4"
                         component="h1"
-                        className="font-bold mb-1 text-gray-900"
+                        className="mb-1 font-bold text-gray-900"
                     >
                         Dashboard
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
-                        Ringkasan performa toko Anda hari ini.
+                        Ringkasan operasional Release 1 dari data yang dihitung server.
                     </Typography>
                 </div>
                 <div className="dashboard__actions flex flex-wrap items-center gap-3 sm:justify-end">
@@ -96,8 +113,8 @@ export default function Dashboard() {
                         className="text-gray-500"
                         aria-live="polite"
                     >
-                        { lastSuccessfulAt
-                            ? `Terakhir diperbarui: ${new Date(lastSuccessfulAt).toLocaleTimeString('id-ID')}`
+                        { lastUpdatedText
+                            ? `Data per: ${ lastUpdatedText }`
                             : 'Belum pernah diperbarui' }
                     </Typography>
                     <Button
@@ -112,7 +129,7 @@ export default function Dashboard() {
                         onClick={ () => fetchDashboardData({ isRefresh: true }) }
                         disabled={ isLoading }
                         aria-describedby="dashboard-last-updated"
-                        className="text-maroon-600 border-maroon-600 hover:bg-maroon-600/5"
+                        className="border-maroon-600 text-maroon-600 hover:bg-maroon-600/5"
                     >
                         { isLoading ? 'Memuat...' : 'Perbarui data' }
                     </Button>
@@ -120,21 +137,13 @@ export default function Dashboard() {
             </div>
 
             { isLoading && !hasDashboardData && (
-                <Alert
-                    severity="info"
-                    role="status"
-                    aria-live="polite"
-                >
+                <Alert severity="info" role="status" aria-live="polite">
                     Memuat data dashboard...
                 </Alert>
             ) }
 
             { isLoading && hasDashboardData && (
-                <Alert
-                    severity="info"
-                    role="status"
-                    aria-live="polite"
-                >
+                <Alert severity="info" role="status" aria-live="polite">
                     Memperbarui data dashboard. Data sebelumnya tetap ditampilkan.
                 </Alert>
             ) }
@@ -163,66 +172,20 @@ export default function Dashboard() {
             ) }
 
             { refreshMessage && !error && (
-                <Alert
-                    severity="success"
-                    role="status"
-                    aria-live="polite"
-                >
+                <Alert severity="success" role="status" aria-live="polite">
                     { refreshMessage }
                 </Alert>
             ) }
 
+            { hasDashboardData && isStale && (
+                <Alert severity="warning" role="status" aria-live="polite">
+                    Data dashboard sudah kedaluwarsa menurut batas waktu dari server. Perbarui data
+                    sebelum mengambil keputusan operasional.
+                </Alert>
+            ) }
+
             { hasDashboardData && (
-                <>
-            { /* Top Section: Summary Cards & Revenue Chart */ }
-            <div className="dashboard__top-section flex flex-col md:flex-row gap-6">
-                { /* Left Column: Summary Cards (Stacked) */ }
-                <section
-                    className="flex flex-col gap-4 md:w-1/4 md:min-w-[250px]"
-                    aria-label="Ringkasan dashboard"
-                >
-                    { summaryList.length > 0 ? (
-                        summaryList.map(item => (
-                            <div key={ item.label } className="flex-1">
-                                <SummaryCard
-                                    title={ item.label }
-                                    value={ item.summary }
-                                    icon={ getIconForLabel(item.label) }
-                                />
-                            </div>
-                        ))
-                    ) : (
-                        <Paper className="p-6 rounded-xl shadow-md">
-                            <Typography className="text-gray-600 text-center">
-                                Ringkasan belum tersedia.
-                            </Typography>
-                        </Paper>
-                    ) }
-                </section>
-
-                { /* Right Column: Revenue Chart (Flex Grow) */ }
-                <div className="flex-1 min-w-0 min-h-[400px]">
-                    <RevenueChart
-                        data={ chartData }
-                        filter={ revenueFilter }
-                        onFilterChange={ (e) => setRevenueFilter(e.target.value) }
-                    />
-                </div>
-            </div>
-
-            { /* Bottom Section: Recent Transactions, Top Categories, Low Stock */ }
-            <div className="dashboard__bottom-section flex flex-col lg:flex-row gap-6">
-                <div className="flex-[2]">
-                    <RecentTransactions data={ recentTransactionsData } />
-                </div>
-                <div className="flex-1">
-                    <TopCategories data={ topCategoriesData } />
-                </div>
-                <div className="flex-[1.5]">
-                    <LowStockAlert data={ lowStockData } />
-                </div>
-            </div>
-                </>
+                <OperationalDashboardWidgets data={ dashboardData } />
             ) }
         </div>
     );

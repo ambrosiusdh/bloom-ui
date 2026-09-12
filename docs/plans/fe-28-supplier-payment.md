@@ -1,5 +1,7 @@
 # FE-28 — One-receipt payment transaction
 
+Status: `BLOCKED` for production approval on immutable recovery account identity. Transaction implementation, review corrections, and merge are present.
+
 2026-09-10. Scope: payment entry on receipt detail; no allocation, prepayment,
 credit, reversal UI, or browser balance arithmetic.
 
@@ -52,8 +54,8 @@ Each POST, receipt refresh, and payment-triggered current-session read uses a
 ApiError without a response status, so timeout follows the existing uncertain
 branch and preserves the exact key/request; it is not treated as rollback.
 
-Recovery ownership uses the backend `/api/auth/current` username (the current
-response exposes no user ID). The same verified account may resume after login.
+Recovery ownership currently uses the backend `/api/auth/current` username (the
+current response exposes no user ID). The same verified username may resume after login.
 Another account cannot render/edit/replay/acknowledge the retained workflow;
 late responses retain the original owner and cannot update another account's receipt view.
 An unsubmitted draft may be reset on account change. Unresolved attempts are never
@@ -62,6 +64,11 @@ quarantined for manual backend verification rather than guessed ownership. This
 is a UI recovery boundary, not a replacement for backend authorization or browser
 profile isolation. Separate tabs can still intentionally submit separate keys;
 tab-scoped storage does not deduplicate independent partial payments.
+
+The username comparison does not protect against deletion and later recreation of
+the same username. Production approval requires a stable, non-recycled account
+identifier in `/api/auth/current`, then an FE-28-only migration that binds new
+recovery to it and leaves username-only/ownerless recovery quarantined.
 
 ## Review disposition
 
@@ -104,5 +111,6 @@ overpay/session conflict, durable ambiguous recovery, voided replay, and read fa
   confirmation notes, full-payment completion, and hidden/blocked retained
   payment details when switching from the original account to another account.
 - No live backend payment was posted and no backend code was modified. Temporary
-  fixture/report files are removed after verification. FE-28 is ready for review;
-  backend historical contract wording remains explicitly documented above.
+  fixture/report files are removed after verification. Transaction review is
+  complete; production approval remains blocked on immutable recovery identity,
+  and backend historical contract wording remains explicitly documented above.

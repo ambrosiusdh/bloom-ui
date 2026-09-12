@@ -1,6 +1,6 @@
 # FE-30 expense void/reversal
 
-Status: `BLOCKED` for merge on recovery account identity. Reversal/eligibility backend gate cleared on 2026-09-11; frontend implementation and review fixes are present. No backend changes in this task.
+Status: `BLOCKED` for production approval on recovery account identity. Reversal/eligibility backend gate cleared on 2026-09-11; frontend implementation, review fixes, and merge are present. No backend changes in this task.
 
 ## TL;DR and change intention
 
@@ -45,7 +45,7 @@ The external review identified a real identity gap. Inspection of backend `AuthC
 - `User` has a generated primary key, but that entity field is not an authentication API contract.
 - User deletion is implemented, and creation checks only whether the username currently exists. A deleted username can therefore represent a different account later. The frontend must not describe username as an immutable principal.
 
-Before merge, the backend must expose a stable, non-recycled account identifier in its authenticated current-user contract and define behavior for existing sessions. Then FE-30 must bind persisted recovery to that verified identifier and test account recreation/rehydration. Existing username-only recovery must remain locked for manual reconciliation; never migrate it to a new identity by matching username alone. No speculative `currentUser.id` field is consumed in this patch. The current implementation remains present for review, not approved for production.
+Before production approval, the backend must expose a stable, non-recycled account identifier in its authenticated current-user contract and define behavior for existing sessions. Then FE-30 must bind persisted recovery to that verified identifier and test account recreation/rehydration. Existing username-only recovery must remain locked for manual reconciliation; never migrate it to a new identity by matching username alone. No speculative `currentUser.id` field is consumed in the merged implementation. The current implementation is merged, but not approved for production.
 
 Use the [copyable backend handoff](fe-30-recovery-identity-backend-handoff.md) to resolve this prerequisite.
 

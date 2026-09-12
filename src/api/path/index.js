@@ -62,7 +62,8 @@ const CASH_SESSION = {
 }
 
 const DASHBOARD = {
-    overview: '/api/dashboard/overview'
+    overview: '/api/dashboard/overview',
+    operationalOverview: '/api/dashboard/operational-overview'
 }
 
 const SUPPLIER = {

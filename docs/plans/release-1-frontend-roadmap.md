@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Roadmap
 
-Last updated: 2026-09-11
+Last updated: 2026-09-12
 
 ## 1. How to use this roadmap
 
@@ -31,6 +31,7 @@ Every implementation PR must:
 ### Status
 
 - `MERGED`: present in the repository history.
+- `IMPLEMENTED`: scoped source and focused verification are present in the current branch; use `BLOCKED` instead when a named prerequisite still prevents Release 1 production approval.
 - `PLANNED`: not started; it may depend on earlier planned work but has no known external blocker.
 - `IN_PROGRESS`: implementation is present on the active branch and not yet ready for review.
 - `REVIEW`: implementation is awaiting or undergoing review.
@@ -51,9 +52,11 @@ The contract explains stable product and architecture rules. A planning pass is 
 - The current source is JavaScript/JSX. TypeScript work is deferred beyond Release 1.
 - Existing Axios, Zustand, React Router, Material UI, and shared components are preserved.
 - Vitest, React Testing Library, jsdom, and the shared render helper are available.
-- Current frontend implementations still contain legacy `stockQuantity`, integer-only quantity handling, local sale-total/payment assumptions, and incomplete async/error behavior.
-- Current backend code does not yet expose all Release 1 cash-session, supplier, payable/payment, expense, sale-idempotency, and dashboard contracts.
-- A backend print controller exists, so reprinting an already-created sale can proceed independently after its current contract is verified. Automatic post-checkout printing remains gated by the target checkout flow.
+- FE-13 is the remaining unimplemented frontend domain: its legacy adjustment screen still uses JavaScript-number quantities, deprecated aggregate `stockQuantity`, omits required `stockLocation`, and exposes out-of-scope bulk adjustment behavior. The current backend adjustment contract is ready.
+- FE-19 code and workstation verification are present; only the store-laptop physical scanner verification remains.
+- FE-25 read code is present, but its calendar filters still convert dates with the operator device timezone while the receipt endpoint accepts `Instant` boundaries. The dashboard-specific Jakarta zone does not by itself define this endpoint's filter contract.
+- FE-28, FE-29, and FE-30 code is present, but their persisted uncertain-operation recovery is bound to reusable username. Release 1 production approval requires an immutable authenticated account identifier from the backend and a separate migration in each frontend domain.
+- All other numbered Release 1 frontend scopes, including the operational dashboard, are implemented in the current branch.
 
 ## 4. Delivery overview
 
@@ -61,8 +64,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 | --- | --- | --- | --- | --- | --- |
 | FE-00 | Frontend contract and roadmap baseline | MERGED | DIRECT_IMPLEMENTATION | — | `gpt-5.6-terra`, high |
 | FE-01 | Frontend test foundation | MERGED | DIRECT_IMPLEMENTATION | FE-00 | `gpt-5.6-terra`, high |
-| FE-02 | Shared API error normalization | PLANNED | DIRECT_IMPLEMENTATION | FE-01 | `gpt-5.6-terra`, high |
-| FE-03 | Authentication reliability | PLANNED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
+| FE-02 | Shared API error normalization | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-01 | `gpt-5.6-terra`, high |
+| FE-03 | Authentication reliability | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-04 | Cashier-focused layout | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-01 | `gpt-5.6-terra`, high |
 | FE-05 | Back-office navigation accessibility | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-04 | `gpt-5.6-terra`, high |
 | FE-06 | Item-category reliability | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
@@ -72,7 +75,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-10 | Item creation and opening balance | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-09 | `gpt-5.6-sol`, high |
 | FE-11 | Item editing and movement locks | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-09 | `gpt-5.6-sol`, high |
 | FE-12 | Stock movement history | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-09 | `gpt-5.6-terra`, high |
-| FE-13 | Stock adjustment | BLOCKED | BLOCKED | FE-12 | `gpt-5.6-sol`, high |
+| FE-13 | Stock adjustment | PLANNED | PLAN_RECOMMENDED | FE-12 | `gpt-5.6-sol`, high |
 | FE-14 | Stock transfer | IMPLEMENTED | PLAN_RECOMMENDED | FE-12 | `gpt-5.6-sol`, high |
 | FE-15 | Current/open cash session | IMPLEMENTED | PLAN_RECOMMENDED | FE-03 | `gpt-5.6-sol`, high |
 | FE-16 | Cash-session close and reconciliation | IMPLEMENTED | PLAN_RECOMMENDED | FE-15 | `gpt-5.6-sol`, high |
@@ -85,14 +88,16 @@ The contract explains stable product and architecture rules. A planning pass is 
 | FE-23 | Supplier list and detail | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-02 | `gpt-5.6-terra`, high |
 | FE-24 | Supplier create/edit/deactivate | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-23 | `gpt-5.6-terra`, high |
 | FE-25 | Goods-receipt list and detail | BLOCKED | BLOCKED | FE-09, FE-23 | `gpt-5.6-sol`, high |
-| FE-26 | Goods-receipt creation | REVIEW | PLAN_RECOMMENDED | FE-25 | `gpt-5.6-sol`, xhigh |
-| FE-27 | Supplier payable views | REVIEW | DIRECT_IMPLEMENTATION | FE-25 | `gpt-5.6-sol`, high |
-| FE-28 | Single-receipt supplier payment | REVIEW | PLAN_RECOMMENDED | FE-15, FE-27 | `gpt-5.6-sol`, xhigh |
-| FE-29 | Unexpected expense list/create | REVIEW | PLAN_RECOMMENDED | FE-15 | `gpt-5.6-sol`, high |
+| FE-26 | Goods-receipt creation | IMPLEMENTED | PLAN_RECOMMENDED | FE-25 | `gpt-5.6-sol`, xhigh |
+| FE-27 | Supplier payable views | IMPLEMENTED | DIRECT_IMPLEMENTATION | FE-25 | `gpt-5.6-sol`, high |
+| FE-28 | Single-receipt supplier payment | BLOCKED | BLOCKED | FE-15, FE-27 | `gpt-5.6-sol`, xhigh |
+| FE-29 | Unexpected expense list/create | BLOCKED | BLOCKED | FE-15 | `gpt-5.6-sol`, high |
 | FE-30 | Unexpected expense void/reversal | BLOCKED | BLOCKED | FE-29 | `gpt-5.6-sol`, high |
-| FE-31 | Release 1 dashboard read models | BLOCKED | BLOCKED | FE-17, FE-22, FE-27, FE-29 | `gpt-5.6-sol`, high |
+| FE-31 | Release 1 dashboard read models | IMPLEMENTED | PLAN_RECOMMENDED | FE-17, FE-22, FE-27, FE-29 | `gpt-5.6-sol`, high |
 
 `PLANNED` means the PR can be scheduled in dependency order after the required fresh inspection. It does not mean the existing screen is complete or that an unfinished dependency can be skipped.
+
+**Status audit (2026-09-12):** Git history and current source confirmed that FE-02, FE-03, FE-20, and FE-26 had stale summary/detail labels; their implementations are present. FE-13's summary correctly indicated unfinished work, but its detailed `IMPLEMENTED` label was wrong and its backend gate has since cleared. FE-28, FE-29, and FE-30 are implemented but blocked from production approval by the same immutable-account-identity prerequisite. A merged commit does not override a still-valid safety gate.
 
 ## 5. Copy-ready PR scopes
 
@@ -139,7 +144,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-02 — Shared API error normalization
 
 - **Domain:** HTTP/API boundary.
-- **Status:** `PLANNED`.
+- **Status:** `IMPLEMENTED`.
 - **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-01.
 - **Backend gate:** Current backend error responses and authentication status codes must be inspected; no new endpoint is required.
@@ -159,7 +164,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-03 — Authentication reliability
 
 - **Domain:** Authentication/session entry.
-- **Status:** `PLANNED`.
+- **Status:** `IMPLEMENTED`.
 - **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-02.
 - **Backend gate:** Existing login and current-user/session behavior verified against auth controller/DTO/service.
@@ -359,11 +364,11 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-13 — Stock adjustment
 
 - **Domain:** Stock adjustment.
-- **Status:** `IMPLEMENTED`.
+- **Status:** `PLANNED`; the backend gate is verified, but the current frontend remains the legacy workflow described below.
 - **Execution class:** `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-12.
 - **Current implementation note:** A legacy stock-adjustment route/screen exists, but it is not the FE-13 target: it uses integer/JavaScript-number quantity handling, reads deprecated aggregate `stockQuantity`, and does not send the backend-required `stockLocation` per line.
-- **Backend gate:** Adjustment request/response uses decimal quantity, explicit location/direction semantics, reason, posted movement result, validation, and conflict handling.
+- **Backend gate:** Verified: adjustment request/response uses decimal quantity, explicit location/direction semantics, reason, posted movement result, validation, and conflict handling.
 - **User-visible change:** Authorized users can post a reasoned STORE or WAREHOUSE adjustment and see the confirmed movement.
 - **Exact scope:** Align current adjustment list/create/detail to the target contract, with confirmation, pending, conflicts, success, and tests.
 - **Out of scope:** Transfer, item edit, stock calculation, bulk adjustment, generic transaction framework.
@@ -375,7 +380,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 
 **Copy-ready implementation prompt**
 
-> After FE-13's backend gate clears, implement only stock adjustment. Inspect the exact adjustment controller/DTO/validation/service and movement response. Align the current JavaScript list/create/detail with decimal quantity, explicit location and direction, reason, confirmation, pending, duplicate protection, conflict recovery, and backend-confirmed success. Refresh affected read data without calculating stock locally. Add focused tests. Do not add transfer or item editing. Split read alignment from create if the change exceeds the roadmap limit.
+> Implement FE-13 stock adjustment only. First read `AGENTS.md`, the frontend contract, and this roadmap; inspect Git status and preserve existing work. Re-inspect the backend stock-adjustment controller, create/filter requests, item request, adjustment/item/create responses, validation, service transaction, conflict handling, and emitted movement response. Replace the legacy frontend contract rather than extending it: use decimal editing strings with at most four fractional digits, enforce the backend-reported whole/fractional item policy, require `STORE` or `WAREHOUSE` per line, treat ADD/REMOVE as positive deltas and CORRECTION as an absolute target that may be zero, and never read aggregate `stockQuantity` or calculate authoritative resulting stock. Reuse `BloomQuantityField` mechanics where they fit, while keeping direction, zero, location, and request rules local to adjustment. Freeze the confirmed reason/lines before one submission; cover loading, empty, validation, confirmation, pending, duplicate prevention, backend conflict, retry, backend-confirmed adjustment/movements, focus, keyboard, responsive layout, and stale responses. Remove or hide bulk CSV from this Release 1 workflow because bulk adjustment is out of scope. Add focused API/store/list/detail/create tests, then run the full test suite, production build, and targeted lint. Do not change transfer, item editing, the global shell, or the design system. If list/detail plus create exceeds the roadmap limit, split read alignment first and create second under separately named review scopes without shipping an unsafe partial submit.
 
 ### FE-14 — Stock transfer
 
@@ -480,7 +485,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-19 — Physical scanner integration
 
 - **Domain:** Barcode scanner input.
-- **Status:** `IN_PROGRESS`; E81W workstation observations are recorded and implementation may proceed, while store-laptop physical verification remains required.
+- **Status:** `IN_PROGRESS`; the E81W adapter, automated coverage, and VR-PC workstation verification are present, while store-laptop physical verification remains required.
 - **Execution class:** `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-18.
 - **Backend gate:** Item barcode lookup contract stable; actual scanner model/interface, character timing, prefix/suffix, terminator, and rapid-scan behavior verified on the store laptop.
@@ -495,13 +500,13 @@ The contract explains stable product and architecture rules. A planning pass is 
 
 **Copy-ready implementation prompt**
 
-> Implement FE-19 only after recording actual scanner model/interface, prefix/suffix/terminator, timing, and rapid-scan observations. Integrate that physical input with FE-18's existing item-add path using the smallest JavaScript adapter. Preserve manual search and normal text editing; scanning must never trigger checkout. Cover match, not found, inactive, duplicate/rapid scan, focus, and feedback with device-informed automated tests, then verify on the store laptop. Do not implement camera scanning or guess keyboard-wedge timing without evidence.
+> Complete only FE-19's remaining store-laptop physical verification; do not rewrite the implemented E81W adapter unless observed evidence requires a narrow correction. On the actual store laptop, record Windows/browser, scanner connection/identity, prefix/modifiers, terminator, complete character ordering, maximum inter-key gap, total scan duration, and rapid consecutive-scan separation using the Release 1 E81W. In `/cashier`, verify registered active, inactive, unknown, duplicate, and rapid distinct scans; confirm normal manual typing/search remains usable, focus returns as documented, feedback is visible and announced, quantities follow FE-18 rules, and no scan can submit search or checkout. Compare measurements with the documented 30 ms adapter threshold. If behavior matches, record dated evidence and mark FE-19 `IMPLEMENTED`; no code change is required. If it differs, stop and report the exact observation before changing thresholds or parsing, then make only the smallest device-evidenced adapter/test correction and rerun focused tests, the full suite, build, and targeted lint. Do not add camera scanning, configuration UI, a second transport, inventory administration, or synthetic timing assumptions.
 
 ### FE-20 — Sale checkout submission
 
 - **Domain:** Sale posting and payment.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `PLAN_RECOMMENDED`.
+- **Status:** `IMPLEMENTED`.
+- **Execution class:** `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-18.
 - **Backend gate:** Sale create request/response supports decimal lines, CASH/QRIS, open-session enforcement, server totals/change, idempotency key and same-key replay/conflict semantics, and ambiguous-outcome recovery/status lookup.
 - **User-visible change:** Cashier can confirm CASH or QRIS payment exactly once and see the server-created sale, totals, and cash change.
@@ -618,19 +623,19 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** Posted receipt truth is displayed from one suitable backend read model.
 - **Validation:** Tests for decimal/UOM/location, total/paid/outstanding/status, supplier, zero/partial values, tests/build/lint/responsive.
-- **Block condition:** Response lacks financial fields, requires per-row supplier/item requests, or calendar-day filters lack an explicit business/store timezone contract for their `Instant` boundaries.
+- **Block condition:** Calendar-day filters lack an endpoint-applicable business/store timezone contract for their `Instant` boundaries, or the frontend continues to derive those boundaries from the operator device timezone. The dashboard's `bloom.dashboard.store-zone-id` setting is not automatically a goods-receipt filter contract.
 - **Split trigger:** Split detail from list if the combined diff exceeds the cap.
 
 **Implementation note (2026-09-09):** The backend list/detail responses expose supplier ID/code/name, receipt and payment statuses, server-calculated total/paid/outstanding values, persisted decimal line quantities with UOM and stock location, references, timestamps, and code/supplier/date filters with paging. The frontend read workflow renders those fields directly with loading, error/retry, empty, canonical-query, page-boundary, stale-response, keyboard, and responsive behavior. It issues one request per list load and one request only when a user opens detail. FE-25 originally hid the existing `/goods-receipts/new` entry until its request was aligned; FE-26 now replaces creation and exposes the entry from receipt history; no payment, enrichment, or client-side financial calculation was added. Final approval is blocked because the date DTO accepts `Instant` while neither backend nor frontend contract names the fixed business/store timezone; the current conversion consequently follows the operator device timezone and must not be presented as the final store-timezone rule.
 
 **Copy-ready implementation prompt**
 
-> Implement FE-25 only after target goods-receipt list/detail contracts exist. Inspect controller/DTO/service and align current JavaScript API/store/list/detail to supplier ID/name, decimal item quantities, UOM, location, server total, paid/outstanding, status, reference, and time. Cover loading/error/retry/empty and supported filters/paging with focused tests. Do not create receipts, pay debt, calculate totals, or add N+1 enrichment calls. Split detail if needed for review size.
+> Complete only FE-25's remaining calendar-filter timezone work; preserve the implemented goods-receipt list/detail behavior. First read `AGENTS.md`, the frontend contract, this roadmap, and the FE-25 implementation notes; inspect Git status. In the backend repository, inspect `GoodsReceiptController`, `FilterGoodsReceiptRequest`, `GoodsReceiptSpecification`, date serialization/configuration, and the Release 1 domain contract. Do not assume the dashboard-specific zone property governs goods-receipt filters. Obtain an explicit endpoint-applicable rule—prefer calendar-date parameters interpreted by the backend in the configured store zone, or a documented canonical IANA store zone and exact inclusive/exclusive Instant-boundary semantics. If that backend rule is still absent, make only the narrow backend contract/DTO/service/test change required and stop before frontend guessing. Once explicit, replace the frontend's device-local `new Date(...)` conversion with the agreed rule, preserving canonical URL dates and one list request. Test start-only, end-only, same-day, month/year/leap boundaries, a browser timezone different from the store, invalid URL dates, stale requests, retry, paging, and existing empty/accessibility/responsive behavior. Run focused and full tests, production build, and targeted lint. Do not change receipt creation/payment, add timezone dependencies without necessity, aggregate financial values, or redesign the list/detail screens.
 
 ### FE-26 — Goods-receipt creation
 
 - **Domain:** Goods receipt posting.
-- **Status:** `REVIEW`.
+- **Status:** `IMPLEMENTED`.
 - **Execution class:** `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-25.
 - **Backend gate:** Create request uses supplier identifier, decimal line quantity/purchase price and location; service calculates total, posts receipt movements atomically, defines optional initial payment semantics, and returns full posted result.
@@ -646,6 +651,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 
 **Implementation note (2026-09-09):** Creation gate verified against the current controller, nested request/response DTOs, quantity/money validators, transactional goods-receipt/stock-movement/payment services, mapper and exception handling. Implemented receipt-only posting, explicit received time/offset, separate repeated item lines, safe same-key replay, preserved draft/recovery, and server financial/status display. FE-25's calendar-filter timezone approval remains separate and blocked. See [interaction/request and validation plan](fe-26-receipt-creation.md). Review quantity/line mechanics and atomic posting/recovery as two logical slices because the complete change exceeds the roadmap's usual diff cap; no split exception or merge approval is implied.
 
+**Status audit (2026-09-12):** The implementation, focused verification, review corrections, and FE-26 merge are present in current history. FE-25's read-filter timezone gate does not make FE-26 creation incomplete because creation captures an explicit date/time offset.
+
 **Copy-ready implementation prompt**
 
 > After FE-26's backend gate clears, create a short interaction/request plan and implement goods-receipt creation only. Inspect the exact request/response/validation/service transaction. Use stable supplier and item identities, decimal UOM-aware quantity/purchase-price inputs, explicit location, and one atomic submit. Treat this as the shared quantity-control checkpoint: compare the verified receipt input mechanics with FE-18 and the FE-13 target, extract a decimal-string-based `BloomQuantityField` only where mechanics genuinely match, and keep domain rules in each workflow. Treat any displayed preview as non-authoritative and render server total/paid/outstanding/status on success. Cover confirmation, pending, duplicate submission, conflicts, preserved input, focus, and responsive line editing with tests. Do not reuse legacy `BloomInputNumber` unchanged, invent supplier/payment contracts, or send a client-authoritative total.
@@ -653,7 +660,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-27 — Supplier payable views
 
 - **Domain:** Supplier debt/accounts payable read model.
-- **Status:** `REVIEW`.
+- **Status:** `IMPLEMENTED`.
 - **Execution class:** `DIRECT_IMPLEMENTATION`.
 - **Dependencies:** FE-25.
 - **Backend gate:** Payable summary and receipt-level outstanding read endpoints expose server-calculated amounts, status, supplier/receipt references, dates, paging/filter semantics.
@@ -675,8 +682,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 ### FE-28 — Single-receipt supplier payment
 
 - **Domain:** Supplier payment.
-- **Status:** `REVIEW`.
-- **Execution class:** `PLAN_RECOMMENDED`.
+- **Status:** `BLOCKED`; frontend implementation and review corrections are present, but production approval requires immutable recovery identity.
+- **Execution class:** `BLOCKED` on authenticated recovery identity.
 - **Dependencies:** FE-15, FE-27.
 - **Backend gate:** Payment endpoint applies one payment to one receipt, supports partial payment and `CASH`/`BANK_TRANSFER`/`QRIS`, rejects overpayment, enforces open session for CASH, and returns the confirmed payment record with its drawer-session identity. The receipt detail endpoint supplies updated paid/outstanding/payment status. Reversal/error/idempotency behavior is defined.
 - **User-visible change:** User can record a partial or full payment for one selected receipt; only CASH requires and affects the open drawer.
@@ -685,20 +692,22 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Recommended model:** `gpt-5.6-sol`, xhigh reasoning.
 - **Expected output:** A deliberately simple Release 1 payment flow with backend-enforced overpayment and drawer rules.
 - **Validation:** Tests for each method, partial/full, overpay, CASH without/with session, duplicate/ambiguous submit, server-updated outstanding/status; keyboard/confirmation; tests/build/lint.
-- **Block condition:** Allocation, overpayment, idempotency/recovery, reversal, or CASH session semantics are undefined/unimplemented.
+- **Block condition:** Authentication exposes only reusable username/name/role. Durable uncertain-payment recovery requires an immutable, non-recycled account identifier and safe handling for existing username-only storage.
 - **Split trigger:** If payment-method interactions exceed the limit, extract shared one-receipt submission state and split CASH from non-cash UI without enabling unsupported allocation.
 
 **Implementation note (2026-09-10):** Verified current payment controller/DTO/validation/service, receipt balance reads, idempotency, conflicts, drawer movement, and the newer payment migration runbook's correction boundary. Receipt detail now supports one-receipt partial/full payments, durable exact-key replay after ambiguous responses/navigation/reload, CASH-only session gating, and separately refreshed backend receipt values. The main backend domain document retains stale unresolved-payment wording; the [transaction plan](fe-28-supplier-payment.md) records the precise implementation/supplement used. Reversal UI and FE-25 timezone filtering are excluded.
 
+**Identity audit (2026-09-12):** The persisted workflow currently records `currentUser.username` as `owner`. Backend user deletion/recreation permits username reuse, so a recreated account could match an older uncertain attempt. This is the same verified prerequisite as FE-29 and FE-30; it does not invalidate the implemented payment transaction behavior, but it blocks production approval.
+
 **Copy-ready implementation prompt**
 
-> After FE-28's backend contract is final, make a short transaction plan and implement only one-receipt supplier payment. Inspect payment controller/request/response/validation/service, idempotency/recovery, overpayment, reversal, and drawer/session rules. From one selected receipt, accept a partial or full `CASH`, `BANK_TRANSFER`, or `QRIS` payment; require current session only for CASH; render backend-updated outstanding/status. Cover confirmation, pending, duplicate/ambiguous submit, overpay, closed-session conflict, success, focus, and tests. Do not add multi-receipt allocation, prepayment, credit, or frontend balance calculations.
+> Complete only FE-28's recovery-identity migration after the shared backend authentication prerequisite is implemented. Re-inspect `/api/auth/current`, its response DTO/session construction, user deletion/recreation behavior, and the existing supplier-payment persisted store. Require a stable, non-recycled account identifier from the authenticated response; never derive it from username, display name, role, timestamps, or a browser-generated value. Bind every new draft/attempt/result to that identifier and require an exact identifier match before rendering, editing, replaying, acknowledging, or refreshing the retained payment. Quarantine existing username-only or ownerless storage for manual backend reconciliation; never silently attach it to the currently logged-in account. Preserve the exact receipt code, request, and idempotency key for valid same-owner uncertain replay. Add focused migration/account-switch/account-recreation/late-response/reload tests plus the existing payment transaction tests, then run the full suite, build, and targeted lint. Do not redesign payment allocation, change money/session rules, create a shared transaction framework, or modify FE-29/FE-30 in this frontend PR.
 
 ### FE-29 — Unexpected expense list/create
 
 - **Domain:** Unexpected expenses.
-- **Status:** `REVIEW`.
-- **Execution class:** `PLAN_RECOMMENDED`.
+- **Status:** `BLOCKED`; frontend implementation and review are present, but production approval requires immutable recovery identity.
+- **Execution class:** `BLOCKED` on authenticated recovery identity.
 - **Dependencies:** FE-15.
 - **Backend gate:** Verified: authenticated expense history reads all sessions; creation requires `expectedCashSessionId` from the confirmed open session, decimal amount, fixed category, and optional description (required for OTHER), and returns the posted record. The backend locks that session without substituting another; identical session/content replays even after close. Idempotent conflicts and one-based paging with fixed sort are implemented; no list filters or separate create reason/note fields exist.
 - **User-visible change:** User can review and post an unexpected drawer expense such as snacks, charity, urgent purchase, or owner withdrawal.
@@ -707,21 +716,23 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** A posted expense is linked to the server-confirmed open session and appears in history without local ledger mutation.
 - **Validation:** Tests for open/closed session, validation, duplicate/ambiguous submit, success refresh, Rupiah/date, keyboard/focus/responsive; tests/build/lint.
-- **Block condition:** Expense endpoint/session enforcement/idempotency is absent or correction policy would require editing/deleting posted data.
+- **Block condition:** Authentication exposes only reusable username/name/role. Durable uncertain-expense recovery requires an immutable, non-recycled account identifier and safe handling for existing username-only storage.
 - **Split trigger:** If list and create exceed size, ship list first, then create; do not combine void behavior.
 
 **Implementation note (2026-09-11):** Backend controller/DTO/service/validation/session/key-lock/database gates verified. Implemented history and create as separate JavaScript pages, with durable same-key recovery, account isolation, confirmation/session preflight, conflict input preservation, returned-record success, session refresh, and focused tests. Prepare history and create as two dependent review diffs to meet the roadmap size limit; no exception is assumed. See [FE-29 contract evidence, transaction behavior, and review split](fe-29-expenses.md). FE-30 remains excluded.
 
-**Session-binding alignment (2026-09-11):** Confirmation now captures and persists the backend-required `expectedCashSessionId`. Replays keep the original session/request/key after rollover, mismatched-session responses remain unresolved, and pre-upgrade uncertain attempts missing the session ID are locked for manual reconciliation. Status remains `REVIEW`.
+**Session-binding alignment (2026-09-11):** Confirmation now captures and persists the backend-required `expectedCashSessionId`. Replays keep the original session/request/key after rollover, mismatched-session responses remain unresolved, and pre-upgrade uncertain attempts missing the session ID are locked for manual reconciliation. Transaction review completed; production approval is now governed by the later identity audit below.
+
+**Identity audit (2026-09-12):** Transaction/session behavior remains implemented, but the persisted workflow records `currentUser.username` as `owner`. Because backend user deletion/recreation permits username reuse, FE-29 is blocked from production approval with FE-28 and FE-30 until an immutable authenticated account identifier is available and the frontend migration below is complete.
 
 **Copy-ready implementation prompt**
 
-> Implement FE-29 after verifying expense list/create controller/DTO/validation/service, session enforcement, and duplicate/ambiguous-submit behavior. Add JavaScript expense history and a create interaction for the supported amount/category/reason/note fields. Require the backend-confirmed open session, confirm posting, preserve input on conflict, prevent duplicate submit, and render the returned record. Cover loading/error/empty/pending/success and accessibility with tests. Do not edit/delete/void here or calculate drawer cash locally. Split list/create if necessary.
+> Complete only FE-29's expense-create recovery-identity migration after the shared backend authentication prerequisite is implemented. Re-inspect `/api/auth/current`, its response DTO/session construction, user deletion/recreation behavior, and the existing expense persisted store. Bind each new draft/attempt/result to the immutable backend account identifier and require an exact identifier match before rendering, editing, replaying, acknowledging, or refreshing it. Preserve the original `expectedCashSessionId`, request, and idempotency key across valid same-owner recovery. Quarantine username-only, ownerless, or pre-session-binding attempts for manual backend reconciliation; never migrate them by matching username and never substitute the current cash session. Cover logout/login, account switch, delete-and-recreate-same-username, reload, late responses, legacy storage, exact replay, session rollover, and existing validation/conflict/success behavior with focused tests. Run the full suite, build, and targeted lint. Do not change expense history, void/reversal, categories, drawer calculations, or FE-28/FE-30 in this frontend PR.
 
 ### FE-30 — Unexpected expense void/reversal
 
 - **Domain:** Expense correction.
-- **Status:** `BLOCKED` for merge; frontend implementation and review fixes are present.
+- **Status:** `BLOCKED` for production approval; frontend implementation, review fixes, and merge are present.
 - **Execution class:** `BLOCKED` on authenticated recovery identity.
 - **Dependencies:** FE-29.
 - **Backend gate:** Void/reversal endpoint, eligibility, reason, audit result, drawer/session and post-close correction policy, idempotency/conflict behavior are defined and implemented.
@@ -739,15 +750,15 @@ The contract explains stable product and architecture rules. A planning pass is 
 
 **Copy-ready implementation prompt**
 
-> Implement FE-30 only after expense reversal eligibility, reason, audit result, idempotency, drawer impact, and post-close correction policy are implemented in the backend. Add only the JavaScript void/reversal interaction to the expense workflow: show eligibility, require a reasoned accessible confirmation, prevent duplicates, handle stale/already-voided/post-close conflicts, and render/refresh backend-confirmed results. Add focused tests. Never delete or silently edit a posted expense and do not touch sale or supplier-payment corrections.
+> Complete only FE-30's expense-void recovery-identity migration after the shared backend authentication prerequisite is implemented. Re-inspect `/api/auth/current`, its response DTO/session construction, user deletion/recreation behavior, the expense-void response/eligibility contract, and the persisted void store. Bind new selected records, reasons, uncertain attempts, and confirmed audit results to the immutable backend account identifier; require an exact identifier match before display, confirmation, replay, acknowledgement, or refresh. Quarantine all username-only or ownerless recovery for manual backend reconciliation and never migrate it by username. Preserve the existing resource-level idempotency behavior, exact reason, original expense facts, stale-response protection, eligibility refresh, original-session refresh, and confirmed audit retention. Add account-switch, same-username recreation, reload, late-response, legacy-storage, already-voided, closed-session, conflict, success, keyboard/focus, and responsive tests. Run focused and full tests, production build, and targeted lint. Do not add deletion/editing, post-close corrections, sale corrections, supplier-payment reversal, or a shared transaction framework, and do not modify FE-28/FE-29 in this frontend PR.
 
-**Review follow-up:** History now invalidates only for changed backend state or confirmed posting; recovery compares original facts with exact decimal normalization, preserves confirmed audit against stale reads, and retains the deliberate per-tab lock. Formatting and focused regressions are expanded. The supplied replacement history's unsupported search was rejected. Merge remains blocked on the verified authentication identity gap; see [review disposition and backend prerequisite](fe-30-expense-reversal.md#review-disposition-and-remaining-backend-prerequisite).
+**Review follow-up:** History now invalidates only for changed backend state or confirmed posting; recovery compares original facts with exact decimal normalization, preserves confirmed audit against stale reads, and retains the deliberate per-tab lock. Formatting and focused regressions are expanded. The supplied replacement history's unsupported search was rejected. The implementation was merged, but production approval remains blocked on the verified authentication identity gap; see [review disposition and backend prerequisite](fe-30-expense-reversal.md#review-disposition-and-remaining-backend-prerequisite).
 
 ### FE-31 — Release 1 dashboard read models
 
 - **Domain:** Release 1 operational dashboard.
-- **Status:** `BLOCKED`.
-- **Execution class:** `BLOCKED`; after the gate clears, `PLAN_RECOMMENDED`.
+- **Status:** `IMPLEMENTED`.
+- **Execution class:** `PLAN_RECOMMENDED`.
 - **Dependencies:** FE-17, FE-22, FE-27, FE-29.
 - **Backend gate:** Explicit dashboard read model(s) return the approved operational metrics with definitions, freshness, authorization, and drill-down references.
 - **User-visible change:** Back-office users see approved Release 1 operational summaries and can navigate to relevant domain records.
@@ -758,6 +769,8 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Validation:** Contract/component tests for zero/error/stale values and drill-down links, Indonesian formatting, accessibility/responsive checks, tests/build/lint.
 - **Block condition:** Metric definitions or backend read models are missing, or required drill-down domains are incomplete.
 - **Split trigger:** More than two or three independent widgets are approved at once; deliver each metric group as a separate dashboard-domain PR.
+
+**Implementation note (2026-09-12):** The backend gate is satisfied by authenticated `GET /api/dashboard/operational-overview`, with explicit Jakarta business-day and freshness metadata, semantic drill-down references, fixed-query server aggregates, and documented zero/no-session behavior. The frontend now requests that read model once and renders exactly three responsive widget groups: sales today, current cash-session operations, and supplier payables. It retains server-confirmed data across refresh failures, labels it stale from `freshUntil`, maps only recognized destinations to completed routes, and omits the legacy revenue/category/stock widgets from the Release 1 view. See [widget, state, and verification plan](fe-31-dashboard.md).
 
 **Copy-ready implementation prompt**
 
@@ -801,5 +814,7 @@ These questions cannot be safely answered by the current frontend implementation
 
 1. What future post-close correction workflow should be approved? The implemented supplier-payment policy permits CASH void only while its original session is open; the newer V18 runbook documents this boundary, while the historical domain document still needs alignment.
 2. What are the actual scanner model/interface, suffix/terminator, and rapid-scan characteristics on the store laptop?
+3. Does the goods-receipt filter accept store calendar dates, or which explicit store zone and inclusive/exclusive Instant boundaries govern `receivedDateFrom` and `receivedDateTo`? Dashboard-only timezone configuration is insufficient unless the backend contract explicitly makes it canonical for this endpoint.
+4. What immutable, non-recycled account identifier will `/api/auth/current` expose, and how will existing authenticated sessions behave after deployment? FE-28, FE-29, and FE-30 recovery migrations depend on this shared prerequisite.
 
-UOM vocabulary and first-movement-lock gates must still be verified for their dependent PRs. FE-28's one-receipt payment gate has been verified against the implemented service/database rules and the newer payment correction runbook; its historical backend domain wording needs editorial alignment, as recorded in the FE-28 transaction plan.
+FE-13's adjustment DTO/service gate is verified; its frontend implementation remains planned. FE-28's payment transaction gate is verified against the implemented service/database rules and the newer payment correction runbook, but its recovery identity remains blocked as recorded above.
