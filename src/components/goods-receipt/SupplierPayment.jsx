@@ -60,8 +60,8 @@ export default function SupplierPayment({ receipt }) {
     const headingRef = useRef(null);
     const { code, draft, attempt, result, pending, outcome, refreshStatus } = state;
     const current = code === receipt.code;
-    const authOwner = auth.authStatus === 'authenticated' ? auth.currentUser?.username : null;
-    const accessible = canUsePayment(state, authOwner);
+    const authAccountId = auth.authStatus === 'authenticated' ? auth.currentUser?.accountId : null;
+    const accessible = canUsePayment(state, authAccountId);
     const locked = isPaymentLocked(state);
     const payable = receipt.status === 'POSTED' && ['UNPAID', 'PARTIALLY_PAID'].includes(receipt.paymentStatus)
         && getMoneySign(receipt.outstandingAmount) > 0;
@@ -73,10 +73,10 @@ export default function SupplierPayment({ receipt }) {
 
     useEffect(() => {
         state.select(receipt.code);
-    }, [receipt.code, code, locked, authOwner, state.select]);
+    }, [receipt.code, code, locked, authAccountId, state.select]);
     useEffect(() => {
         setConfirmation(null);
-    }, [authOwner]);
+    }, [authAccountId]);
     useEffect(() => {
         if (accessible && current && draft.paymentMethod === 'CASH' && !attempt && !result) {
             cash.getCurrentSession({ timeout: SUPPLIER_PAYMENT_TIMEOUT_MS }).catch(() => {
@@ -94,11 +94,11 @@ export default function SupplierPayment({ receipt }) {
         }
     }, [pending, outcome]);
 
-    if (!authOwner) return <Typography role="status">Memverifikasi akun sebelum membuka pembayaran...</Typography>;
-    if (!accessible && locked) return (
+    if (!authAccountId) return <Typography role="status">Memverifikasi akun sebelum membuka pembayaran...</Typography>;
+    if (!accessible && (locked || code || state.ownerAccountId || state.owner)) return (
         <Alert severity="warning">Pembayaran sebelumnya dikunci untuk akun asal. Masuk dengan akun yang memulainya untuk
             melanjutkan.
-            { !state.owner && ' Pemulihan lama belum memiliki identitas akun; minta administrator memeriksa transaksi sebelum melanjutkan.' }
+            { !state.ownerAccountId && ' Pemulihan lama belum memiliki identitas akun tetap; minta administrator memeriksa transaksi sebelum melanjutkan.' }
         </Alert>
     );
     if (!accessible || (!current && !locked)) return <Typography role="status">Menyiapkan pembayaran...</Typography>;
@@ -118,7 +118,9 @@ export default function SupplierPayment({ receipt }) {
             return;
         }
         setConfirmation({
-            code, owner: state.owner, request: paymentRequest(draft, new Date().toISOString()),
+            code,
+            ownerAccountId: state.ownerAccountId,
+            request: paymentRequest(draft, new Date().toISOString()),
             supplierName: receipt.supplierName, outstandingAmount: receipt.outstandingAmount
         });
     };

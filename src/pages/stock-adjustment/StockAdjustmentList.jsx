@@ -1,21 +1,13 @@
-import {
-    useEffect,
-    useState
-} from "react"
-
-import {
-    endOfDay,
-    subWeeks
-} from "date-fns"
-
+import { useEffect, useState } from 'react';
 import {
     Link,
+    useLocation,
     useSearchParams
-} from "react-router-dom"
-
+} from 'react-router-dom';
 import {
+    Alert,
     Button,
-    MenuItem,
+    CircularProgress,
     Pagination,
     Paper,
     Table,
@@ -25,290 +17,215 @@ import {
     TableHead,
     TableRow,
     TextField
-} from "@mui/material"
-
-import {
-    Plus,
-    SquareArrowOutUpRightIcon
-} from "lucide-react"
+} from '@mui/material';
 
 import {
     useBreadcrumbStore,
     useStockAdjustmentStore
-} from "@stores/index.js"
+} from '@stores/index.js';
+import { formatDate } from '@utils/date-utils.js';
 
-import { formatDate } from "@utils/date-utils.js"
-import { debounce } from "@utils/general-utils.js"
+const PAGE_SIZES = [5, 10, 25, 50];
 
-import BloomDateRangePicker from "@components/_ui/BloomDateRangePicker.jsx"
+const queryState = params => {
+    const next = new URLSearchParams(params);
+    const rawPage = Number(params.get('page'));
+    const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+    const rawSize = Number(params.get('size'));
+    const size = PAGE_SIZES.includes(rawSize) ? rawSize : 10;
+    const query = params.get('q') || '';
 
-const INITIAL_FILTER_DATE = {
-    startDate: subWeeks(Date.now(), 1),
-    endDate: endOfDay(Date.now()),
-    key: 'selection'
-}
+    if (params.has('page') && params.get('page') !== String(page)) {
+        next.set('page', String(page));
+    }
+    if (params.has('size') && params.get('size') !== String(size)) {
+        next.set('size', String(size));
+    }
+
+    return {
+        page,
+        size,
+        query,
+        canonical: next.toString(),
+        needsSanitization: next.toString() !== params.toString()
+    };
+};
 
 export default function StockAdjustmentList() {
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
-    const stockAdjustmentList = useStockAdjustmentStore(state => state.stockAdjustmentList);
-    const stockAdjustmentPaging = useStockAdjustmentStore(state => state.stockAdjustmentPaging);
-    const getStockAdjustmentList = useStockAdjustmentStore(state => state.getStockAdjustmentList);
+    const adjustments = useStockAdjustmentStore(state => state.stockAdjustmentList);
+    const paging = useStockAdjustmentStore(state => state.stockAdjustmentPaging);
+    const status = useStockAdjustmentStore(state => state.stockAdjustmentListStatus);
+    const error = useStockAdjustmentStore(state => state.stockAdjustmentListError);
+    const load = useStockAdjustmentStore(state => state.getStockAdjustmentList);
+    const location = useLocation();
+    const [params, setParams] = useSearchParams();
+    const state = queryState(params);
+    const [draftQuery, setDraftQuery] = useState(state.query);
+    const [retry, setRetry] = useState(0);
+    const totalPages = Number(paging.totalPages) || 0;
+    const outOfRange = status === 'ready' && totalPages > 0 && state.page > totalPages;
+    const returnTo = `${ location.pathname }${ location.search }`;
 
-    const [searchParams, setSearchParams] = useSearchParams();
-    const [filters, setFilters] = useState('');
-    const [selectedFilterKey, setSelectedFilterKey] = useState('stockAdjustmentCode');
-    const filterKeyData = {
-        "stockAdjustmentCode": "No. Referensi",
-        "reason": "Alasan"
-    }
-    const [filterDate, setFilterDate] = useState({ ...INITIAL_FILTER_DATE })
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemPerPage, setItemPerPage] = useState(10);
-    const itemPerPageOptions = [5, 10, 25, 50]
-    const [isLoadingTable, setLoadingTable] = useState(false);
+    useEffect(() => {
+        setBreadcrumbs(['Persediaan', 'Penyesuaian Stok']);
+    }, [setBreadcrumbs]);
 
-    const handleFilterKeyChange = e => {
-        setSelectedFilterKey(e.target.value);
-    }
-    const handleFilterChange = e => {
-        setFilters(e.target.value);
-        setCurrentPage(1)
-    }
-    const handleFilterDateChange = dateRange => {
-        setFilterDate(dateRange)
-        setCurrentPage(1)
-    }
-    const handleFilterClear = () => {
-        setFilters('')
-        setSelectedFilterKey('stockAdjustmentCode');
-        setFilterDate({ ...INITIAL_FILTER_DATE })
-    }
+    useEffect(() => {
+        setDraftQuery(state.query);
+    }, [state.query]);
 
-    const filterStockAdjustmentList = async (page = currentPage) => {
-        setLoadingTable(true);
-        setCurrentPage(page);
-        const payload = {
-            params: {
-                page,
-                size: itemPerPage,
-                [selectedFilterKey]: filters,
-                startDate: filterDate.startDate,
-                endDate: filterDate.endDate
-            }
+    useEffect(() => {
+        if (state.needsSanitization) {
+            setParams(state.canonical, { replace: true });
         }
+    }, [setParams, state.canonical, state.needsSanitization]);
 
-        await getStockAdjustmentList(payload)
-        setLoadingTable(false);
-    }
+    useEffect(() => {
+        if (state.needsSanitization) {
+            return undefined;
+        }
+        const controller = new AbortController();
+        load({
+            page: state.page,
+            size: state.size,
+            ...(state.query ? { stockAdjustmentCode: state.query } : {})
+        }, { signal: controller.signal }, { useLoader: false }).catch(() => {});
+        return () => controller.abort();
+    }, [load, retry, state.needsSanitization, state.page, state.query, state.size]);
 
-    const handleItemPerPageChange = (e) => {
-        setItemPerPage(e.target.value)
-        setCurrentPage(1)
+    useEffect(() => {
+        if (!outOfRange) {
+            return;
+        }
+        setParams(current => {
+            const next = new URLSearchParams(current);
+            next.set('page', String(totalPages));
+            return next;
+        }, { replace: true });
+    }, [outOfRange, setParams, totalPages]);
+
+    const updateQuery = updates => {
+        const next = new URLSearchParams(params);
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value) {
+                next.set(key, String(value));
+            } else {
+                next.delete(key);
+            }
+        });
+        setParams(next);
     };
 
-    const handlePageChange = (e, value) => {
-        setCurrentPage(value);
-    }
-
-    const fetchStockAdjustmentList = async () => {
-        setSearchParams({
-            page: currentPage,
-            itemPerPage: itemPerPage,
-            q: filters,
-            key: selectedFilterKey
-        })
-        await filterStockAdjustmentList();
-    }
-
-    useEffect(() => {
-        debounce(fetchStockAdjustmentList, 'fetchStockAdjustmentList', 500)
-    }, [itemPerPage, filters, filterDate, currentPage]);
-
-    useEffect(() => {
-        setFilters('');
-    }, [selectedFilterKey]);
-
-    useEffect(() => {
-        setBreadcrumbs(['Penyesuaian Stok'])
-        const filterQueryParameterList = ['q', 'key', 'page', 'itemPerPage']
-        if (filterQueryParameterList.some(key => searchParams.has(key))) {
-            setSelectedFilterKey(searchParams.get('key') || 'stockAdjustmentCode');
-            setFilters(searchParams.get('q') || '');
-            setItemPerPage(Number(searchParams.get('itemPerPage')) || 10)
-            setCurrentPage(Number(searchParams.get('page')) || 1)
-        }
-    }, []);
-
     return (
-        <div className="stock-adjustment-list">
-            <div className="stock-adjustment-list__header mb-4 flex justify-between items-center">
-                <h2 className="stock-adjustment-list__header-title font-bold text-2xl">Riwayat Penyesuaian Stok</h2>
-
-                <div className="stock-adjustment-list__header-action">
-                    <Link
-                        to="/stock-adjustments/new"
-                        className="stock-adjustment-list__header-action-create"
-                    >
-                        <Button
-                            variant="contained"
-                            endIcon={ <Plus className="w-5" /> }>
-                            Buat Penyesuaian
-                        </Button>
-                    </Link>
+        <div className="space-y-4">
+            <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <h2 className="text-2xl font-bold">Riwayat penyesuaian stok</h2>
+                    <p className="mt-1 text-slate-600">Setiap nilai stok berasal dari transaksi server.</p>
                 </div>
-            </div>
-
-            <div className="
-                stock-adjustment-list__filter
-                card
-                mb-4
-                flex
-                items-center
-                gap-2"
-            >
-                <TextField
-                    select
-                    className="stock-adjustment-list__filter-key basis-1/6"
-                    label="Filter by"
-                    variant="outlined"
-                    size="small"
-                    value={ selectedFilterKey }
-                    onChange={ handleFilterKeyChange }
-                >
-                    { Object.keys(filterKeyData).map(filterKey => (
-                        <MenuItem key={ filterKey } value={ filterKey }>
-                            { filterKeyData[filterKey] }
-                        </MenuItem>
-                    )) }
-                </TextField>
-
-                <TextField
-                    className="stock-adjustment-list__filter-value basis-1/3"
-                    label={ `Filter by ${filterKeyData[selectedFilterKey]}` }
-                    variant="outlined"
-                    size="small"
-                    value={ filters }
-                    onChange={ handleFilterChange }
-                />
-
-                <BloomDateRangePicker
-                    ranges={ filterDate }
-                    label="Tanggal pembuatan"
-                    onChange={ handleFilterDateChange }
-                />
-
-                <Button
-                    className="stock-adjustment-list__filter-clear"
-                    variant="text"
-                    onClick={ handleFilterClear }
-                >
-                    Hapus filter
+                <Button component={ Link } to="/stock-adjustments/new" variant="contained">
+                    Buat penyesuaian
                 </Button>
-            </div>
+            </header>
 
-            <div className="stock-adjustment-list__content gr-content bg-white rounded-lg shadow-lg pb-2">
-                <div className="gr-content__pagination px-4 py-2 flex justify-between items-center">
-                    <h3 className="gr-content__pagination-title text-xl font-bold">Daftar Penyesuaian</h3>
+            <Paper
+                component="form"
+                className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start"
+                onSubmit={ event => {
+                    event.preventDefault();
+                    updateQuery({ q: draftQuery.trim(), page: 1 });
+                } }>
+                <TextField
+                    fullWidth
+                    size="small"
+                    label="Cari nomor referensi"
+                    value={ draftQuery }
+                    onChange={ event => setDraftQuery(event.target.value) }
+                />
+                <Button type="submit" variant="contained">Terapkan</Button>
+                <Button
+                    type="button"
+                    disabled={ !state.query && !draftQuery }
+                    onClick={ () => {
+                        setDraftQuery('');
+                        updateQuery({ q: '', page: 1 });
+                    } }>Hapus filter</Button>
+            </Paper>
 
-                    <div className="gr-content__pagination-inputs flex gap-2 items-center">
-                        <span className="text-sm text-gray-700">Data per halaman:</span>
+            { error && (
+                <Alert
+                    severity="error"
+                    action={ (
+                    <Button color="inherit" onClick={ () => setRetry(value => value + 1) }>Coba lagi</Button>
+                ) }>
+                    { error.message || 'Riwayat penyesuaian gagal dimuat.' }
+                </Alert>
+            ) }
+
+            <section className="rounded-lg bg-white shadow-lg" aria-label="Daftar penyesuaian stok">
+                <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <h3 className="text-xl font-bold">Daftar penyesuaian</h3>
+                    <div className="flex flex-wrap items-center gap-2">
                         <TextField
                             select
-                            value={ itemPerPage }
-                            onChange={ handleItemPerPageChange }
+                            SelectProps={ { native: true } }
                             size="small"
-                            className="w-20 mr-2"
-                        >
-                            { itemPerPageOptions.map(option => (
-                                <MenuItem key={ option } value={ option }>
-                                    { option }
-                                </MenuItem>
-                            )) }
+                            label="Data per halaman"
+                            value={ state.size }
+                            onChange={ event => updateQuery({ size: event.target.value, page: 1 }) }>
+                            { PAGE_SIZES.map(size => <option key={ size } value={ size }>{ size }</option>) }
                         </TextField>
-                        <Pagination
-                            page={ currentPage }
-                            count={ stockAdjustmentPaging?.totalPages }
-                            onChange={ handlePageChange }
-                        />
+                        <Pagination page={ totalPages ? Math.min(state.page, totalPages) : state.page }
+                            count={ totalPages || 1 }
+                            disabled={ status === 'loading' || !totalPages }
+                            onChange={ (_, page) => updateQuery({ page }) }
+                            aria-label="Halaman penyesuaian stok" />
                     </div>
                 </div>
 
-                <TableContainer
-                    component={ Paper }
-                    elevation={ 0 }
-                    className="gr-content__table"
-                >
-                    <Table>
-                        <TableHead className="gr-content__table-header bg-gray-100">
-                            <TableRow className="text-xs font-semibold tracking-wider">
-                                <TableCell className="whitespace-nowrap">No. Referensi</TableCell>
-                                <TableCell className="whitespace-nowrap">Alasan</TableCell>
-                                <TableCell className="whitespace-nowrap">Dibuat Oleh</TableCell>
-                                <TableCell className="whitespace-nowrap">Tanggal</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            { isLoadingTable
-                                ? (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan="5"
-                                            className="!border-b-0 !text-center italic !text-gray-500"
-                                        >
-                                            Loading...
-                                        </TableCell>
+                { status === 'loading' || status === 'idle' || outOfRange ? (
+                    <div className="py-12 text-center" role="status">
+                        <CircularProgress size={ 22 } /> Memuat penyesuaian stok...
+                    </div>
+                ) : status === 'error' ? (
+                    <p className="p-8 text-center text-slate-600">Data belum dapat ditampilkan.</p>
+                ) : adjustments.length ? (
+                    <TableContainer component={ Paper } elevation={ 0 }>
+                        <Table sx={ { minWidth: 720 } }>
+                            <TableHead className="bg-gray-100">
+                                <TableRow>
+                                    <TableCell>Nomor referensi</TableCell>
+                                    <TableCell>Alasan</TableCell>
+                                    <TableCell>Dibuat oleh</TableCell>
+                                    <TableCell>Waktu</TableCell>
+                                    <TableCell />
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                { adjustments.map(adjustment => (
+                                    <TableRow key={ adjustment.stockAdjustmentCode } hover>
+                                        <TableCell><strong>{ adjustment.stockAdjustmentCode }</strong></TableCell>
+                                        <TableCell>{ adjustment.reason || '-' }</TableCell>
+                                        <TableCell>{ adjustment.createdBy || 'SYSTEM' }</TableCell>
+                                        <TableCell>{ formatDate(adjustment.createdAt) || '-' }</TableCell>
+                                        <TableCell><Button component={ Link }
+                                            to={ `/stock-adjustments/${ encodeURIComponent(adjustment.stockAdjustmentCode) }` }
+                                            state={ { from: returnTo } }>
+                                            Detail
+                                        </Button></TableCell>
                                     </TableRow>
-                                )
-                                : stockAdjustmentList?.length
-                                    ? stockAdjustmentList?.map(((adjustment, index) => {
-                                        const isLastRow = index === stockAdjustmentList.length - 1
-                                        const tableCellClass = isLastRow ? '!border-b-0' : ''
-                                        return (
-                                            <TableRow
-                                                key={ adjustment.stockAdjustmentCode }
-                                                className="gr-content__table-row"
-                                            >
-                                                <TableCell className={ `${tableCellClass} whitespace-nowrap w-full` }>
-                                                    <Link
-                                                        to={ `/stock-adjustments/${encodeURIComponent(adjustment.stockAdjustmentCode)}` }
-                                                        className="table-action__detail flex items-start gap-0.5"
-                                                    >
-                                                        { adjustment.stockAdjustmentCode }
-                                                        <SquareArrowOutUpRightIcon
-                                                            className="gr-content__table-link w-3.5 h-3.5"
-                                                        />
-                                                    </Link>
-                                                </TableCell>
-
-                                                <TableCell className={ `${tableCellClass} whitespace-nowrap` }>
-                                                    { adjustment.reason || '-' }
-                                                </TableCell>
-
-                                                <TableCell className={ `${tableCellClass} whitespace-nowrap` }>
-                                                    { adjustment.createdBy || 'SYSTEM' }
-                                                </TableCell>
-
-                                                <TableCell className={ `${tableCellClass} whitespace-nowrap` }>
-                                                    { formatDate(adjustment.createdDate) }
-                                                </TableCell>
-                                            </TableRow>
-                                        )
-                                    }))
-                                    : (
-                                        <TableRow>
-                                            <TableCell
-                                                className="!border-b-0 !text-center italic !text-gray-500"
-                                                colSpan="5"
-                                            >
-                                                Data tidak ditemukan
-                                            </TableCell>
-                                        </TableRow>
-                                    )
-                            }
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            </div>
+                                )) }
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                ) : (
+                    <div className="p-10 text-center">
+                        <strong>Belum ada penyesuaian stok</strong>
+                        <p className="mt-1 text-slate-600">Buat penyesuaian saat stok fisik perlu dicatat ulang.</p>
+                    </div>
+                ) }
+            </section>
         </div>
     );
 }

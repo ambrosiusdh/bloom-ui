@@ -18,7 +18,7 @@ import {
 const STORAGE_KEY = 'bloom-expense-void-v1';
 
 const initial = {
-    owner: null,
+    ownerAccountId: null,
     open: false,
     record: null,
     reason: '',
@@ -55,17 +55,19 @@ const storage = {
     }
 };
 
-const currentOwner = () => {
+const currentAccountId = () => {
     const auth = useAuthStore.getState();
-    return auth.authStatus === 'authenticated' ? auth.currentUser?.username : null;
+    return auth.authStatus === 'authenticated' ? auth.currentUser?.accountId : null;
 };
 
-export const canUseExpenseVoid = state => !!currentOwner() && state.owner === currentOwner();
+export const canUseExpenseVoid = state => !!currentAccountId()
+    && state.ownerAccountId === currentAccountId();
 
 // Replays target one immutable expense ID. Never invent a key or replace the confirmed reason.
 const useExpenseVoidStore = create(persist((set, get) => {
     const refresh = async (afterPost = false) => {
         const original = get().record;
+        const ownerAccountId = get().ownerAccountId;
         set({
             refreshError: false,
             session: null
@@ -73,6 +75,10 @@ const useExpenseVoidStore = create(persist((set, get) => {
 
         try {
             const { data: response } = await expenseApi.getExpense(original.id);
+            if (!canUseExpenseVoid(get()) || get().ownerAccountId !== ownerAccountId
+                || get().record?.id !== original.id) {
+                return;
+            }
             const record = response?.data;
             if (!validExpenseVoidRecord(record, original)) {
                 throw new Error('Invalid expense result');
@@ -104,6 +110,10 @@ const useExpenseVoidStore = create(persist((set, get) => {
                 cashSessionApi.getSessionDetails(original.cashSessionId, { timeout: EXPENSE_TIMEOUT_MS }),
                 useCashSessionStore.getState().getCurrentSession({ timeout: EXPENSE_TIMEOUT_MS })
             ]);
+            if (!canUseExpenseVoid(get()) || get().ownerAccountId !== ownerAccountId
+                || get().record?.id !== original.id) {
+                return;
+            }
             const session = results[0].status === 'fulfilled' ? results[0].value.data?.data : null;
             if (session?.id === original.cashSessionId && session.expectedClosingCash != null && ['OPEN', 'CLOSED'].includes(session.status)) {
                 set({ session });
@@ -119,14 +129,15 @@ const useExpenseVoidStore = create(persist((set, get) => {
     return {
         ...initial,
         begin: async record => {
-            if (!currentOwner() || get().pending || get().attempt || (get().record && get().outcome === 'confirmed')) {
+            if (!currentAccountId() || get().pending || get().attempt
+                || (get().record && get().outcome === 'confirmed')) {
                 return;
             }
 
             set({
                 ...initial,
                 historyRevision: get().historyRevision,
-                owner: currentOwner(),
+                ownerAccountId: currentAccountId(),
                 record,
                 open: true,
                 pending: true,
@@ -188,7 +199,7 @@ const useExpenseVoidStore = create(persist((set, get) => {
                 sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
                     version: 0,
                     state: {
-                        owner: state.owner,
+                        ownerAccountId: state.ownerAccountId,
                         record: state.record,
                         reason: attempt,
                         attempt,
@@ -210,15 +221,19 @@ const useExpenseVoidStore = create(persist((set, get) => {
 
             try {
                 const { data: response } = await expenseApi.voidExpense(state.record.id, { reason: attempt });
-                if (!validExpenseVoidRecord(response?.data, state.record) || !response.data.voided) {
+                if (get().ownerAccountId !== state.ownerAccountId
+                    || get().record?.id !== state.record.id) {
+                    set({ outcome: 'uncertain' });
+                } else if (!validExpenseVoidRecord(response?.data, state.record) || !response.data.voided) {
                     throw new Error('Unconfirmed void');
+                } else {
+                    set({
+                        record: response.data,
+                        attempt: null,
+                        outcome: 'confirmed',
+                        historyRevision: get().historyRevision + 1
+                    });
                 }
-                set({
-                    record: response.data,
-                    attempt: null,
-                    outcome: 'confirmed',
-                    historyRevision: get().historyRevision + 1
-                });
             } catch (error) {
                 const rejected = !state.attempt && ([400, 401, 403, 404, 422].includes(error.status)
                     || error.domainCode === API_DOMAIN_ERROR_CODE.CASH_SESSION_CONFLICT);
@@ -241,8 +256,8 @@ const useExpenseVoidStore = create(persist((set, get) => {
 }, {
     name: STORAGE_KEY,
     storage: createJSONStorage(() => storage),
-    partialize: ({ owner, record, reason, attempt, outcome }) => ({
-        owner,
+    partialize: ({ ownerAccountId, record, reason, attempt, outcome }) => ({
+        ownerAccountId,
         record,
         reason,
         attempt,

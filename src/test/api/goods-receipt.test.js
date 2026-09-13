@@ -26,8 +26,8 @@ describe('goods receipt read API', () => {
             page: 2,
             size: 25,
             supplierName: 'Tekstil',
-            receivedDateFrom: '2026-09-01T00:00:00.000Z',
-            receivedDateTo: '2026-09-30T23:59:59.999Z'
+            receivedDateFrom: '2026-09-01',
+            receivedDateTo: '2026-09-30'
         };
 
         await goodsReceiptApi.getGoodsReceiptList(

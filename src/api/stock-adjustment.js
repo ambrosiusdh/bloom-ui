@@ -1,56 +1,55 @@
-import api from "@api/index.js";
-import { STOCK_ADJUSTMENT } from "@api/path/index.js";
+import api from '@api/index.js';
+import { STOCK_ADJUSTMENT } from '@api/path/index.js';
 
-const getStockAdjustmentList = async (payload, options) => {
+const getReadRequestArguments = (configOrOptions = {}, options) => {
+    const {
+        useLoader,
+        ...config
+    } = configOrOptions || {};
+
+    return {
+        config,
+        options: options ?? (useLoader === undefined ? undefined : { useLoader })
+    };
+};
+
+const getStockAdjustmentList = async (params, configOrOptions, options) => {
+    const request = getReadRequestArguments(configOrOptions, options);
+
     return api({
         url: STOCK_ADJUSTMENT.list,
         method: 'GET',
-        ...payload
-    }, options);
-}
+        ...request.config,
+        params
+    }, request.options);
+};
 
-const getStockAdjustmentDetails = async (payload, options) => {
+const getStockAdjustmentDetails = async (code, configOrOptions, options) => {
+    const request = getReadRequestArguments(configOrOptions, options);
+    const {
+        params,
+        ...config
+    } = request.config;
+
     return api({
         url: STOCK_ADJUSTMENT.detail,
         method: 'GET',
-        ...payload
-    }, options)
-}
-
-const createStockAdjustment = async (payload, options) => {
-    return api({
-        url: STOCK_ADJUSTMENT.create,
-        method: 'POST',
-        data: payload
-    }, options);
-}
-
-const parseStockAdjustmentCsv = async (file, options) => {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    return api({
-        url: STOCK_ADJUSTMENT.csvParse,
-        method: 'POST',
-        data: formData,
-        headers: {
-            'Content-Type': 'multipart/form-data'
+        ...config,
+        params: {
+            ...params,
+            code
         }
-    }, options);
-}
+    }, request.options);
+};
 
-const downloadStockAdjustmentTemplate = async (options) => {
-    return api({
-        url: STOCK_ADJUSTMENT.template,
-        method: 'GET',
-        responseType: 'blob'
-    }, options);
-}
+const createStockAdjustment = async (payload, options) => api({
+    url: STOCK_ADJUSTMENT.create,
+    method: 'POST',
+    data: payload
+}, options);
 
 export default {
     getStockAdjustmentList,
     getStockAdjustmentDetails,
-    createStockAdjustment,
-    parseStockAdjustmentCsv,
-    downloadStockAdjustmentTemplate
-}
+    createStockAdjustment
+};

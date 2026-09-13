@@ -1,7 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { render, screen } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
+import { render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const authApi = vi.hoisted(() => ({
     getCurrentUser: vi.fn()
@@ -19,7 +18,6 @@ vi.mock('@components/app/Loader.jsx', () => ({ default: () => null }));
 vi.mock('@components/app/Sidebar.jsx', () => ({ default: () => <aside>Back-office navigation</aside> }));
 
 import useAuthStore from '@stores/modules/auth.js';
-
 import App from '@/App.jsx';
 
 const renderApp = initialEntry => {
@@ -42,7 +40,12 @@ describe('cashier-focused layout', () => {
         vi.clearAllMocks();
         authApi.getCurrentUser.mockResolvedValue({
             status: 200,
-            data: { data: { username: 'kasir' } }
+            data: {
+                data: {
+                    accountId: '101',
+                    username: 'kasir'
+                }
+            }
         });
         useAuthStore.setState({ currentUser: null, authStatus: 'checking' });
     });

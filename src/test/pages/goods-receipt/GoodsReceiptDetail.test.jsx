@@ -32,7 +32,13 @@ describe('GoodsReceiptDetail FE-25 read workflow', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         useSupplierPaymentStore.setState(useSupplierPaymentStore.getInitialState());
-        useAuthStore.setState({ authStatus: 'authenticated', currentUser: { username: 'cashier-a' } });
+        useAuthStore.setState({
+            authStatus: 'authenticated',
+            currentUser: {
+                accountId: '101',
+                username: 'cashier-a'
+            }
+        });
         useGoodsReceiptStore.setState({
             goodsReceiptDetails: null, goodsReceiptDetailStatus: 'idle', goodsReceiptDetailError: null
         });
@@ -80,7 +86,7 @@ describe('GoodsReceiptDetail FE-25 read workflow', () => {
     });
 
     it('refreshes after returning to a completed payment even when the initial detail read is stale', async () => {
-        useSupplierPaymentStore.setState({ code: receipt.code, owner: 'cashier-a', outcome: 'success', refreshStatus: 'ready',
+        useSupplierPaymentStore.setState({ code: receipt.code, ownerAccountId: '101', outcome: 'success', refreshStatus: 'ready',
             result: { id: 28, receiptCode: receipt.code, amount: '10000', paymentMethod: 'QRIS', voided: false } });
         goodsReceiptApi.getGoodsReceiptDetails
             .mockResolvedValueOnce({ data: { data: receipt } })

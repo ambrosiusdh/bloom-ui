@@ -19,14 +19,43 @@ describe('auth store', () => {
     it('uses the current-session response as the authenticated state', async () => {
         authApi.getCurrentUser.mockResolvedValue({
             status: 200,
-            data: { data: { username: 'kasir', name: 'Kasir' } }
+            data: {
+                data: {
+                    accountId: '41',
+                    username: 'kasir',
+                    name: 'Kasir'
+                }
+            }
         });
 
         await useAuthStore.getState().getCurrentUser();
 
         expect(useAuthStore.getState()).toMatchObject({
             authStatus: 'authenticated',
-            currentUser: { username: 'kasir', name: 'Kasir' }
+            currentUser: {
+                accountId: '41',
+                username: 'kasir',
+                name: 'Kasir'
+            }
+        });
+    });
+
+    it('requires immutable identity even when a legacy response has a username', async () => {
+        authApi.getCurrentUser.mockResolvedValue({
+            status: 200,
+            data: {
+                data: {
+                    username: 'kasir',
+                    name: 'Kasir'
+                }
+            }
+        });
+
+        await useAuthStore.getState().getCurrentUser();
+
+        expect(useAuthStore.getState()).toMatchObject({
+            authStatus: 'unauthenticated',
+            currentUser: null
         });
     });
 

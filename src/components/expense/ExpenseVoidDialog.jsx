@@ -34,7 +34,8 @@ const getStatusMessage = state => {
 
 export default function ExpenseVoidDialog({ onExited }) {
     const state = useExpenseVoidStore();
-    const owner = useAuthStore(auth => auth.authStatus === 'authenticated' ? auth.currentUser?.username : null);
+    const ownerAccountId = useAuthStore(auth => auth.authStatus === 'authenticated'
+        ? auth.currentUser?.accountId : null);
     const accessible = canUseExpenseVoid(state);
     const [error, setError] = useState('');
     const reasonRef = useRef(null);
@@ -45,7 +46,7 @@ export default function ExpenseVoidDialog({ onExited }) {
         if (canUseExpenseVoid(current) && current.record && !current.pending) {
             current.refresh();
         }
-    }, [owner]);
+    }, [ownerAccountId]);
 
     useEffect(() => {
         setError('');
@@ -58,7 +59,7 @@ export default function ExpenseVoidDialog({ onExited }) {
         return null;
     }
     if (!accessible) {
-        return <Alert severity="warning">Pembatalan sebelumnya dikunci untuk akun asal. Semua pembatalan lain di tab ini ditahan sampai akun asal menyelesaikan pemulihan.</Alert>;
+        return <Alert severity="warning">Pembatalan sebelumnya dikunci untuk identitas akun asal. Pemulihan tanpa identitas akun tetap harus direkonsiliasi manual; semua pembatalan lain di tab ini ditahan.</Alert>;
     }
 
     const confirmed = state.outcome === 'confirmed';

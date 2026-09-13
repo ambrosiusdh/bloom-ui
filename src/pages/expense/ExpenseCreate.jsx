@@ -33,7 +33,7 @@ export default function ExpenseCreate() {
     const descriptionRef = useRef(null);
     const feedbackRef = useRef(null);
     const nextFocus = useRef(false);
-    const owner = auth.authStatus === 'authenticated' ? auth.currentUser?.username : null;
+    const ownerAccountId = auth.authStatus === 'authenticated' ? auth.currentUser?.accountId : null;
     const { draft, attempt, result, pending } = state;
     const unboundSession = !!attempt && !hasExpectedExpenseSession(attempt.request);
     const outcome = unboundSession ? 'unboundSession' : state.outcome;
@@ -41,8 +41,8 @@ export default function ExpenseCreate() {
     const locked = isExpenseLocked(state);
     const sessionReady = hasExpenseSession();
     const checkSession = () => cash.getCurrentSession({ timeout: EXPENSE_TIMEOUT_MS }).catch(() => {});
-    useEffect(() => { state.select(); }, [owner, locked, state.select]);
-    useEffect(() => { setConfirmation(null); }, [owner]);
+    useEffect(() => { state.select(); }, [ownerAccountId, locked, state.select]);
+    useEffect(() => { setConfirmation(null); }, [ownerAccountId]);
     useEffect(() => {
         if (accessible && !attempt && !result) cash.getCurrentSession({ timeout: EXPENSE_TIMEOUT_MS }).catch(() => {});
     }, [accessible, attempt, result, cash.getCurrentSession]);
@@ -54,9 +54,8 @@ export default function ExpenseCreate() {
         }
     }, [pending, outcome]);
 
-    if (!owner) return <Typography role="status">Memverifikasi akun...</Typography>;
-    if (!accessible && locked) return <Alert severity="warning">Pengeluaran sebelumnya dikunci untuk akun asal. Masuk dengan akun yang memulainya untuk melanjutkan.</Alert>;
-    if (!accessible) return <Typography role="status">Menyiapkan pengeluaran...</Typography>;
+    if (!ownerAccountId) return <Typography role="status">Memverifikasi akun...</Typography>;
+    if (!accessible) return <Alert severity="warning">Pengeluaran sebelumnya dikunci untuk identitas akun asal. Pemulihan lama tanpa identitas akun tetap harus direkonsiliasi manual oleh administrator.</Alert>;
     const review = event => {
         event.preventDefault();
         if (locked || !sessionReady) return;
@@ -67,7 +66,10 @@ export default function ExpenseCreate() {
             ({ amount: amountRef, category: categoryRef, description: descriptionRef })[field].current?.focus();
             return;
         }
-        setConfirmation({ owner, request: expenseRequest(draft, cash.currentSession.id) });
+        setConfirmation({
+            ownerAccountId,
+            request: expenseRequest(draft, cash.currentSession.id)
+        });
     };
     const edit = (field, value) => {
         state.edit({ ...draft, [field]: value });
