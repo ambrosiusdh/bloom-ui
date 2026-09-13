@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import {
+    Link,
+    useLocation,
+    useParams
+} from 'react-router-dom';
 import { Alert, Button, CircularProgress } from '@mui/material';
 import { ArrowLeft } from 'lucide-react';
 
@@ -12,6 +16,7 @@ import {
 
 export default function StockAdjustmentDetail() {
     const { code } = useParams();
+    const location = useLocation();
     const decodedCode = code ? decodeURIComponent(code) : '';
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const adjustment = useStockAdjustmentStore(state => state.stockAdjustmentDetails);
@@ -20,6 +25,10 @@ export default function StockAdjustmentDetail() {
     const load = useStockAdjustmentStore(state => state.getStockAdjustmentDetails);
     const clear = useStockAdjustmentStore(state => state.clearStockAdjustmentDetails);
     const [retry, setRetry] = useState(0);
+    const backTo = typeof location.state?.from === 'string'
+        && location.state.from.startsWith('/stock-adjustments')
+        ? location.state.from
+        : '/stock-adjustments';
 
     useEffect(() => {
         setBreadcrumbs([
@@ -42,7 +51,7 @@ export default function StockAdjustmentDetail() {
 
     return (
         <div className="space-y-6 pb-8">
-            <Button component={ Link } to="/stock-adjustments" startIcon={ <ArrowLeft /> }>
+            <Button component={ Link } to={ backTo } startIcon={ <ArrowLeft /> }>
                 Kembali ke daftar
             </Button>
 

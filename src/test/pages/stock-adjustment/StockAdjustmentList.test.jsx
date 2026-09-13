@@ -1,4 +1,8 @@
-import { useLocation } from 'react-router-dom';
+import {
+    Route,
+    Routes,
+    useLocation
+} from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -42,6 +46,15 @@ const deferred = () => {
     return { promise, reject };
 };
 const LocationProbe = () => <output aria-label="Lokasi saat ini">{ useLocation().search }</output>;
+const DetailNavigationProbe = () => {
+    const location = useLocation();
+
+    return (
+        <output aria-label="Asal daftar detail">
+            { location.state?.from || '' }
+        </output>
+    );
+};
 
 describe('StockAdjustmentList FE-13 read workflow', () => {
     beforeEach(() => {
@@ -115,5 +128,24 @@ describe('StockAdjustmentList FE-13 read workflow', () => {
         expect(await screen.findByText(adjustment.stockAdjustmentCode)).toBeInTheDocument();
         await waitFor(() => expect(stockAdjustmentApi.getStockAdjustmentList).toHaveBeenCalledTimes(2));
         expect(stockAdjustmentApi.getStockAdjustmentList.mock.calls[1][0]).toMatchObject({ page: 2 });
+    });
+
+    it('passes the complete filtered-list location to detail navigation', async () => {
+        const user = userEvent.setup();
+        stockAdjustmentApi.getStockAdjustmentList.mockResolvedValue(response([adjustment], 5));
+
+        render(
+            <Routes>
+                <Route path="/stock-adjustments" element={ <StockAdjustmentList /> } />
+                <Route path="/stock-adjustments/:code" element={ <DetailNavigationProbe /> } />
+            </Routes>,
+            { route: '/stock-adjustments?q=ADJ&page=4&size=25' }
+        );
+
+        await user.click(await screen.findByRole('link', { name: 'Detail' }));
+
+        expect(screen.getByLabelText('Asal daftar detail')).toHaveTextContent(
+            '/stock-adjustments?q=ADJ&page=4&size=25'
+        );
     });
 });

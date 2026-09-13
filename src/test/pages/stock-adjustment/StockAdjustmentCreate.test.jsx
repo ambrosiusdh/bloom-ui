@@ -2,7 +2,6 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import StockAdjustmentCreate from '@pages/stock-adjustment/StockAdjustmentCreate.jsx';
-import useItemStore from '@stores/modules/item.js';
 import useStockAdjustmentStore from '@stores/modules/stock-adjustment.js';
 import {
     act,
@@ -120,7 +119,7 @@ const reviewCorrection = async user => {
 describe('StockAdjustmentCreate FE-13 workflow', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        useItemStore.setState(useItemStore.getInitialState());
+        sessionStorage.clear();
         useStockAdjustmentStore.setState(useStockAdjustmentStore.getInitialState());
         itemApi.getItemList.mockResolvedValue(itemListResponse());
     });
@@ -155,7 +154,7 @@ describe('StockAdjustmentCreate FE-13 workflow', () => {
         await user.click(screen.getByRole('button', { name: 'Tinjau penyesuaian' }));
         expect(screen.getByText('Alasan penyesuaian wajib diisi.')).toBeInTheDocument();
         const reasonInput = screen.getByRole('textbox', { name: /Alasan penyesuaian/ });
-        expect(reasonInput).toHaveFocus();
+        await waitFor(() => expect(reasonInput).toHaveFocus());
 
         await user.type(reasonInput, 'Hitung fisik');
         await selectItem(user, '[BENANG-1] Benang gulung');
@@ -216,7 +215,104 @@ describe('StockAdjustmentCreate FE-13 workflow', () => {
         expect(itemApi.getItemList).toHaveBeenCalledTimes(2);
     });
 
-    it('refreshes on conflict but does not invite an unsafe retry for an ambiguous outcome', async () => {
+    it('loads every active-item page instead of applying a hidden inventory ceiling', async () => {
+        itemApi.getItemList
+            .mockResolvedValueOnce({
+                data: {
+                    data: {
+                        content: [fractionalItem],
+                        totalElements: 101,
+                        totalPages: 2
+                    }
+                }
+            })
+            .mockResolvedValueOnce({
+                data: {
+                    data: {
+                        content: [wholeItem],
+                        totalElements: 101,
+                        totalPages: 2
+                    }
+                }
+            });
+
+        const user = userEvent.setup();
+        render(<StockAdjustmentCreate />, { route: '/stock-adjustments/new' });
+
+        await user.click(await screen.findByRole('combobox', { name: 'Barang' }));
+
+        expect(screen.getByRole('option', { name: '[KAIN-1] Kain katun' })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: '[BENANG-1] Benang gulung' })).toBeInTheDocument();
+        expect(itemApi.getItemList).toHaveBeenNthCalledWith(1, {
+            signal: expect.any(AbortSignal),
+            params: {
+                page: 1,
+                size: 100
+            }
+        }, { useLoader: false });
+        expect(itemApi.getItemList).toHaveBeenNthCalledWith(2, {
+            signal: expect.any(AbortSignal),
+            params: {
+                page: 2,
+                size: 100
+            }
+        }, { useLoader: false });
+    });
+
+    it('locks stale conflict data until the active items refresh successfully', async () => {
+        const user = userEvent.setup();
+        const conflict = Object.assign(new Error('Data berubah.'), {
+            category: 'conflict'
+        });
+        adjustmentApi.createStockAdjustment.mockRejectedValueOnce(conflict);
+        itemApi.getItemList
+            .mockResolvedValueOnce(itemListResponse())
+            .mockRejectedValueOnce(new Error('Refresh gagal.'))
+            .mockResolvedValueOnce(itemListResponse());
+
+        render(<StockAdjustmentCreate />, { route: '/stock-adjustments/new' });
+        await screen.findByRole('combobox', { name: 'Barang' });
+        await reviewCorrection(user);
+        await user.click(screen.getByRole('button', { name: 'Simpan penyesuaian' }));
+
+        expect(await screen.findByText(/data terbaru gagal dimuat/)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Tinjau penyesuaian' })).toBeDisabled();
+
+        await user.click(screen.getByRole('button', { name: 'Coba lagi' }));
+
+        await waitFor(() => expect(
+            screen.getByRole('button', { name: 'Tinjau penyesuaian' })
+        ).toBeEnabled());
+        expect(screen.getByText(/Data barang terbaru sudah dimuat/)).toBeInTheDocument();
+    });
+
+    it('locks the next adjustment until a failed post-success item refresh is repaired', async () => {
+        const user = userEvent.setup();
+        adjustmentApi.createStockAdjustment.mockResolvedValue({
+            data: { data: adjustmentResult }
+        });
+        itemApi.getItemList
+            .mockResolvedValueOnce(itemListResponse())
+            .mockRejectedValueOnce(new Error('Refresh gagal.'))
+            .mockResolvedValueOnce(itemListResponse());
+
+        render(<StockAdjustmentCreate />, { route: '/stock-adjustments/new' });
+        await screen.findByRole('combobox', { name: 'Barang' });
+        await reviewCorrection(user);
+        await user.click(screen.getByRole('button', { name: 'Simpan penyesuaian' }));
+
+        const nextButton = await screen.findByRole('button', {
+            name: 'Buat penyesuaian berikutnya'
+        });
+        expect(nextButton).toBeDisabled();
+        expect(screen.getByText(/daftar stok terbaru gagal dimuat/)).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Coba lagi' }));
+
+        await waitFor(() => expect(nextButton).toBeEnabled());
+    });
+
+    it('refreshes on conflict and durably locks an ambiguous outcome', async () => {
         const user = userEvent.setup();
         const conflict = Object.assign(new Error('Data berubah.'), {
             category: 'conflict'
@@ -241,11 +337,55 @@ describe('StockAdjustmentCreate FE-13 workflow', () => {
         await user.click(screen.getByRole('button', { name: 'Tinjau penyesuaian' }));
         await user.click(screen.getByRole('button', { name: 'Simpan penyesuaian' }));
 
-        const unknownMessage = await screen.findByText(/Periksa riwayat sebelum mengirim/);
+        const unknownMessage = await screen.findByText(/Permintaan mungkin sudah dibukukan/);
         expect(unknownMessage.closest('[role="alert"]')).toHaveTextContent(
-            'Periksa riwayat sebelum mengirim penyesuaian baru.'
+            'Permintaan mungkin sudah dibukukan oleh server.'
         );
         expect(screen.queryByRole('button', { name: 'Coba lagi' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Tinjau penyesuaian' })).toBeDisabled();
+        expect(screen.getByRole('link', { name: 'Buka riwayat penyesuaian' })).toHaveAttribute(
+            'href',
+            '/stock-adjustments'
+        );
+        expect(JSON.parse(sessionStorage.getItem('bloom-stock-adjustment-v1')).state
+            .stockAdjustmentAttempt.payload.reason).toBe('Hitung fisik rak');
+
+        await act(async () => {
+            await useStockAdjustmentStore.getState().createStockAdjustment({
+                reason: 'Percobaan duplikat',
+                items: []
+            });
+        });
+
         expect(adjustmentApi.createStockAdjustment).toHaveBeenCalledTimes(2);
+    });
+
+    it('treats malformed HTTP success as ambiguous and requires manual reconciliation', async () => {
+        const user = userEvent.setup();
+        adjustmentApi.createStockAdjustment.mockResolvedValue({
+            data: { data: null }
+        });
+
+        render(<StockAdjustmentCreate />, { route: '/stock-adjustments/new' });
+        await screen.findByRole('combobox', { name: 'Barang' });
+        await reviewCorrection(user);
+        await user.click(screen.getByRole('button', { name: 'Simpan penyesuaian' }));
+
+        expect(await screen.findByText('Hasil penyesuaian belum dapat dipastikan'))
+            .toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Tinjau penyesuaian' })).toBeDisabled();
+        expect(adjustmentApi.createStockAdjustment).toHaveBeenCalledTimes(1);
+
+        await user.click(screen.getByRole('button', {
+            name: 'Saya sudah merekonsiliasi hasilnya'
+        }));
+        expect(screen.getByRole('dialog', { name: 'Konfirmasi rekonsiliasi manual' }))
+            .toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Buka kembali formulir' }));
+
+        expect(screen.getByRole('button', { name: 'Tinjau penyesuaian' })).toBeEnabled();
+        expect(sessionStorage.getItem('bloom-stock-adjustment-v1')).not.toContain(
+            'Hitung fisik rak'
+        );
     });
 });

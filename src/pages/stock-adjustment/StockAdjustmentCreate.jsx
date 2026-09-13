@@ -20,13 +20,13 @@ import {
 import { Plus, Trash } from 'lucide-react';
 
 import { API_ERROR_CATEGORY } from '@api/index.js';
+import itemApi from '@api/item.js';
 import BloomConfirmationModal from '@components/_ui/BloomConfirmationModal.jsx';
 import BloomQuantityField from '@components/_ui/BloomQuantityField.jsx';
 import StockAdjustmentInfoCard from '@components/stock-adjustment/StockAdjustmentInfoCard.jsx';
 import StockAdjustmentItemsTable from '@components/stock-adjustment/StockAdjustmentItemsTable.jsx';
 import {
     useBreadcrumbStore,
-    useItemStore,
     useStockAdjustmentStore
 } from '@stores/index.js';
 import {
@@ -56,6 +56,7 @@ const EMPTY_LINE_ERROR = {
     actionType: '',
     changeQuantity: ''
 };
+const ITEM_PAGE_SIZE = 100;
 
 let nextLineId = 0;
 const createLine = () => ({
@@ -68,15 +69,48 @@ const createLine = () => ({
 
 const isZeroQuantity = value => /^0+(?:[.,]0*)?$/.test(String(value || '').trim());
 
+const getItemPage = async (page, signal) => {
+    const response = await itemApi.getItemList({
+        signal,
+        params: {
+            page,
+            size: ITEM_PAGE_SIZE
+        }
+    }, { useLoader: false });
+
+    return response.data?.data || {};
+};
+
+const loadAllActiveItems = async signal => {
+    const firstPage = await getItemPage(1, signal);
+    const items = Array.isArray(firstPage.content) ? [...firstPage.content] : [];
+    const totalPages = Math.max(1, Number(firstPage.totalPages) || 1);
+
+    for (let page = 2; page <= totalPages; page += 1) {
+        const nextPage = await getItemPage(page, signal);
+
+        if (Array.isArray(nextPage.content)) {
+            items.push(...nextPage.content);
+        }
+    }
+
+    return Array.from(new Map(items
+        .filter(item => item.active !== false && item.sku)
+        .map(item => [item.sku, item])).values());
+};
+
 export default function StockAdjustmentCreate() {
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
-    const itemList = useItemStore(state => state.itemList);
-    const getItemList = useItemStore(state => state.getItemList);
     const createAdjustment = useStockAdjustmentStore(state => state.createStockAdjustment);
     const createStatus = useStockAdjustmentStore(state => state.stockAdjustmentCreateStatus);
     const created = useStockAdjustmentStore(state => state.lastCreatedStockAdjustment);
+    const ambiguousAttempt = useStockAdjustmentStore(state => state.stockAdjustmentAttempt);
     const clearCreated = useStockAdjustmentStore(state => state.clearCreatedStockAdjustment);
+    const acknowledgeAmbiguous = useStockAdjustmentStore(
+        state => state.acknowledgeAmbiguousStockAdjustment
+    );
 
+    const [activeItems, setActiveItems] = useState([]);
     const [reason, setReason] = useState('');
     const [lines, setLines] = useState(() => [createLine()]);
     const [errors, setErrors] = useState({
@@ -89,18 +123,23 @@ export default function StockAdjustmentCreate() {
     const [itemsRetry, setItemsRetry] = useState(0);
     const [submitError, setSubmitError] = useState('');
     const [refreshWarning, setRefreshWarning] = useState('');
+    const [showReconciliationConfirmation, setShowReconciliationConfirmation] = useState(false);
 
     const fieldRefs = useRef({});
     const itemsErrorRef = useRef(null);
     const submitErrorRef = useRef(null);
     const submitInProgressRef = useRef(false);
     const mountedRef = useRef(true);
+    const pendingErrorFocusRef = useRef('');
+    const itemsRefreshPurposeRef = useRef('initial');
 
-    const activeItems = useMemo(
-        () => itemList.filter(item => item.active !== false),
-        [itemList]
+    const itemsBySku = useMemo(
+        () => new Map(activeItems.map(item => [item.sku, item])),
+        [activeItems]
     );
-    const interactionDisabled = itemsStatus !== 'ready' || createStatus === 'pending' || !!created;
+    const interactionDisabled = itemsStatus !== 'ready'
+        || ['pending', 'ambiguous'].includes(createStatus)
+        || !!created;
 
     useEffect(() => {
         setBreadcrumbs(['Persediaan', 'Penyesuaian Stok', 'Buat']);
@@ -119,16 +158,20 @@ export default function StockAdjustmentCreate() {
         setItemsStatus('loading');
         setItemsError('');
 
-        getItemList({
-            signal: controller.signal,
-            params: {
-                page: 1,
-                size: 2000,
-                isRemoved: false
-            }
-        }, { useLoader: false }).then(() => {
+        loadAllActiveItems(controller.signal).then(items => {
             if (!controller.signal.aborted) {
+                setActiveItems(items);
+                setLines(previous => previous.map(line => ({
+                    ...line,
+                    item: line.item ? items.find(item => item.sku === line.item.sku) || null : null
+                })));
                 setItemsStatus('ready');
+                if (itemsRefreshPurposeRef.current === 'conflict') {
+                    setSubmitError('Data barang terbaru sudah dimuat. Periksa lalu konfirmasi kembali.');
+                } else if (itemsRefreshPurposeRef.current === 'success') {
+                    setRefreshWarning('');
+                }
+                itemsRefreshPurposeRef.current = '';
             }
         }).catch(error => {
             if (!controller.signal.aborted) {
@@ -138,7 +181,7 @@ export default function StockAdjustmentCreate() {
         });
 
         return () => controller.abort();
-    }, [getItemList, itemsRetry]);
+    }, [itemsRetry]);
 
     useEffect(() => {
         if (itemsError) {
@@ -151,6 +194,18 @@ export default function StockAdjustmentCreate() {
             submitErrorRef.current?.focus();
         }
     }, [submitError]);
+
+    useEffect(() => {
+        if (!pendingErrorFocusRef.current) {
+            return undefined;
+        }
+
+        const field = pendingErrorFocusRef.current;
+        pendingErrorFocusRef.current = '';
+        const frame = requestAnimationFrame(() => fieldRefs.current[field]?.focus());
+
+        return () => cancelAnimationFrame(frame);
+    }, [errors]);
 
     const changeLine = (index, field, value) => {
         setLines(previous => previous.map((line, lineIndex) => lineIndex === index
@@ -196,19 +251,19 @@ export default function StockAdjustmentCreate() {
         }));
     };
 
-    const focusFirstError = nextErrors => {
+    const getFirstErrorField = nextErrors => {
         if (nextErrors.reason) {
-            fieldRefs.current.reason?.focus();
-            return;
+            return 'reason';
         }
         const fieldOrder = ['itemSku', 'stockLocation', 'actionType', 'changeQuantity'];
         for (let index = 0; index < nextErrors.lines.length; index += 1) {
             const field = fieldOrder.find(name => nextErrors.lines[index][name]);
             if (field) {
-                fieldRefs.current[`${ lines[index].id }-${ field }`]?.focus();
-                return;
+                return `${ lines[index].id }-${ field }`;
             }
         }
+
+        return '';
     };
 
     const review = event => {
@@ -219,7 +274,7 @@ export default function StockAdjustmentCreate() {
         const nextErrors = validateStockAdjustment(reason, lines);
         setErrors(nextErrors);
         if (hasStockAdjustmentErrors(nextErrors)) {
-            focusFirstError(nextErrors);
+            pendingErrorFocusRef.current = getFirstErrorField(nextErrors);
             return;
         }
 
@@ -234,17 +289,29 @@ export default function StockAdjustmentCreate() {
         });
     };
 
-    const reloadItems = async () => {
+    const reloadItems = async purpose => {
+        setItemsStatus('loading');
+        setItemsError('');
+        itemsRefreshPurposeRef.current = purpose;
+
         try {
-            await getItemList({
-                params: {
-                    page: 1,
-                    size: 2000,
-                    isRemoved: false
-                }
-            }, { useLoader: false });
+            const items = await loadAllActiveItems();
+
+            if (mountedRef.current) {
+                setActiveItems(items);
+                setLines(previous => previous.map(line => ({
+                    ...line,
+                    item: line.item ? items.find(item => item.sku === line.item.sku) || null : null
+                })));
+                setItemsStatus('ready');
+                itemsRefreshPurposeRef.current = '';
+            }
             return true;
-        } catch {
+        } catch (error) {
+            if (mountedRef.current) {
+                setItemsStatus('stale');
+                setItemsError(error?.message || 'Data barang terbaru gagal dimuat.');
+            }
             return false;
         }
     };
@@ -268,7 +335,7 @@ export default function StockAdjustmentCreate() {
                     lines: [{ ...EMPTY_LINE_ERROR }]
                 });
             }
-            const refreshed = await reloadItems();
+            const refreshed = await reloadItems('success');
             if (mountedRef.current && !refreshed) {
                 setRefreshWarning('Penyesuaian berhasil, tetapi daftar stok terbaru gagal dimuat. Muat ulang sebelum membuat penyesuaian berikutnya.');
             }
@@ -276,14 +343,16 @@ export default function StockAdjustmentCreate() {
             if (mountedRef.current) {
                 setConfirmation(null);
                 if (error?.category === API_ERROR_CATEGORY.CONFLICT) {
-                    const refreshed = await reloadItems();
+                    const refreshed = await reloadItems('conflict');
                     setSubmitError(refreshed
                         ? 'Stok berubah saat penyesuaian diproses. Data barang sudah dimuat ulang; periksa lalu konfirmasi kembali.'
                         : 'Stok berubah dan data terbaru gagal dimuat. Muat ulang barang sebelum mencoba lagi.');
                 } else if (error?.category === API_ERROR_CATEGORY.VALIDATION) {
                     setSubmitError('Server menolak data penyesuaian. Periksa alasan, barang, lokasi, tindakan, dan jumlah.');
+                } else if (error?.category === 'storage') {
+                    setSubmitError('Penyimpanan pemulihan tab ini tidak tersedia. Tidak ada penyesuaian yang dikirim; pulihkan penyimpanan browser sebelum mencoba lagi.');
                 } else {
-                    setSubmitError('Hasil penyesuaian belum dapat dipastikan. Periksa riwayat sebelum mengirim penyesuaian baru.');
+                    setSubmitError('');
                 }
             }
         } finally {
@@ -292,9 +361,26 @@ export default function StockAdjustmentCreate() {
     };
 
     const startNext = () => {
+        if (itemsStatus !== 'ready') {
+            return;
+        }
+
         clearCreated();
         setSubmitError('');
         setRefreshWarning('');
+        requestAnimationFrame(() => fieldRefs.current.reason?.focus());
+    };
+
+    const finishManualReconciliation = () => {
+        acknowledgeAmbiguous();
+        setShowReconciliationConfirmation(false);
+        setReason('');
+        setLines([createLine()]);
+        setErrors({
+            reason: '',
+            lines: [{ ...EMPTY_LINE_ERROR }]
+        });
+        setSubmitError('');
         requestAnimationFrame(() => fieldRefs.current.reason?.focus());
     };
 
@@ -329,6 +415,22 @@ export default function StockAdjustmentCreate() {
                 </BloomConfirmationModal>
             ) }
 
+            { showReconciliationConfirmation && (
+                <BloomConfirmationModal
+                    title="Konfirmasi rekonsiliasi manual"
+                    confirmButtonText="Buka kembali formulir"
+                    onCancel={ () => setShowReconciliationConfirmation(false) }
+                    onConfirm={ finishManualReconciliation }
+                    focusCancel
+                >
+                    <p>
+                        Lanjutkan hanya jika riwayat penyesuaian sudah diperiksa dan hasil permintaan
+                        sebelumnya sudah direkonsiliasi secara manual. Tindakan ini tidak mengirim
+                        permintaan baru.
+                    </p>
+                </BloomConfirmationModal>
+            ) }
+
             <header>
                 <h2 className="text-2xl font-bold">Buat penyesuaian stok</h2>
                 <p className="mt-1 text-slate-600">
@@ -343,9 +445,9 @@ export default function StockAdjustmentCreate() {
                     </span>
                 </Alert>
             ) }
-            { itemsStatus === 'error' && (
+            { ['error', 'stale'].includes(itemsStatus) && (
                 <Alert
-                    severity="error"
+                    severity={ itemsStatus === 'stale' ? 'warning' : 'error' }
                     tabIndex={ -1 }
                     ref={ itemsErrorRef }
                     action={ <Button color="inherit" onClick={ () => setItemsRetry(value => value + 1) }>Coba lagi</Button> }>
@@ -359,6 +461,38 @@ export default function StockAdjustmentCreate() {
                 <Alert severity="warning" tabIndex={ -1 } ref={ submitErrorRef }>{ submitError }</Alert>
             ) }
             { refreshWarning && <Alert severity="warning">{ refreshWarning }</Alert> }
+
+            { createStatus === 'ambiguous' && ambiguousAttempt && (
+                <Card variant="outlined" role="alert" aria-labelledby="ambiguous-adjustment-title">
+                    <CardContent className="space-y-3">
+                        <div>
+                            <Typography id="ambiguous-adjustment-title" variant="h6" color="error">
+                                Hasil penyesuaian belum dapat dipastikan
+                            </Typography>
+                            <p className="mt-1 text-slate-700">
+                                Permintaan mungkin sudah dibukukan oleh server. Formulir dikunci agar
+                                penyesuaian yang sama tidak terkirim lagi. Periksa riwayat dan lakukan
+                                rekonsiliasi manual terlebih dahulu.
+                            </p>
+                        </div>
+                        <div className="rounded bg-slate-50 p-3 text-sm">
+                            <div><strong>Alasan:</strong> { ambiguousAttempt.payload.reason }</div>
+                            <div><strong>Jumlah baris:</strong> { ambiguousAttempt.payload.items.length }</div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <Button component={ Link } to="/stock-adjustments" variant="contained">
+                                Buka riwayat penyesuaian
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outlined"
+                                onClick={ () => setShowReconciliationConfirmation(true) }>
+                                Saya sudah merekonsiliasi hasilnya
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            ) }
 
             { created && (
                 <Stack spacing={ 3 }>
@@ -390,7 +524,12 @@ export default function StockAdjustmentCreate() {
                         </div>
                     </section>
                     <div className="flex flex-wrap gap-2">
-                        <Button variant="contained" onClick={ startNext }>Buat penyesuaian berikutnya</Button>
+                        <Button
+                            variant="contained"
+                            disabled={ itemsStatus !== 'ready' }
+                            onClick={ startNext }>
+                            Buat penyesuaian berikutnya
+                        </Button>
                         <Button
                             component={ Link }
                             to={ `/stock-adjustments/${ encodeURIComponent(
@@ -454,7 +593,7 @@ export default function StockAdjustmentCreate() {
                                             error={ !!lineError.itemSku }
                                             helperText={ lineError.itemSku || 'Pilih satu barang aktif.' }
                                             onChange={ event => selectItem(index, event.target.value) }>
-                                            { activeItems.map(item => (
+                                            { Array.from(itemsBySku.values()).map(item => (
                                                 <MenuItem key={ item.sku } value={ item.sku }>
                                                     [{ item.sku }] { item.name }
                                                 </MenuItem>

@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import {
+    Link,
+    useLocation,
+    useSearchParams
+} from 'react-router-dom';
 import {
     Alert,
     Button,
@@ -54,12 +58,14 @@ export default function StockAdjustmentList() {
     const status = useStockAdjustmentStore(state => state.stockAdjustmentListStatus);
     const error = useStockAdjustmentStore(state => state.stockAdjustmentListError);
     const load = useStockAdjustmentStore(state => state.getStockAdjustmentList);
+    const location = useLocation();
     const [params, setParams] = useSearchParams();
     const state = queryState(params);
     const [draftQuery, setDraftQuery] = useState(state.query);
     const [retry, setRetry] = useState(0);
     const totalPages = Number(paging.totalPages) || 0;
     const outOfRange = status === 'ready' && totalPages > 0 && state.page > totalPages;
+    const returnTo = `${ location.pathname }${ location.search }`;
 
     useEffect(() => {
         setBreadcrumbs(['Persediaan', 'Penyesuaian Stok']);
@@ -204,7 +210,8 @@ export default function StockAdjustmentList() {
                                         <TableCell>{ adjustment.createdBy || 'SYSTEM' }</TableCell>
                                         <TableCell>{ formatDate(adjustment.createdAt) || '-' }</TableCell>
                                         <TableCell><Button component={ Link }
-                                            to={ `/stock-adjustments/${ encodeURIComponent(adjustment.stockAdjustmentCode) }` }>
+                                            to={ `/stock-adjustments/${ encodeURIComponent(adjustment.stockAdjustmentCode) }` }
+                                            state={ { from: returnTo } }>
                                             Detail
                                         </Button></TableCell>
                                     </TableRow>
