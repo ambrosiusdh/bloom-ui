@@ -128,29 +128,51 @@ Use these finding priorities:
 
 | Order | Work item | Domain | Status | Execution | Recommended model |
 | --- | --- | --- | --- | --- | --- |
-| 0 | UXR-00 | UX evidence protocol and roadmap | DOCUMENTED | ROADMAP_BASELINE | `gpt-6-astra`, high |
-| 1 | UXR-A01 | Authentication and application navigation | PLANNED | LIVE_AUDIT | `gpt-6-astra`, high |
-| 2 | UXR-A08 | Cash-session operation | PLANNED | LIVE_AUDIT | `gpt-6-astra`, high |
-| 3 | UXR-A09 | Cashier search, cart, and scanner behavior | PLANNED | LIVE_AUDIT | `gpt-6-astra`, high |
-| 4 | UXR-A10 | Checkout and post-checkout printing | PLANNED | LIVE_AUDIT | `gpt-6-astra`, high |
-| 5 | UXR-A11 | Sales history, detail, and reprint | PLANNED | LIVE_AUDIT | `gpt-6-astra`, high |
-| 6 | UXR-A03 | Item categories | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 7 | UXR-A04 | Item master and location inventory | PLANNED | LIVE_AUDIT | `gpt-6-astra`, high |
-| 8 | UXR-A05 | Stock movement history | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 9 | UXR-A06 | Stock adjustment | PLANNED | LIVE_AUDIT | `gpt-6-astra`, high |
-| 10 | UXR-A07 | Stock transfer | PLANNED | LIVE_AUDIT | `gpt-6-astra`, high |
-| 11 | UXR-A12 | Supplier master data | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 12 | UXR-A13 | Goods-receipt history and detail | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 13 | UXR-A14 | Goods-receipt creation | PLANNED | LIVE_AUDIT | `gpt-6-astra`, high |
-| 14 | UXR-A15 | Supplier payables and payment | PLANNED | LIVE_AUDIT | `gpt-6-astra`, high |
-| 15 | UXR-A16 | Expense history and creation | PLANNED | LIVE_AUDIT | `gpt-6-astra`, high |
-| 16 | UXR-A17 | Expense void/reversal | PLANNED | LIVE_AUDIT | `gpt-6-astra`, high |
-| 17 | UXR-A02 | Operational dashboard | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 18 | UXR-A18 | Cross-domain evidence synthesis | PLANNED | LIVE_AUDIT | `gpt-6-astra`, high |
+| 0 | UXR-00 | UX evidence protocol and roadmap | DOCUMENTED | ROADMAP_BASELINE | `gpt-5.6-sol`, high |
+| 1 | UXR-A01 | Authentication and application navigation | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 2 | UXR-A08 | Cash-session operation | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 3 | UXR-A09 | Cashier search, cart, and scanner behavior | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 4 | UXR-A10 | Checkout and post-checkout printing | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 5 | UXR-A11 | Sales history, detail, and reprint | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 6 | UXR-D00 | Visual direction comparison and owner selection | PLANNED | FIGMA_DESIGN | `gpt-5.6-sol`, high |
+| 7 | UXR-A03 | Item categories | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 8 | UXR-A04 | Item master and location inventory | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 9 | UXR-A05 | Stock movement history | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 10 | UXR-A06 | Stock adjustment | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 11 | UXR-A07 | Stock transfer | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 12 | UXR-A12 | Supplier master data | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 13 | UXR-A13 | Goods-receipt history and detail | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 14 | UXR-A14 | Goods-receipt creation | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 15 | UXR-A15 | Supplier payables and payment | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 16 | UXR-A16 | Expense history and creation | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 17 | UXR-A17 | Expense void/reversal | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 18 | UXR-A02 | Operational dashboard | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 19 | UXR-A18 | Cross-domain evidence synthesis | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
 
-Cashier work comes first because it is the highest-frequency, most time-sensitive working mode. Back-office audits follow the operational sequence from item setup through stock, purchasing, debt, and expense handling. Dashboard audit comes after its drill-down destinations so its navigation value can be judged in context.
+Cashier work comes first because it is the highest-frequency, most time-sensitive working mode. UXR-D00 then compares visual directions using evidence from the shell, cashier, checkout, and sales-history workflows before broader domain design begins. Back-office audits follow the operational sequence from item setup through stock, purchasing, debt, and expense handling. Dashboard audit comes after its drill-down destinations so its navigation value can be judged in context.
 
-Figma work may begin for a domain as soon as its own evidence is complete; it does not need to wait for every audit. Application implementation must wait for owner approval of that domain's design.
+Live audits may continue while UXR-D00 is under review. Domain Figma work begins only after its own evidence is complete and UXR-D00 has an owner-approved direction; it does not need to wait for every audit. Application implementation must wait for owner approval of that domain's design.
+
+### 6.1 Early visual-direction checkpoint
+
+UXR-D00 is a comparison and selection task, not a whole-application redesign. It must present exactly three realistic visual directions using the same representative content, state, and viewport so the owner can compare the design language rather than different features.
+
+The three candidates should explore these distinct hypotheses:
+
+1. **Compact operational:** denser information, stronger table efficiency, and shorter action paths.
+2. **Calm guided:** more spacing, stronger progressive disclosure, and clearer step-by-step emphasis.
+3. **Mode-aware hybrid:** a compact cashier workspace and calmer back-office surfaces using one coherent token and component language.
+
+Each candidate must include:
+
+- one representative cashier/cart or checkout frame;
+- one representative back-office list/detail frame;
+- one narrow-desktop responsive frame;
+- the same Bahasa Indonesia copy, data, transaction state, and viewport as the other candidates;
+- annotations for density, typography, color/surface hierarchy, navigation, form/table treatment, status communication, focus, and accessibility;
+- exported screenshots or a comparison board that can be reviewed without opening each frame separately.
+
+The owner may approve one candidate or an explicitly documented hybrid of named traits. The model must not choose or mark a direction approved on the owner's behalf. Record the final choice and rationale in `docs/ux/design/visual-direction-decision.md`. UXR-D01 through UXR-D15 must follow that decision unless later domain evidence justifies and records a specific deviation.
 
 ## 7. Live-audit work items
 
@@ -163,7 +185,7 @@ Figma work may begin for a domain as soon as its own evidence is complete; it do
 - **Environment gate:** Repository inspection proves the working route/domain inventory.
 - **Exact scope:** Establish live-first capture rules, artifact format, audit order, Figma gate, and later implementation-rebaseline rule.
 - **Out of scope:** Live app operation, screenshots, Figma creation, application changes, Cypress installation.
-- **Recommended model:** `gpt-6-astra`, high reasoning.
+- **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** This roadmap.
 - **Validation:** Re-read the contract, frontend roadmap, current routes, and this document; verify documentation-only diff.
 - **Block condition:** None.
@@ -178,7 +200,7 @@ Figma work may begin for a domain as soon as its own evidence is complete; it do
 - **Environment gate:** Frontend/backend running with a disposable valid account and a way to exercise invalid/expired authentication.
 - **Exact scope:** `/login`, protected-route gating, session expiration, back-office sidebar/header, active route indication, cashier/back-office transition, not-found handling, wide/narrow navigation, and keyboard focus.
 - **Out of scope:** Permission redesign, route restructuring, visual implementation, other domain page content.
-- **Recommended model:** `gpt-6-astra`, high reasoning.
+- **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** `docs/ux/audits/uxr-a01-auth-navigation.md` plus referenced evidence.
 - **Validation:** Every implemented top-level destination is reachable and correctly identified; protected content does not flash; keyboard and narrow-width navigation are recorded.
 - **Block condition:** Authentication cannot be exercised safely in the local environment.
@@ -235,7 +257,7 @@ Figma work may begin for a domain as soon as its own evidence is complete; it do
 - **Environment gate:** Disposable whole-unit and fractional items exist, including editable and movement-locked examples.
 - **Exact scope:** Item list/detail, category context, STORE/WAREHOUSE quantities, UOM/fraction comprehension, create with/without opening stock, validation/conflict/success, edit before/after lock, barcode/detail/audit entry points, keyboard, and responsive behavior.
 - **Out of scope:** Posting adjustment/transfer/receipt, UOM conversion, backend vocabulary changes, implementation.
-- **Recommended model:** `gpt-6-astra`, high reasoning.
+- **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** `docs/ux/audits/uxr-a04-items.md` plus referenced evidence.
 - **Validation:** Whole/fractional and locked/unlocked differences are visible and understandable without suggesting direct stock editing.
 - **Block condition:** Required item states cannot be created safely in disposable data.
@@ -273,7 +295,7 @@ Figma work may begin for a domain as soon as its own evidence is complete; it do
 - **Environment gate:** Disposable items support safe ADD, REMOVE, and CORRECTION scenarios; database can be reseeded.
 - **Exact scope:** List/detail/create, item discovery, location/action comprehension, decimal and whole-unit input, CORRECTION zero, validation, confirmation, pending, backend conflict, confirmed result, durable ambiguous-outcome messaging as safely observable, keyboard, and responsive behavior.
 - **Out of scope:** Transfer, bulk CSV, frontend resulting-stock calculation, forced network corruption, implementation.
-- **Recommended model:** `gpt-6-astra`, high reasoning.
+- **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** `docs/ux/audits/uxr-a06-stock-adjustment.md` plus referenced evidence.
 - **Validation:** Audit confirms that the interface distinguishes delta actions from absolute correction and never presents browser-calculated resulting stock as fact.
 - **Block condition:** Test transactions cannot be isolated/reseeded or an uncertain request could affect non-disposable data.
@@ -292,7 +314,7 @@ Figma work may begin for a domain as soon as its own evidence is complete; it do
 - **Environment gate:** Disposable STORE/WAREHOUSE stock permits safe transfer and validation scenarios.
 - **Exact scope:** Transfer item selection, source/destination choice and swap, same-location prevention, decimal/whole quantity, advisory availability, confirmation, pending/conflict/success reference, focus, and responsive layout.
 - **Out of scope:** Multi-item transfer, reporting, adjustment, frontend stock calculation, implementation.
-- **Recommended model:** `gpt-6-astra`, high reasoning.
+- **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** `docs/ux/audits/uxr-a07-stock-transfer.md` plus referenced evidence.
 - **Validation:** Source and destination remain unambiguous throughout confirmation and result.
 - **Block condition:** Safe source stock or reseed capability is unavailable.
@@ -311,7 +333,7 @@ Figma work may begin for a domain as soon as its own evidence is complete; it do
 - **Environment gate:** Disposable database can start with no open session and can create/close test sessions safely.
 - **Exact scope:** Verified no-session state, opening cash, open-session visibility in cashier, expected-cash preview, actual-cash entry, close confirmation, server variance, already-closed conflict where safe, history/detail, money/date formatting, keyboard, and responsive behavior.
 - **Out of scope:** Calculating drawer cash, post-close correction policy, sale/payment/expense interaction beyond session visibility, implementation.
-- **Recommended model:** `gpt-6-astra`, high reasoning.
+- **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** `docs/ux/audits/uxr-a08-cash-sessions.md` plus referenced evidence.
 - **Validation:** No-session, open, closing, and closed states are clearly distinguishable; expected and variance are visibly server-confirmed.
 - **Block condition:** An existing non-disposable open session prevents controlled scenarios.
@@ -330,7 +352,7 @@ Figma work may begin for a domain as soon as its own evidence is complete; it do
 - **Environment gate:** A verified open session and disposable active/inactive, whole/fractional, zero/positive STORE-stock items exist. Physical scanner findings remain limited to hardware actually available.
 - **Exact scope:** Cashier entry, session gating, manual search, loading/empty/not-found, add/duplicate/remove, decimal quantity editing, UOM and advisory availability, focus order, rapid keyboard interaction, current scanner behavior, announcements, and wide/narrow layout.
 - **Out of scope:** Checkout submission, receipt printing, scanner hardware claims not observed on the test machine, inventory administration, implementation.
-- **Recommended model:** `gpt-6-astra`, high reasoning.
+- **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** `docs/ux/audits/uxr-a09-cashier-cart.md` plus referenced evidence.
 - **Validation:** Manual entry remains usable, duplicate behavior is understood, focus is predictable, and no item-entry action can submit checkout.
 - **Block condition:** Cashier cannot obtain a controlled open session or representative catalog data.
@@ -349,7 +371,7 @@ Figma work may begin for a domain as soon as its own evidence is complete; it do
 - **Environment gate:** Disposable open session/cart data exists; backend printer is either safely available or its absence can produce a genuine non-destructive print failure.
 - **Exact scope:** CASH and QRIS selection, tender input, confirmation, frozen pending state, validation/conflict, backend-confirmed sale values, cart clearing, print sequencing, print failure/retry, navigation to sale detail, and recovery messaging. Use existing tests as evidence for unsafe-to-force ambiguous outcomes.
 - **Out of scope:** Sale void/return, browser/PDF fallback, synthetic duplicate sale, forced ambiguous network failure against non-disposable data, implementation.
-- **Recommended model:** `gpt-6-astra`, high reasoning.
+- **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** `docs/ux/audits/uxr-a10-checkout-print.md` plus referenced evidence.
 - **Validation:** Sale success is always established before print status; no print action can recreate a sale; CASH and QRIS remain distinguishable.
 - **Block condition:** Test sales cannot be safely isolated or printer behavior cannot be exercised without affecting a real device unexpectedly.
@@ -368,7 +390,7 @@ Figma work may begin for a domain as soon as its own evidence is complete; it do
 - **Environment gate:** Disposable sale records cover CASH/QRIS and whole/fractional lines.
 - **Exact scope:** Sales list filters/paging, loading/error/empty, status and monetary comprehension, detail hierarchy, line/location display, session/reference context, reprint action and feedback, keyboard, and responsive behavior.
 - **Out of scope:** Checkout, correction mutation, reporting/export, implementation.
-- **Recommended model:** `gpt-6-astra`, high reasoning.
+- **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** `docs/ux/audits/uxr-a11-sales.md` plus referenced evidence.
 - **Validation:** All financial/status facts are clearly backend-confirmed and reprint remains separate from sale creation.
 - **Block condition:** Representative sales cannot be created or restored safely.
@@ -425,7 +447,7 @@ Figma work may begin for a domain as soon as its own evidence is complete; it do
 - **Environment gate:** Disposable supplier/items and reseedable stock/debt data exist.
 - **Exact scope:** Supplier/item lookup, repeated lines, whole/fraction quantity and purchase-price entry, per-line location, received time/offset, draft persistence, validation, confirmation, pending/conflict, exact recovery, and server-confirmed result hierarchy.
 - **Out of scope:** Initial payment, supplier creation, frontend total authority, forced uncertainty, implementation.
-- **Recommended model:** `gpt-6-astra`, high reasoning.
+- **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** `docs/ux/audits/uxr-a14-goods-receipt-create.md` plus referenced evidence.
 - **Validation:** One atomic posting remains clear; input recovery does not obscure whether the receipt completed.
 - **Block condition:** Test receipts cannot be isolated or reseeded.
@@ -444,7 +466,7 @@ Figma work may begin for a domain as soon as its own evidence is complete; it do
 - **Environment gate:** Disposable unpaid/partial receipts and an open session for CASH scenarios exist.
 - **Exact scope:** Payable discovery, supplier/receipt context, outstanding/status comprehension, partial/full payment, CASH/BANK_TRANSFER/QRIS differences, session gating, overpayment, confirmation, pending/conflict/recovery, refresh failure messaging, keyboard, and responsive behavior.
 - **Out of scope:** Multi-receipt allocation, credit/prepayment, reversal UI, frontend debt calculation, implementation.
-- **Recommended model:** `gpt-6-astra`, high reasoning.
+- **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** `docs/ux/audits/uxr-a15-payables-payment.md` plus referenced evidence.
 - **Validation:** One-payment-to-one-receipt and CASH-only drawer/session effects are unambiguous.
 - **Block condition:** Test payments could affect non-disposable financial data.
@@ -463,7 +485,7 @@ Figma work may begin for a domain as soon as its own evidence is complete; it do
 - **Environment gate:** Disposable open/closed session history and safe expense posting are available.
 - **Exact scope:** Expense history/paging, empty/error/loading, record hierarchy, open-session gating, category/reason comprehension, amount entry, confirmation, pending/conflict/recovery, server result, keyboard, and responsive behavior.
 - **Out of scope:** Void/reversal, category administration, frontend drawer calculation, implementation.
-- **Recommended model:** `gpt-6-astra`, high reasoning.
+- **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** `docs/ux/audits/uxr-a16-expense-create.md` plus referenced evidence.
 - **Validation:** Posting is visibly bound to the verified session and uncertain recovery never silently retargets another session/account.
 - **Block condition:** Disposable session/expense data cannot be isolated.
@@ -482,7 +504,7 @@ Figma work may begin for a domain as soon as its own evidence is complete; it do
 - **Environment gate:** Disposable eligible, already-voided, and closed-session examples exist or can be safely created.
 - **Exact scope:** Eligibility visibility, block reasons, fresh-detail behavior, reasoned confirmation, pending/conflict/recovery, audit result retention, original-session context, focus, keyboard, and responsive behavior.
 - **Out of scope:** Delete/edit, post-close policy expansion, sale/supplier-payment correction, implementation.
-- **Recommended model:** `gpt-6-astra`, high reasoning.
+- **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** `docs/ux/audits/uxr-a17-expense-void.md` plus referenced evidence.
 - **Validation:** Original and reversal facts remain distinct; ineligible operations are explained before destructive confirmation.
 - **Block condition:** Safe eligible/ineligible fixtures cannot be established.
@@ -501,7 +523,7 @@ Figma work may begin for a domain as soon as its own evidence is complete; it do
 - **Environment gate:** Each included report separates evidence, inference, and owner decisions.
 - **Exact scope:** Consolidate repeated interaction/copy/layout/accessibility problems, identify preserved strengths, map journey handoffs, rank P0/P1/P2 findings, and recommend domain design order.
 - **Out of scope:** Figma creation, a global design system, implementation backlog details, changing product/backend rules.
-- **Recommended model:** `gpt-6-astra`, high reasoning.
+- **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** `docs/ux/audits/release-1-ux-synthesis.md` with an evidence index and owner-decision register.
 - **Validation:** Every synthesized finding links back to domain evidence; repeated patterns are not generalized from a single screen.
 - **Block condition:** Critical domain reports or their evidence are missing.
@@ -513,10 +535,11 @@ Figma work may begin for a domain as soon as its own evidence is complete; it do
 
 ## 8. Figma design queue
 
-Each design item begins only after its required audit is `EVIDENCE_COMPLETE`. Use `gpt-6-astra` with high reasoning for the initial low-fidelity flow and the refined Figma proposal. The Figma task must use the relevant Figma skills before calling Figma write tools.
+UXR-D00 begins after its representative audits are `EVIDENCE_COMPLETE`. Each domain design item, UXR-D01 through UXR-D15, begins only after its required audit is `EVIDENCE_COMPLETE` and UXR-D00 is `APPROVED`. Use `gpt-5.6-sol` with high reasoning for visual-direction comparison, the initial low-fidelity flow, and the refined Figma proposal. The Figma task must use the relevant Figma skills before calling Figma write tools.
 
 | Design item | Domain | Audit dependency | Required design coverage |
 | --- | --- | --- | --- |
+| UXR-D00 | Visual direction comparison | UXR-A01, UXR-A09, UXR-A10, and UXR-A11 | Three comparable visual candidates, representative cashier/back-office/narrow frames, owner-selection record |
 | UXR-D01 | Authentication and navigation | UXR-A01 | Login states, protected entry, back-office shell, cashier escape, narrow navigation |
 | UXR-D02 | Dashboard | UXR-A02 | Operational hierarchy, zero/no-session/stale/error states, drill-downs |
 | UXR-D03 | Item categories | UXR-A03 | List, create/edit, validation/conflict, deactivate |
@@ -533,6 +556,25 @@ Each design item begins only after its required audit is `EVIDENCE_COMPLETE`. Us
 | UXR-D14 | Payables/payment | UXR-A15 | Debt discovery, one-receipt payment, payment methods and states |
 | UXR-D15 | Expenses | UXR-A16 and UXR-A17 | History/create and void as separate Figma flows |
 
+### UXR-D00 — Visual direction comparison and owner selection
+
+- **Domain:** Product visual direction; no business-domain implementation.
+- **Status:** `PLANNED`.
+- **Execution class:** `FIGMA_DESIGN`.
+- **Dependencies:** UXR-A01, UXR-A09, UXR-A10, and UXR-A11 must be `EVIDENCE_COMPLETE`.
+- **User-visible goal:** Let the owner compare realistic alternatives before later screens inherit a visual direction.
+- **Exact scope:** Create exactly three candidates using identical representative content and states: compact operational, calm guided, and mode-aware hybrid. For each candidate, provide one cashier/cart or checkout frame, one back-office list/detail frame, and one narrow-desktop responsive frame.
+- **Out of scope:** Full domain flows, new product behavior, business-rule or API changes, a production-ready global design system, application code, or selecting a winner without the owner.
+- **Recommended model:** `gpt-5.6-sol`, high reasoning.
+- **Expected output:** Figma comparison frames, exported screenshots or one comparison board, concise trade-offs, reusable-pattern observations, and `docs/ux/design/visual-direction-decision.md` after the owner selects a direction.
+- **Validation:** Candidates use the same copy, data, state, viewport, and interaction facts; contrast, focus visibility, table/form legibility, density, and wide/narrow behavior are compared consistently.
+- **Block condition:** Representative audit evidence, the target Figma file/project, or owner availability for selection is missing.
+- **Split trigger:** More than three candidates or full domain-state coverage is requested; keep those ideas for the relevant UXR-D01 through UXR-D15 item.
+
+**Copy-ready visual-direction prompt**
+
+> Perform only UXR-D00, Bloom's visual-direction comparison. Read `AGENTS.md`, the frontend contract, the frontend and UX roadmaps, and the completed UXR-A01, UXR-A09, UXR-A10, and UXR-A11 reports with their referenced evidence. Inspect the current components and use the required Figma skills in `[FIGMA_FILE_OR_NODE]`. Create exactly three clearly differentiated candidates—compact operational, calm guided, and mode-aware hybrid—using identical Bahasa Indonesia copy, data, transaction state, and viewports. For each candidate, create one representative cashier/cart or checkout frame, one back-office list/detail frame, and one narrow-desktop responsive frame. Preserve backend authority, current transaction/recovery meaning, keyboard/focus behavior, and useful existing components. Provide Figma links, exported screenshots or a single comparison board, and a concise matrix covering density, speed, comprehension, accessibility, responsiveness, reuse cost, and trade-offs. Stop at `DESIGN_REVIEW`; do not choose or approve a winner, create full workflows, modify application code, invent APIs/business rules, or build a global design system. After the owner responds, record the selected candidate or explicitly named hybrid traits and rationale in `docs/ux/design/visual-direction-decision.md` and mark UXR-D00 `APPROVED`.
+
 For each Figma item:
 
 - **Status:** `PLANNED` until its audit is complete.
@@ -544,9 +586,9 @@ For each Figma item:
 - **Validation:** Trace every proposed change to audit evidence; verify keyboard/focus order, Indonesian copy, responsive behavior, and backend authority.
 - **Split trigger:** If a design item contains independently reviewable read and mutation workflows, present them as separate page sections or split the Figma item before approval.
 
-**Copy-ready Figma prompt template**
+**Copy-ready domain Figma prompt template**
 
-> Design only `[UXR-DXX — DOMAIN]` for Bloom. First read `AGENTS.md`, `docs/architecture/release-1-frontend-contract.md`, `docs/plans/release-1-frontend-roadmap.md`, `docs/plans/release-1-ux-rework-roadmap.md`, and `[AUDIT_REPORT_PATH]`. Inspect the current domain components and referenced screenshots/recordings. Use the required Figma skills and work in `[FIGMA_FILE_OR_NODE]`. Begin with the task flow and low-fidelity state coverage, then create a refined desktop design for the documented wide and narrow viewports. Preserve backend-owned facts, transaction recovery, current URLs unless evidence requires a change, Indonesian language, keyboard/focus behavior, and useful existing components. Resolve approved P0/P1 findings and identify optional P2 improvements. Include loading, empty, validation, pending, conflict, ambiguous/recovery, success, confirmation, and hardware-related states only where the audit shows they apply. Return Figma links, a concise decision log, reused/new components, audit-scenario traceability, and owner decisions needed. Do not modify application code, invent APIs or business rules, create a whole-app design system, or redesign another domain.
+> Design only `[UXR-DXX — DOMAIN]` for Bloom after UXR-D00 is owner-approved. First read `AGENTS.md`, `docs/architecture/release-1-frontend-contract.md`, `docs/plans/release-1-frontend-roadmap.md`, `docs/plans/release-1-ux-rework-roadmap.md`, `docs/ux/design/visual-direction-decision.md`, and `[AUDIT_REPORT_PATH]`. Inspect the current domain components and referenced screenshots/recordings. Use the required Figma skills and work in `[FIGMA_FILE_OR_NODE]`. Begin with the task flow and low-fidelity state coverage, then create a refined desktop design for the documented wide and narrow viewports that follows the approved visual direction. Preserve backend-owned facts, transaction recovery, current URLs unless evidence requires a change, Indonesian language, keyboard/focus behavior, and useful existing components. Resolve approved P0/P1 findings and identify optional P2 improvements. Include loading, empty, validation, pending, conflict, ambiguous/recovery, success, confirmation, and hardware-related states only where the audit shows they apply. Return Figma links, a concise decision log, reused/new components, audit-scenario traceability, and owner decisions needed. Record any evidence-based deviation from the approved direction. Do not modify application code, invent APIs or business rules, create a whole-app design system, or redesign another domain.
 
 ## 9. Implementation re-baseline
 
@@ -567,7 +609,7 @@ After one domain reaches `APPROVED`, run one documentation-only `IMPLEMENTATION_
 - copy-ready implementation prompt;
 - visual and automated validation requirements.
 
-Use `gpt-5.6-sol` high for narrow visual/read-flow implementation. Prefer `gpt-6-astra` high or xhigh for cashier, stock mutation, cash-session, receipt posting, supplier payment, expense posting/reversal, and other designs where visual changes touch transaction state or durable recovery.
+Use `gpt-5.6-sol` high for narrow visual/read-flow implementation. Use `gpt-5.6-sol` xhigh for cashier, stock mutation, cash-session, receipt posting, supplier payment, expense posting/reversal, and other designs where visual changes touch transaction state or durable recovery.
 
 **Copy-ready implementation-rebaseline prompt**
 
