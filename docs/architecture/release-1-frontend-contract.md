@@ -88,6 +88,14 @@ For the seeded local development environment only:
 
 These credentials are test fixtures for local development and browser verification. They must not be reused as production credentials or copied into frontend runtime code.
 
+### 2.5 UX rework status
+
+A domain-by-domain live UX audit and Figma rework is planned in
+[`release-1-ux-rework-roadmap.md`](../plans/release-1-ux-rework-roadmap.md).
+No proposed screenshot, audit finding, or Figma frame changes this contract until
+the repository owner approves the design and the corresponding small frontend PR
+is implemented and verified.
+
 ## 3. Confirmed product direction
 
 | Decision | Release 1 direction | Contract status |
