@@ -1,0 +1,35 @@
+UXR-A11 existing automated evidence
+Run: 2026-09-15 Asia/Jakarta
+Runtime: existing bundled Node.js and repository Vitest 4.1.10
+No dependencies were installed or changed.
+
+Command:
+node node_modules/vitest/vitest.mjs run src/test/pages/sale/SaleList.test.jsx --pool=threads --maxWorkers=1 --no-file-parallelism --reporter=verbose --teardownTimeout=5000
+
+PASS  src/test/pages/sale/SaleList.test.jsx
+  PASS  renders backend status, method, total, paging, and supported date/actor filters
+  PASS  shows loading, then a useful empty state
+  PASS  shows an error and retries the same filters successfully
+
+Test Files  1 passed (1)
+Tests       3 passed (3)
+
+Command:
+node node_modules/vitest/vitest.mjs run src/test/pages/sale/SaleDetail.test.jsx --pool=threads --maxWorkers=1 --no-file-parallelism --reporter=verbose --teardownTimeout=5000
+
+PASS  src/test/pages/sale/SaleDetail.test.jsx
+  PASS  renders backend statuses, tender/change, session, and persisted fractional line facts
+  PASS  prevents duplicate clicks and preserves the sale reference through pending and success
+  PASS  shows a printer failure and retries the same sale without recreating it
+  PASS  keeps the newest route details visible and prints that same sale after a stale response
+  PASS  clears a previous detail error when the route changes to a valid sale
+  PASS  ignores a print completion after navigating to another sale
+  PASS  does not crash when React Router receives a malformed encoded reference
+  PASS  warns that a network failure may have an uncertain physical print outcome
+  PASS  gives detail-specific recovery when the sale cannot be found for printing
+  PASS  shows a controlled failure when the backend does not acknowledge printing
+
+Test Files  1 passed (1)
+Tests       10 passed (10)
+
+Total: 2 files, 13 tests passed.

@@ -133,7 +133,7 @@ Use these finding priorities:
 | 2 | UXR-A08 | Cash-session operation | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 3 | UXR-A09 | Cashier search, cart, and scanner behavior | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 4 | UXR-A10 | Checkout and post-checkout printing | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 5 | UXR-A11 | Sales history, detail, and reprint | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 5 | UXR-A11 | Sales history, detail, and reprint | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 6 | UXR-D00 | Visual direction comparison and owner selection | PLANNED | FIGMA_DESIGN | `gpt-5.6-sol`, high |
 | 7 | UXR-A03 | Item categories | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 8 | UXR-A04 | Item master and location inventory | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
@@ -151,7 +151,7 @@ Use these finding priorities:
 
 Cashier work comes first because it is the highest-frequency, most time-sensitive working mode. UXR-D00 then compares visual directions using evidence from the shell, cashier, checkout, and sales-history workflows before broader domain design begins. Back-office audits follow the operational sequence from item setup through stock, purchasing, debt, and expense handling. Dashboard audit comes after its drill-down destinations so its navigation value can be judged in context.
 
-**Status audit (2026-09-14):** UXR-A01, UXR-A03, UXR-A04, UXR-A08, UXR-A09, and UXR-A10 have complete live evidence and reports. UXR-A03 and UXR-A04 were completed ahead of their table position. The next unfinished dependency-ordered cashier audit is UXR-A11; UXR-D00 now waits only for UXR-A11 because UXR-A01, UXR-A09, and UXR-A10 are complete. FE-19's store-laptop physical scanner gate remains outstanding and was not cleared by UXR-A09 or UXR-A10.
+**Status audit (2026-09-15):** UXR-A01, UXR-A03, UXR-A04, UXR-A08, UXR-A09, UXR-A10, and UXR-A11 have complete live evidence and reports. UXR-A03 and UXR-A04 were completed ahead of their table position. All four UXR-D00 audit prerequisites are complete, so the visual-direction comparison is the next dependency-ordered item once the owner provides its Figma target. If live audits continue in parallel, UXR-A05 is the next unfinished audit in table order. FE-19's store-laptop physical scanner gate remains outstanding and was not cleared by UXR-A09, UXR-A10, or UXR-A11.
 
 Live audits may continue while UXR-D00 is under review. Domain Figma work begins only after its own evidence is complete and UXR-D00 has an owner-approved direction; it does not need to wait for every audit. Application implementation must wait for owner approval of that domain's design.
 
@@ -386,7 +386,7 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 ### UXR-A11 — Sales history, detail, and reprint
 
 - **Domain:** Sales read workflow.
-- **Status:** `PLANNED`.
+- **Status:** `EVIDENCE_COMPLETE`.
 - **Execution class:** `LIVE_AUDIT`.
 - **Dependencies:** UXR-A10.
 - **Environment gate:** Disposable sale records cover CASH/QRIS and whole/fractional lines.
@@ -397,6 +397,8 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 - **Validation:** All financial/status facts are clearly backend-confirmed and reprint remains separate from sale creation.
 - **Block condition:** Representative sales cannot be created or restored safely.
 - **Split trigger:** Split list from detail/reprint if evidence volume makes one report hard to review.
+
+**Evidence note (2026-09-15):** The completed report and raw evidence are in `docs/ux/audits/uxr-a11-sales.md` and `docs/ux/evidence/uxr-a11/`. Four persisted records covered CASH, QRIS, whole-unit lines, PIECE/KILOGRAM/METER UOM, STORE location, decimal money, filters, single-page paging, detail, live reprint success, keyboard, and 760×768 responsive behavior. No persisted line had a fractional numeric quantity; the existing focused test verified `1.2500 METER` rendering and the report labels that limitation instead of creating a forbidden checkout. Live requests/printing settled too quickly for raw domain-pending frames, so list loading/error and print pending/failure/retry are clearly labelled automated evidence. UXR-D00's audit prerequisites are now complete.
 
 **Copy-ready prompt**
 
