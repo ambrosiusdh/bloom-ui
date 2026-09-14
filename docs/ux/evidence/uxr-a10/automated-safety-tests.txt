@@ -1,0 +1,32 @@
+UXR-A10 automated safety evidence
+Run: 2026-09-14 08:03 Asia/Jakarta
+
+Command:
+C:\Users\Ambrosius David H\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe node_modules\vitest\vitest.mjs run src/test/components/cashier/CashierCheckout.test.jsx src/test/pages/sale/SaleDetail.test.jsx
+
+Result:
+Test Files  2 passed (2)
+Tests       22 passed (22)
+Duration    51.28s
+
+Why automated evidence was used:
+The local UI run exercised ordinary validation, known backend rejections, two successful sales, automatic printing, reprint, navigation, and cleanup. It did not deliberately create ambiguous network outcomes, race duplicate sale submissions, reuse one idempotency key with a different payload, disconnect the printer, or race print completion across routes. Those cases could produce duplicate or physically ambiguous outcomes and are covered by existing checked-in tests instead.
+
+Relevant existing cases in src/test/components/cashier/CashierCheckout.test.jsx:
+- shows confirmed sale before automatic print status, blocks duplicates, and supports reprint
+- keeps sale success visible when printing fails and retries only that sale reference
+- warns about an uncertain network print outcome and retries without recreating the sale
+- gives checkout-specific recovery when the confirmed sale cannot be found for printing
+- shares a pending print with Sale Detail and blocks a second same-sale request
+- checks a timed-out attempt, keeps UNKNOWN locked, and replays the exact request with the same key
+- turns an ambiguous POST into success when same-key lookup reports COMPLETED
+- handles a same-key payload conflict as known failure and uses a new key for a new attempt
+
+Relevant existing cases in src/test/pages/sale/SaleDetail.test.jsx:
+- prevents duplicate clicks and preserves the sale reference through pending and success
+- shows a printer failure and retries the same sale without recreating it
+- ignores a print completion after navigating to another sale
+- warns that a network failure may have an uncertain physical print outcome
+- shows a controlled failure when the backend does not acknowledge printing
+
+No application, fixture, dependency, or test file was changed by this run.
