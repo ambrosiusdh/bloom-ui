@@ -1,6 +1,6 @@
 # Bloom Release 1 UX Rework Roadmap
 
-Last updated: 2026-09-13
+Last updated: 2026-09-14
 
 ## 1. Purpose
 
@@ -129,14 +129,14 @@ Use these finding priorities:
 | Order | Work item | Domain | Status | Execution | Recommended model |
 | --- | --- | --- | --- | --- | --- |
 | 0 | UXR-00 | UX evidence protocol and roadmap | DOCUMENTED | ROADMAP_BASELINE | `gpt-5.6-sol`, high |
-| 1 | UXR-A01 | Authentication and application navigation | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 2 | UXR-A08 | Cash-session operation | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 3 | UXR-A09 | Cashier search, cart, and scanner behavior | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 1 | UXR-A01 | Authentication and application navigation | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 2 | UXR-A08 | Cash-session operation | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 3 | UXR-A09 | Cashier search, cart, and scanner behavior | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 4 | UXR-A10 | Checkout and post-checkout printing | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 5 | UXR-A11 | Sales history, detail, and reprint | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 6 | UXR-D00 | Visual direction comparison and owner selection | PLANNED | FIGMA_DESIGN | `gpt-5.6-sol`, high |
-| 7 | UXR-A03 | Item categories | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 8 | UXR-A04 | Item master and location inventory | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 7 | UXR-A03 | Item categories | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 8 | UXR-A04 | Item master and location inventory | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 9 | UXR-A05 | Stock movement history | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 10 | UXR-A06 | Stock adjustment | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 11 | UXR-A07 | Stock transfer | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
@@ -150,6 +150,8 @@ Use these finding priorities:
 | 19 | UXR-A18 | Cross-domain evidence synthesis | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
 
 Cashier work comes first because it is the highest-frequency, most time-sensitive working mode. UXR-D00 then compares visual directions using evidence from the shell, cashier, checkout, and sales-history workflows before broader domain design begins. Back-office audits follow the operational sequence from item setup through stock, purchasing, debt, and expense handling. Dashboard audit comes after its drill-down destinations so its navigation value can be judged in context.
+
+**Status audit (2026-09-14):** UXR-A01, UXR-A03, UXR-A04, UXR-A08, and UXR-A09 have complete live evidence and reports. UXR-A03 and UXR-A04 were completed ahead of their table position. The next unfinished dependency-ordered cashier audit is UXR-A10; UXR-D00 still waits for UXR-A10 and UXR-A11 in addition to the now-complete A01/A09 evidence. FE-19's store-laptop physical scanner gate remains outstanding and was not cleared by UXR-A09.
 
 Live audits may continue while UXR-D00 is under review. Domain Figma work begins only after its own evidence is complete and UXR-D00 has an owner-approved direction; it does not need to wait for every audit. Application implementation must wait for owner approval of that domain's design.
 
@@ -194,7 +196,7 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 ### UXR-A01 — Authentication and application navigation
 
 - **Domain:** Authentication, shell, and navigation entry.
-- **Status:** `PLANNED`.
+- **Status:** `EVIDENCE_COMPLETE`.
 - **Execution class:** `LIVE_AUDIT`.
 - **Dependencies:** UXR-00.
 - **Environment gate:** Frontend/backend running with a disposable valid account and a way to exercise invalid/expired authentication.
@@ -232,7 +234,7 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 ### UXR-A03 — Item categories
 
 - **Domain:** Item categories.
-- **Status:** `PLANNED`.
+- **Status:** `EVIDENCE_COMPLETE`.
 - **Execution class:** `LIVE_AUDIT`.
 - **Dependencies:** UXR-A01.
 - **Environment gate:** Disposable active and referenced category data exists.
@@ -251,7 +253,7 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 ### UXR-A04 — Item master and location inventory
 
 - **Domain:** Items.
-- **Status:** `PLANNED`.
+- **Status:** `EVIDENCE_COMPLETE`.
 - **Execution class:** `LIVE_AUDIT`.
 - **Dependencies:** UXR-A03.
 - **Environment gate:** Disposable whole-unit and fractional items exist, including editable and movement-locked examples.
@@ -327,7 +329,7 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 ### UXR-A08 — Cash-session operation
 
 - **Domain:** Cash sessions.
-- **Status:** `PLANNED`.
+- **Status:** `EVIDENCE_COMPLETE`.
 - **Execution class:** `LIVE_AUDIT`.
 - **Dependencies:** UXR-A01.
 - **Environment gate:** Disposable database can start with no open session and can create/close test sessions safely.
@@ -346,7 +348,7 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 ### UXR-A09 — Cashier search, cart, and scanner behavior
 
 - **Domain:** Cashier item entry and cart.
-- **Status:** `PLANNED`.
+- **Status:** `EVIDENCE_COMPLETE`.
 - **Execution class:** `LIVE_AUDIT`.
 - **Dependencies:** UXR-A04 and UXR-A08.
 - **Environment gate:** A verified open session and disposable active/inactive, whole/fractional, zero/positive STORE-stock items exist. Physical scanner findings remain limited to hardware actually available.
