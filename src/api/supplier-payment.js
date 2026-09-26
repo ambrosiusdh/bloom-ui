@@ -5,8 +5,9 @@ export const SUPPLIER_PAYMENT_TIMEOUT_MS = 15000;
 
 const createSupplierPayment = async (code, payload, idempotencyKey, options) => {
     return api({
-        url: SUPPLIER_PAYMENT.create(code),
+        url: SUPPLIER_PAYMENT.create,
         method: 'POST',
+        params: { code },
         data: payload,
         headers: { 'Idempotency-Key': idempotencyKey },
         timeout: SUPPLIER_PAYMENT_TIMEOUT_MS

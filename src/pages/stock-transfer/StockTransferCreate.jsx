@@ -18,6 +18,7 @@ import { ArrowLeftRightIcon } from 'lucide-react';
 import { API_ERROR_CATEGORY } from '@api/index.js';
 import BloomConfirmationModal from '@components/_ui/BloomConfirmationModal.jsx';
 import {
+    useAuthStore,
     useBreadcrumbStore,
     useItemStore,
     useStockTransferStore
@@ -97,12 +98,6 @@ const validateForm = (form, item) => ({
         : ''
 });
 
-const createRequestKey = () => {
-    const identifier = globalThis.crypto?.randomUUID?.()
-        || `${ Date.now() }-${ Math.random().toString(16).slice(2) }`;
-    return `stock-transfer-${ identifier }`;
-};
-
 const createPayload = (form, item) => ({
     data: {
         sourceLocation: form.sourceLocation,
@@ -125,14 +120,19 @@ const getBackendField = field => {
 
 export default function StockTransferCreate() {
     const [searchParams] = useSearchParams();
+    const authStatus = useAuthStore(state => state.authStatus);
+    const currentUser = useAuthStore(state => state.currentUser);
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const itemList = useItemStore(state => state.itemList);
     const getItemList = useItemStore(state => state.getItemList);
     const getItemDetails = useItemStore(state => state.getItemDetails);
     const createStockTransfer = useStockTransferStore(state => state.createStockTransfer);
-    const clearLastCreatedTransfer = useStockTransferStore(
-        state => state.clearLastCreatedTransfer
-    );
+    const selectStockTransfer = useStockTransferStore(state => state.selectStockTransfer);
+    const beginNewStockTransfer = useStockTransferStore(state => state.beginNewStockTransfer);
+    const ownerAccountId = useStockTransferStore(state => state.ownerAccountId);
+    const transferAttempt = useStockTransferStore(state => state.stockTransferAttempt);
+    const transferStatus = useStockTransferStore(state => state.stockTransferCreateStatus);
+    const result = useStockTransferStore(state => state.stockTransferResult);
 
     const [form, setForm] = useState(() => ({
         ...EMPTY_FORM,
@@ -143,17 +143,13 @@ export default function StockTransferCreate() {
     const [itemsError, setItemsError] = useState('');
     const [itemsRefreshVersion, setItemsRefreshVersion] = useState(0);
     const [confirmationPayload, setConfirmationPayload] = useState(null);
-    const [isSubmitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState('');
     const [isConflict, setConflict] = useState(false);
-    const [result, setResult] = useState(null);
     const [refreshWarning, setRefreshWarning] = useState('');
 
     const fieldRefs = useRef({});
     const itemsErrorRef = useRef(null);
     const submitErrorRef = useRef(null);
-    const submitInProgressRef = useRef(false);
-    const requestIdentityRef = useRef({ signature: '', key: '' });
     const mountedRef = useRef(true);
 
     const activeItems = useMemo(
@@ -163,11 +159,24 @@ export default function StockTransferCreate() {
     const selectedItem = activeItems.find(item => item.sku === form.itemSku) || null;
     const sourceStockField = form.sourceLocation === 'STORE'
         ? 'stockStore' : 'stockWarehouse';
+    const recoveryBelongsToCurrentAccount = !!currentUser?.accountId
+        && ownerAccountId === currentUser.accountId;
+    const hasForeignRecovery = authStatus === 'authenticated'
+        && !!ownerAccountId
+        && ownerAccountId !== currentUser?.accountId
+        && (!!transferAttempt || !!result);
+    const isSubmitting = transferStatus === 'pending';
+    const recoveryLocked = !!transferAttempt || !!result || isSubmitting;
 
     useEffect(() => {
         setBreadcrumbs(['Persediaan', 'Transfer Stok']);
-        clearLastCreatedTransfer();
-    }, [clearLastCreatedTransfer, setBreadcrumbs]);
+    }, [setBreadcrumbs]);
+
+    useEffect(() => {
+        if (authStatus === 'authenticated') {
+            selectStockTransfer();
+        }
+    }, [authStatus, currentUser?.accountId, selectStockTransfer]);
 
     useEffect(() => {
         mountedRef.current = true;
@@ -209,13 +218,42 @@ export default function StockTransferCreate() {
         }
     }, [submitError]);
 
+    useEffect(() => {
+        if (!recoveryBelongsToCurrentAccount || !transferAttempt) {
+            return;
+        }
+
+        const request = transferAttempt.request;
+        const line = request?.lines?.[0];
+        if (line) {
+            setForm({
+                itemSku: line.itemSku || '',
+                sourceLocation: request.sourceLocation || 'WAREHOUSE',
+                destinationLocation: request.destinationLocation || 'STORE',
+                quantity: line.quantity || '',
+                description: request.description || ''
+            });
+        }
+
+        if (transferStatus === 'key_conflict') {
+            setConflict(true);
+            setSubmitError(
+                'Identitas pemulihan transfer bertentangan dengan catatan server. Jangan membuat transfer baru; periksa riwayat stok dan lakukan rekonsiliasi manual.'
+            );
+        } else if (transferStatus === 'uncertain') {
+            setConflict(true);
+            setSubmitError(
+                'Hasil transfer sebelumnya belum dapat dipastikan. Formulir dikunci. Periksa hasil memakai permintaan dan kunci yang sama.'
+            );
+        }
+    }, [recoveryBelongsToCurrentAccount, transferAttempt, transferStatus]);
+
     const changeField = event => {
         const { name, value } = event.target;
         setForm(previous => ({ ...previous, [name]: value }));
         setErrors(previous => ({ ...previous, [name]: '' }));
         setSubmitError('');
         setConflict(false);
-        setResult(null);
         setRefreshWarning('');
     };
 
@@ -235,7 +273,6 @@ export default function StockTransferCreate() {
         }));
         setSubmitError('');
         setConflict(false);
-        setResult(null);
         setRefreshWarning('');
     };
 
@@ -262,13 +299,12 @@ export default function StockTransferCreate() {
         }));
         setSubmitError('');
         setConflict(false);
-        setResult(null);
         setRefreshWarning('');
     };
 
     const reviewTransfer = event => {
         event.preventDefault();
-        if (submitInProgressRef.current) return;
+        if (recoveryLocked || !recoveryBelongsToCurrentAccount) return;
 
         const nextErrors = validateForm(form, selectedItem);
         setErrors(nextErrors);
@@ -291,27 +327,16 @@ export default function StockTransferCreate() {
         return refreshResults.every(refreshResult => refreshResult.status === 'fulfilled');
     };
 
-    const confirmTransfer = async () => {
-        if (submitInProgressRef.current || !confirmationPayload) return;
-
-        submitInProgressRef.current = true;
-        setSubmitting(true);
+    const submitTransfer = async payload => {
         setSubmitError('');
         setConflict(false);
-        const signature = JSON.stringify(confirmationPayload.data);
-        if (requestIdentityRef.current.signature !== signature) {
-            requestIdentityRef.current = { signature, key: createRequestKey() };
-        }
 
         try {
-            const response = await createStockTransfer(
-                confirmationPayload,
-                requestIdentityRef.current.key
-            );
-            requestIdentityRef.current = { signature: '', key: '' };
+            const response = await createStockTransfer(payload);
+            if (!response) return;
+
             if (mountedRef.current) {
                 setConfirmationPayload(null);
-                setResult(response.data);
                 setForm(previous => ({
                     ...previous,
                     quantity: '',
@@ -329,7 +354,15 @@ export default function StockTransferCreate() {
             if (mountedRef.current) {
                 setConfirmationPayload(null);
             }
-            if (error?.category === API_ERROR_CATEGORY.VALIDATION) {
+            const currentStatus = useStockTransferStore.getState()
+                .stockTransferCreateStatus;
+            if (error?.category === 'storage') {
+                if (mountedRef.current) {
+                    setSubmitError(
+                        'Pemulihan transfer tidak dapat disimpan di tab ini. Transfer belum dikirim; aktifkan penyimpanan sesi lalu coba lagi.'
+                    );
+                }
+            } else if (error?.category === API_ERROR_CATEGORY.VALIDATION) {
                 if (!mountedRef.current) return;
                 const nextErrors = { ...EMPTY_ERRORS };
                 error.validationErrors?.forEach(detail => {
@@ -345,15 +378,19 @@ export default function StockTransferCreate() {
                 } else {
                     setSubmitError('Server menolak data transfer. Periksa masukan lalu coba lagi.');
                 }
-            } else if (error?.category === API_ERROR_CATEGORY.CONFLICT) {
+            } else if (currentStatus === 'key_conflict') {
                 if (mountedRef.current) {
                     setConflict(true);
+                    setSubmitError(
+                        'Identitas pemulihan transfer bertentangan dengan catatan server. Jangan membuat transfer baru; periksa riwayat stok dan lakukan rekonsiliasi manual.'
+                    );
                 }
-                const refreshed = await refreshAffectedData(form.itemSku);
+            } else if (currentStatus === 'uncertain') {
                 if (mountedRef.current) {
-                    setSubmitError(refreshed
-                        ? 'Stok berubah saat transfer diproses. Data barang sudah dimuat ulang; periksa stok lalu konfirmasi kembali.'
-                        : 'Stok berubah saat transfer diproses dan data terbaru belum dapat dimuat. Muat ulang data sebelum mencoba lagi.');
+                    setConflict(true);
+                    setSubmitError(
+                        'Hasil transfer belum dapat dipastikan. Formulir dikunci; periksa hasil dengan permintaan yang sama.'
+                    );
                 }
             } else if (error?.status === 400) {
                 await refreshAffectedData(form.itemSku);
@@ -367,16 +404,37 @@ export default function StockTransferCreate() {
                     error?.message || 'Transfer belum dapat dipastikan. Coba lagi memakai permintaan yang sama.'
                 );
             }
-        } finally {
-            submitInProgressRef.current = false;
-            if (mountedRef.current) {
-                setSubmitting(false);
-            }
         }
     };
 
+    const confirmTransfer = async () => {
+        if (isSubmitting || !confirmationPayload) return;
+        await submitTransfer(confirmationPayload);
+    };
+
+    const retryTransfer = async () => {
+        if (isSubmitting || !transferAttempt || !recoveryBelongsToCurrentAccount) return;
+        await submitTransfer();
+    };
+
+    const startAnotherTransfer = () => {
+        beginNewStockTransfer();
+        setForm({
+            ...EMPTY_FORM,
+            itemSku: searchParams.get('itemSku') || ''
+        });
+        setErrors(EMPTY_ERRORS);
+        setSubmitError('');
+        setConflict(false);
+        setRefreshWarning('');
+    };
+
     const retryItemLoad = () => setItemsRefreshVersion(version => version + 1);
-    const interactionDisabled = isSubmitting || isLoadingItems || !!itemsError;
+    const interactionDisabled = isSubmitting
+        || recoveryLocked
+        || !recoveryBelongsToCurrentAccount
+        || isLoadingItems
+        || !!itemsError;
 
     return (
         <div className="stock-transfer-create max-w-4xl">
@@ -414,6 +472,13 @@ export default function StockTransferCreate() {
                 </p>
             </div>
 
+            { hasForeignRecovery && (
+                <Alert severity="warning" className="mb-4" role="alert">
+                    Ada pemulihan transfer milik akun lain di tab ini. Masuk dengan akun asal untuk
+                    memeriksa hasilnya; permintaan baru tetap dikunci agar transfer tidak terduplikasi.
+                </Alert>
+            ) }
+
             { isLoadingItems && (
                 <Alert severity="info" className="mb-4" role="status">
                     <span className="inline-flex items-center gap-2">
@@ -450,9 +515,15 @@ export default function StockTransferCreate() {
                     className="mb-4"
                     tabIndex={ -1 }
                     ref={ submitErrorRef }
-                    action={ isConflict ? (
-                        <Button color="inherit" size="small" onClick={ retryItemLoad }>
-                            Muat ulang stok
+                    action={ transferStatus === 'uncertain'
+                        && recoveryBelongsToCurrentAccount ? (
+                        <Button
+                            color="inherit"
+                            size="small"
+                            onClick={ retryTransfer }
+                            disabled={ isSubmitting }
+                        >
+                            Periksa hasil transfer
                         </Button>
                     ) : undefined }
                 >
@@ -460,7 +531,7 @@ export default function StockTransferCreate() {
                 </Alert>
             ) }
 
-            { result && (
+            { result && recoveryBelongsToCurrentAccount && (
                 <Alert severity="success" className="mb-4" role="status">
                     <div className="font-semibold">Transfer { result.code } berhasil.</div>
                     <div>
@@ -469,6 +540,14 @@ export default function StockTransferCreate() {
                         { ' ' }dipindahkan dari { LOCATION_LABELS[result.sourceLocation] }
                         { ' ' }ke { LOCATION_LABELS[result.destinationLocation] }.
                     </div>
+                    <Button
+                        className="mt-2"
+                        color="inherit"
+                        size="small"
+                        onClick={ startAnotherTransfer }
+                    >
+                        Buat transfer baru
+                    </Button>
                 </Alert>
             ) }
 

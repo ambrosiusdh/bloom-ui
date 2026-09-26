@@ -20,9 +20,11 @@ explicitly defines the Release 1 CASH correction boundary. This inspection uses
 those implemented rules and that supplement; it does not claim the historical
 domain document has been updated or backend tests were rerun here.
 
-- POST `/api/goods-receipts/{code}/payments`: required `Idempotency-Key`;
+- POST `/api/goods-receipts/payments?code={receiptCode}`: required `Idempotency-Key`;
   positive decimal `amount` (15 integer/4 fractional digits), `paymentMethod`,
   past/present Instant `paidAt`, optional 255-character `reference`/`note`.
+- GET `/api/goods-receipts/payments?code={receiptCode}`: pageable complete
+  payment history for the exact receipt reference.
 - One POSTED receipt, partial/full permitted, overpay rejected under receipt lock.
   CASH uses the globally open locked session and cannot predate its opening;
   there is no client-supplied session ID. Only CASH posts a drawer movement.
@@ -111,8 +113,29 @@ overpay/session conflict, durable ambiguous recovery, voided replay, and read fa
 - Review follow-up browser checks at 1366×900 and 390×844 verify wrapped long
   confirmation notes, full-payment completion, and hidden/blocked retained
   payment details when switching from the original account to another account.
-- No live backend payment was posted. Temporary
+- At the time of the original FE-28 implementation review, no live backend payment was posted. Temporary
   fixture/report files are removed after verification. Transaction review is
   complete. The 2026-09-13 identity gate passed in the shared 5-file / 91-test
   recovery regression run; the full frontend suite then passed 64 files / 384 tests,
   followed by the production build and touched-file lint.
+
+## Transport correction and live verification — 2026-09-26
+
+UXR-A15 exposed a container-level integration defect that mocked/API-unit tests did
+not cover: generated receipt references contain `/`, while the original route put
+the encoded reference in one path segment. Tomcat rejected the request with HTTP
+400 before Spring MVC, leaving the frontend in its deliberately conservative
+uncertain/recovery state even though no payment could be recorded.
+
+The controller and frontend now use
+`/api/goods-receipts/payments?code={receiptCode}` for payment creation and history.
+No request/response DTO, financial rule, idempotency behavior, recovery ownership,
+cash-session rule, or backend authority changed. Live verification recorded a
+partial QRIS payment of `Rp 2.000.000` on `GR/IX-2026/0002` and a full
+BANK_TRANSFER payment of `Rp 1,25` on `GR/IX-2026/0001`; backend refresh returned
+`PARTIALLY_PAID`/`Rp 6.888.888` outstanding and `PAID`/`Rp 0` outstanding.
+
+Focused frontend payment tests passed 35/35, targeted lint and production build
+passed, backend controller tests passed 3/3, and the backend web-module suite passed
+79/79. The full frontend run passed 393 tests; two stock-adjustment tests timed out
+only in the parallel full run and passed 8/8 immediately when rerun in isolation.

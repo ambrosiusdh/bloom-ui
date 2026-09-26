@@ -2,8 +2,12 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import StockTransferCreate from '@pages/stock-transfer/StockTransferCreate.jsx';
+import useAuthStore from '@stores/modules/auth.js';
 import useItemStore from '@stores/modules/item.js';
-import useStockTransferStore from '@stores/modules/stock-transfer.js';
+import useStockTransferStore, {
+    createStockTransferState,
+    STOCK_TRANSFER_STORAGE_KEY
+} from '@stores/modules/stock-transfer.js';
 import {
     act,
     render,
@@ -104,8 +108,16 @@ const openConfirmation = async (user, quantity = '1,2500') => {
 describe('StockTransferCreate', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        sessionStorage.clear();
+        useAuthStore.setState({
+            authStatus: 'authenticated',
+            currentUser: {
+                accountId: '101',
+                username: 'admin'
+            }
+        });
         useItemStore.setState({ itemList: [], itemPaging: {}, itemDetails: {} });
-        useStockTransferStore.setState({ lastCreatedTransfer: null });
+        useStockTransferStore.setState(createStockTransferState());
         itemApi.getItemList.mockResolvedValue(itemListResponse());
         itemApi.getItemDetails.mockResolvedValue(itemDetailResponse(fractionalItem));
     });
@@ -230,7 +242,15 @@ describe('StockTransferCreate', () => {
         }, expect.stringMatching(/^stock-transfer-/), undefined);
         expect(screen.getByRole('button', { name: 'Memindahkan...' })).toBeDisabled();
 
-        await act(async () => transferRequest.resolve({ data: { data: transferResult } }));
+        const requestKey = stockTransferApi.createStockTransfer.mock.calls[0][1];
+        await act(async () => transferRequest.resolve({
+            data: {
+                data: {
+                    ...transferResult,
+                    requestKey
+                }
+            }
+        }));
         expect(await screen.findByText('Transfer TRF-00042 berhasil.')).toBeInTheDocument();
         expect(screen.getByText(/dipindahkan dari Gudang.*ke Toko/)).toBeInTheDocument();
         expect(screen.getByLabelText('Jumlah transfer')).toHaveValue('');
@@ -240,34 +260,117 @@ describe('StockTransferCreate', () => {
         expect(itemApi.getItemList).toHaveBeenCalledTimes(2);
     });
 
-    it('preserves input, refreshes stock, and safely retries a conflict with the same key', async () => {
+    it('persists an uncertain request, locks editing, and reconciles after reload with the same key', async () => {
         const user = userEvent.setup();
-        const conflict = Object.assign(new Error('Data telah berubah.'), {
-            category: 'conflict',
-            status: 409,
+        const uncertain = Object.assign(new Error('Koneksi terputus.'), {
+            category: 'network',
+            status: null,
             validationErrors: []
         });
-        stockTransferApi.createStockTransfer
-            .mockRejectedValueOnce(conflict)
-            .mockResolvedValueOnce({ data: { data: transferResult } });
-        render(<StockTransferCreate />, { route: '/stock-transfers/new' });
+        stockTransferApi.createStockTransfer.mockRejectedValueOnce(uncertain);
+        const view = render(<StockTransferCreate />, { route: '/stock-transfers/new' });
         await screen.findByRole('combobox', { name: 'Barang' });
         await openConfirmation(user);
 
         await user.click(screen.getByRole('button', { name: 'Pindahkan stok' }));
-        const alert = (await screen.findByText(/Stok berubah saat transfer diproses/))
+        const alert = (await screen.findByText(/Hasil transfer belum dapat dipastikan/))
             .closest('[role="alert"]');
-        expect(alert).toHaveTextContent('Stok berubah saat transfer diproses.');
+        expect(alert).toHaveTextContent('Formulir dikunci');
         await waitFor(() => expect(alert).toHaveFocus());
-        expect(screen.getByLabelText('Jumlah transfer')).toHaveValue('1,2500');
+        expect(screen.getByLabelText('Jumlah transfer')).toHaveValue('1.2500');
         expect(screen.getByLabelText('Keterangan (opsional)')).toHaveValue('Isi rak toko');
-        expect(itemApi.getItemDetails).toHaveBeenCalledWith('KAIN-00001', undefined, undefined);
+        expect(screen.getByRole('group', { name: 'Data transfer stok' })).toBeDisabled();
 
+        const durableState = sessionStorage.getItem(STOCK_TRANSFER_STORAGE_KEY);
+        const firstPayload = stockTransferApi.createStockTransfer.mock.calls[0][0];
         const firstRequestKey = stockTransferApi.createStockTransfer.mock.calls[0][1];
-        await user.click(screen.getByRole('button', { name: 'Tinjau transfer' }));
-        await user.click(screen.getByRole('button', { name: 'Pindahkan stok' }));
+        expect(JSON.parse(durableState).state.stockTransferAttempt).toEqual({
+            ownerAccountId: '101',
+            key: firstRequestKey,
+            request: firstPayload.data
+        });
+
+        view.unmount();
+        useStockTransferStore.setState(createStockTransferState());
+        sessionStorage.setItem(STOCK_TRANSFER_STORAGE_KEY, durableState);
+        await useStockTransferStore.persist.rehydrate();
+        stockTransferApi.createStockTransfer.mockImplementationOnce((payload, requestKey) =>
+            Promise.resolve({
+                data: {
+                    data: {
+                        ...transferResult,
+                        requestKey
+                    }
+                }
+            }));
+
+        render(<StockTransferCreate />, { route: '/stock-transfers/new' });
+        const recoveryAction = await screen.findByRole('button', {
+            name: 'Periksa hasil transfer'
+        });
+        await user.click(recoveryAction);
+
         await waitFor(() => expect(stockTransferApi.createStockTransfer).toHaveBeenCalledTimes(2));
+        expect(stockTransferApi.createStockTransfer.mock.calls[1][0]).toEqual(firstPayload);
         expect(stockTransferApi.createStockTransfer.mock.calls[1][1]).toBe(firstRequestKey);
         expect(await screen.findByText('Transfer TRF-00042 berhasil.')).toBeInTheDocument();
+    });
+
+    it('quarantines another account recovery state without exposing its transfer facts', async () => {
+        useStockTransferStore.setState({
+            ...createStockTransferState('101'),
+            stockTransferAttempt: {
+                ownerAccountId: '101',
+                key: 'stock-transfer-owner-101',
+                request: {
+                    sourceLocation: 'WAREHOUSE',
+                    destinationLocation: 'STORE',
+                    description: 'Rahasia akun asal',
+                    lines: [{
+                        itemSku: 'KAIN-00001',
+                        quantity: '1.2500',
+                        unitOfMeasure: 'METER'
+                    }]
+                }
+            },
+            stockTransferCreateStatus: 'uncertain'
+        });
+        useAuthStore.setState({
+            authStatus: 'authenticated',
+            currentUser: {
+                accountId: '202',
+                username: 'operator-lain'
+            }
+        });
+
+        render(<StockTransferCreate />, { route: '/stock-transfers/new' });
+
+        expect(await screen.findByText(/pemulihan transfer milik akun lain/i))
+            .toBeInTheDocument();
+        expect(screen.queryByText('Rahasia akun asal')).not.toBeInTheDocument();
+        expect(screen.getByRole('group', { name: 'Data transfer stok' })).toBeDisabled();
+        expect(stockTransferApi.createStockTransfer).not.toHaveBeenCalled();
+    });
+
+    it('does not post when durable recovery storage is unavailable', async () => {
+        const user = userEvent.setup();
+        render(<StockTransferCreate />, { route: '/stock-transfers/new' });
+        await screen.findByRole('combobox', { name: 'Barang' });
+        await openConfirmation(user);
+        const storageSpy = vi.spyOn(Storage.prototype, 'setItem')
+            .mockImplementation(() => {
+                throw new Error('Storage blocked');
+            });
+
+        await user.click(screen.getByRole('button', { name: 'Pindahkan stok' }));
+
+        expect(await screen.findByText(/Pemulihan transfer tidak dapat disimpan/))
+            .toBeInTheDocument();
+        expect(stockTransferApi.createStockTransfer).not.toHaveBeenCalled();
+        expect(useStockTransferStore.getState()).toMatchObject({
+            stockTransferAttempt: null,
+            stockTransferCreateStatus: 'storage_error'
+        });
+        storageSpy.mockRestore();
     });
 });
