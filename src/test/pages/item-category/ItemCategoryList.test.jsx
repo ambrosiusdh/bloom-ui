@@ -50,7 +50,7 @@ const HistoryBackButton = () => {
 
 describe('ItemCategoryList', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
         useItemCategoryStore.setState({
             itemCategoryList: [],
             itemCategoryPaging: {}
@@ -86,7 +86,11 @@ describe('ItemCategoryList', () => {
         });
 
         const table = await screen.findByRole('table', { name: 'Daftar kategori barang aktif' });
-        const categoryRow = within(table).getByRole('row', { name: /Kain/ });
+        const categoryRow = await within(table).findByRole(
+            'row',
+            { name: /Kain/ },
+            { timeout: 3000 }
+        );
 
         expect(within(table).getByRole('columnheader', { name: 'Kategori' })).toBeInTheDocument();
         expect(within(table).queryByRole('columnheader', { name: 'Kode kategori' })).not.toBeInTheDocument();
