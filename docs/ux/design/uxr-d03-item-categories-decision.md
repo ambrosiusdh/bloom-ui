@@ -2,7 +2,7 @@
 
 Owner direction recorded: 2026-09-23  
 UXR-D03 status: `APPROVED`  
-Implementation status: not started
+Implementation status: `IMPLEMENTED` (2026-09-28)
 
 ## Owner-approved direction
 
@@ -46,4 +46,3 @@ older users. Related identity data stays together, audit metadata remains explic
 icon actions prevent the action column from expanding when another domain has three or four row
 actions. The linked breadcrumb restores a predictable escape route from create and edit without
 adding navigation or domain behavior.
-

@@ -4,7 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ItemCategoryList from '@pages/item-category/ItemCategoryList.jsx';
 import useItemCategoryStore from '@stores/modules/item-category.js';
-import { act, fireEvent, render, screen, waitFor } from '@/test/render.jsx';
+import {
+    act,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+    within
+} from '@/test/render.jsx';
 
 const categoryApi = vi.hoisted(() => ({
     createItemCategory: vi.fn(),
@@ -60,6 +67,60 @@ describe('ItemCategoryList', () => {
 
         expect(await screen.findByText('Belum ada kategori aktif')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Buat kategori' })).toHaveAttribute('href', '/item-categories/new');
+    });
+
+    it('groups category identity, labels narrow facts, and exposes exact paging context', async () => {
+        const category = {
+            code: 'KAIN',
+            name: 'Kain',
+            description: 'Bahan tekstil untuk pesanan.',
+            updatedBy: null,
+            updatedAt: null
+        };
+        categoryApi.getItemCategoryList.mockResolvedValue(listResponse([category], {
+            totalElements: 23,
+            totalPages: 3
+        }));
+        render(<ItemCategoryList />, {
+            route: '/item-categories?page=2&itemPerPage=10&key=code&q='
+        });
+
+        const table = await screen.findByRole('table', { name: 'Daftar kategori barang aktif' });
+        const categoryRow = within(table).getByRole('row', { name: /Kain/ });
+
+        expect(within(table).getByRole('columnheader', { name: 'Kategori' })).toBeInTheDocument();
+        expect(within(table).queryByRole('columnheader', { name: 'Kode kategori' })).not.toBeInTheDocument();
+        expect(categoryRow).toHaveTextContent('KainKode: KAINBahan tekstil untuk pesanan.');
+        expect(categoryRow).toHaveTextContent('Diperbarui olehBelum tersedia');
+        expect(categoryRow).toHaveTextContent('Diperbarui padaBelum diperbarui');
+        expect(screen.getByText('Menampilkan 11–11 dari 23 kategori aktif')).toBeInTheDocument();
+        expect(screen.getByText('Halaman 2 dari 3')).toBeInTheDocument();
+
+        const editAction = within(categoryRow).getByRole('link', { name: 'Ubah kategori Kain' });
+        const deactivateAction = within(categoryRow).getByRole('button', {
+            name: 'Nonaktifkan kategori Kain'
+        });
+
+        expect(editAction).toHaveStyle({
+            width: '44px',
+            height: '44px'
+        });
+        expect(deactivateAction).toHaveStyle({
+            width: '44px',
+            height: '44px'
+        });
+    });
+
+    it('focuses a create or edit success message after returning to the list', async () => {
+        categoryApi.getItemCategoryList.mockResolvedValue(listResponse([]));
+        render(<ItemCategoryList />, {
+            route: '/item-categories?message=Kategori+berhasil+dibuat.&messageType=success'
+        });
+
+        const successAlert = await screen.findByRole('alert');
+
+        expect(successAlert).toHaveTextContent('Kategori berhasil dibuat.');
+        expect(successAlert).toHaveFocus();
     });
 
     it('confirms the cascading deactivation, blocks duplicates, and restores focus', async () => {

@@ -4,6 +4,7 @@ import {
     useState
 } from "react";
 import {
+    Link,
     useNavigate,
     useParams
 } from "react-router-dom";
@@ -13,6 +14,7 @@ import {
     CircularProgress,
     TextField
 } from "@mui/material";
+import { LockKeyhole } from "lucide-react";
 
 import { API_DOMAIN_ERROR_CODE } from "@api/error-contract.js";
 import {
@@ -33,8 +35,15 @@ const FIELD_VALIDATION = {
     }
 };
 
-const EMPTY_ERRORS = { code: '', name: '' };
-const EMPTY_FORM_DATA = { name: '', code: '', description: '' };
+const EMPTY_ERRORS = {
+    code: '',
+    name: ''
+};
+const EMPTY_FORM_DATA = {
+    name: '',
+    code: '',
+    description: ''
+};
 
 const getFieldValidationMessage = (name, value) => {
     const rule = FIELD_VALIDATION[name];
@@ -86,14 +95,23 @@ export default function ItemCategoryUpsert() {
     currentRouteCodeRef.current = code;
 
     const handleFormChange = (e) => {
-        setFormData(previous => ({ ...previous, [e.target.name]: e.target.value }));
-        setErrorData(previous => ({ ...previous, [e.target.name]: '' }));
+        setFormData(previous => ({
+            ...previous,
+            [e.target.name]: e.target.value
+        }));
+        setErrorData(previous => ({
+            ...previous,
+            [e.target.name]: ''
+        }));
         setErrorMessage('');
     }
 
     const validateField = name => {
         const message = getFieldValidationMessage(name, formData[name]);
-        setErrorData(previous => ({ ...previous, [name]: message }));
+        setErrorData(previous => ({
+            ...previous,
+            [name]: message
+        }));
         return message;
     }
 
@@ -123,7 +141,10 @@ export default function ItemCategoryUpsert() {
         const submittedFormData = { ...formData };
         const payload = {
             data: submittedCode
-                ? { name: submittedFormData.name, description: submittedFormData.description }
+                ? {
+                    name: submittedFormData.name,
+                    description: submittedFormData.description
+                }
                 : submittedFormData
         }
         const isCurrentSubmission = () => isMountedRef.current
@@ -210,7 +231,10 @@ export default function ItemCategoryUpsert() {
             setErrorMessage('');
             setErrorData({ ...EMPTY_ERRORS });
             setFormData({ ...EMPTY_FORM_DATA });
-            setBreadcrumbs([{ to: '/item-categories', label: 'Kategori Barang' }, 'Buat baru']);
+            setBreadcrumbs([{
+                to: '/item-categories',
+                label: 'Kategori Barang'
+            }, 'Buat baru']);
             return
         }
 
@@ -220,7 +244,10 @@ export default function ItemCategoryUpsert() {
         setErrorMessage('');
         setErrorData({ ...EMPTY_ERRORS });
         setFormData({ ...EMPTY_FORM_DATA });
-        setBreadcrumbs([{ to: '/item-categories', label: 'Kategori Barang' }, code]);
+        setBreadcrumbs([{
+            to: '/item-categories',
+            label: 'Kategori Barang'
+        }, code]);
 
         const loadItemCategoryDetails = async () => {
             try {
@@ -270,6 +297,11 @@ export default function ItemCategoryUpsert() {
                 <h2 className="item-category-upsert__header-title font-bold text-2xl">
                     { code ? `Ubah kategori: [${ code }]` : 'Buat kategori baru' }
                 </h2>
+                <p className="mt-1 text-gray-600">
+                    { code
+                        ? 'Perbarui nama atau deskripsi tanpa mengubah kode kategori.'
+                        : 'Tambahkan kelompok baru untuk barang yang aktif.' }
+                </p>
             </div>
 
             { errorMessage && (
@@ -334,8 +366,16 @@ export default function ItemCategoryUpsert() {
                             {
                                 code
                                 ? <div>
-                                    <span>Kode kategori: </span>
-                                    <strong className="item-category-upsert__form-item-value-text">{ code }</strong>
+                                    <span className="block text-sm text-gray-600">Kode kategori</span>
+                                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                                        <strong className="item-category-upsert__form-item-value-text">
+                                            { code }
+                                        </strong>
+                                        <span className="inline-flex items-center gap-1 text-sm text-gray-600">
+                                            <LockKeyhole aria-hidden="true" size={ 16 } />
+                                            Tidak dapat diubah
+                                        </span>
+                                    </div>
                                 </div>
                                 : <TextField
                                     className="item-category-upsert__form-item-value-input"
@@ -347,7 +387,8 @@ export default function ItemCategoryUpsert() {
                                     placeholder="Kode kategori"
                                     fullWidth
                                     error={ !!errorData.code }
-                                    helperText={ errorData.code }
+                                    helperText={ errorData.code
+                                        || 'Kode menjadi pengenal tetap dan tidak dapat diubah setelah dibuat.' }
                                     inputRef={ codeInputRef }
                                     disabled={ isSubmitting }
                                     onChange={ handleFormChange }
@@ -373,13 +414,22 @@ export default function ItemCategoryUpsert() {
                                 placeholder="Deskripsi kategori"
                                 onChange={ handleFormChange }
                                 disabled={ isSubmitting }
+                                helperText="Opsional. Gunakan deskripsi singkat yang membantu saat mengelola barang."
                                 fullWidth
                             />
                         </div>
                     </div>
                 </div>
 
-                <div className="item-category-upsert__form-action">
+                <div className="item-category-upsert__form-action flex flex-wrap gap-2">
+                    <Button
+                        component={ Link }
+                        to="/item-categories"
+                        variant="text"
+                        disabled={ isSubmitting }
+                    >
+                        Kembali ke daftar
+                    </Button>
                     <Button
                         className="item-category-upsert__form-submit"
                         variant="contained"

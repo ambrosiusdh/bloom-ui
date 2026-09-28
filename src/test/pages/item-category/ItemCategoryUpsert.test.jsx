@@ -107,6 +107,21 @@ describe('ItemCategoryUpsert', () => {
         expect(categoryApi.createItemCategory).not.toHaveBeenCalled();
     });
 
+    it('explains permanent category codes and keeps a direct route back to the list', () => {
+        render(<ItemCategoryUpsert />, { route: '/item-categories/new' });
+
+        expect(screen.getByText(
+            'Kode menjadi pengenal tetap dan tidak dapat diubah setelah dibuat.'
+        )).toBeInTheDocument();
+        expect(screen.getByText(
+            'Opsional. Gunakan deskripsi singkat yang membantu saat mengelola barang.'
+        )).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Kembali ke daftar' })).toHaveAttribute(
+            'href',
+            '/item-categories'
+        );
+    });
+
     it('preserves a non-required backend validation reason and the entered values', async () => {
         const user = userEvent.setup();
         categoryApi.createItemCategory.mockRejectedValue(Object.assign(new Error('Masukan tidak valid.'), {
@@ -161,6 +176,7 @@ describe('ItemCategoryUpsert', () => {
             });
         });
 
+        expect(await screen.findByText('Tidak dapat diubah')).toBeInTheDocument();
         await user.clear(await screen.findByLabelText('Nama kategori'));
         await user.type(screen.getByLabelText('Nama kategori'), 'Kain baru');
         await user.click(screen.getByRole('button', { name: 'Simpan perubahan' }));

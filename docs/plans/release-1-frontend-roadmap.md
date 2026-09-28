@@ -237,6 +237,16 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Block condition:** Current delete semantics conflict with referential integrity and no backend-supported alternative is defined.
 - **Split trigger:** If delete/deactivate requires a new backend policy, ship list/create/edit first only after renaming/splitting the PR.
 
+**UXI-04 alignment note (2026-09-28):** The approved category design is implemented on the
+existing FE-06 contract. The list groups name, code, and description; separates update actor/time
+with explicit fallbacks; uses 44-pixel named icon actions; exposes page size, visible range, total,
+and current page; and turns the same rows into labelled narrow records. Create/edit retain validation
+and conflict input, explain immutable codes, link back to the list through the shared breadcrumb, and
+focus returned success. Cascade-aware deactivation and all endpoints remain unchanged. Five focused
+files passed 31 tests; the full 66-file suite passed 416 tests with one worker, followed by full lint
+and production build. The default parallel suite exceeded the shared five-second timeout in 29 tests;
+all affected files passed when rerun with one worker.
+
 **Copy-ready implementation prompt**
 
 > Implement FE-06 for item categories only. Inspect the current category screens/store and the backend category controller, DTOs, validation, and service. Using the existing JavaScript/Axios/Zustand/components, cover loading, empty, field validation, conflict, pending, duplicate-submit prevention, success, and destructive confirmation according to the real backend behavior. Preserve input on failure and add focused tests. Do not touch item inventory, introduce a form framework, or redesign shared tables globally. Validate tests, build, lint, keyboard, and dialog focus.

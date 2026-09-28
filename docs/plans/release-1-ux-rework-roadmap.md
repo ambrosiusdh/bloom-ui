@@ -1062,6 +1062,16 @@ Decision/audit: `docs/ux/design/uxr-d01-auth-navigation-decision.md`; `docs/ux/a
 
 #### UXI-04 — Item categories
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-28):** UXI-04 now delivers the approved grouped identity list,
+separate update provenance with explicit fallbacks, 44-pixel accessible icon actions, linked
+create/edit breadcrumb, preserved validation/conflict input, cascade-aware deactivation, explicit
+pagination context, and labelled narrow records without changing category endpoints or semantics.
+Five focused files passed 31 tests; the full 66-file suite passed 416 tests with one worker, followed
+by full lint and production build. The default parallel run hit the shared five-second timeout in 29
+tests; every affected file passed in the serialized verification.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-item-categories-review.html`
 
 Decision/audit: `docs/ux/design/uxr-d03-item-categories-decision.md`; `docs/ux/audits/uxr-a03-item-categories.md`

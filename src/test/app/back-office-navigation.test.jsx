@@ -134,6 +134,23 @@ describe('back-office navigation', () => {
         expect(within(breadcrumbs).queryByText('Cashier')).not.toBeInTheDocument();
     });
 
+    it('links item-category create and edit breadcrumbs back to the category list', () => {
+        const createView = render(<Header />, { route: '/item-categories/new' });
+        let breadcrumbs = screen.getByRole('navigation', { name: 'Lokasi halaman' });
+
+        expect(within(breadcrumbs).getByRole('link', { name: 'Kategori Barang' }))
+            .toHaveAttribute('href', '/item-categories');
+        expect(within(breadcrumbs).getByText('Tambah kategori')).toBeInTheDocument();
+
+        createView.unmount();
+        render(<Header />, { route: '/item-categories/KAIN/edit' });
+        breadcrumbs = screen.getByRole('navigation', { name: 'Lokasi halaman' });
+
+        expect(within(breadcrumbs).getByRole('link', { name: 'Kategori Barang' }))
+            .toHaveAttribute('href', '/item-categories');
+        expect(within(breadcrumbs).getByText('Ubah kategori')).toBeInTheDocument();
+    });
+
     it('keeps collapsed destinations named and keyboard operable', async () => {
         const user = userEvent.setup();
         useAppStore.setState({ isExpanded: false });
