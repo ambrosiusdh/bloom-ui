@@ -1,6 +1,6 @@
 # Bloom Release 1 UX Rework Roadmap
 
-Last updated: 2026-09-14
+Last updated: 2026-09-26
 
 ## 1. Purpose
 
@@ -66,14 +66,24 @@ Each live-audit task should produce one Markdown report under:
 
 `docs/ux/audits/<work-item>-<domain>.md`
 
-Screenshots and recordings are working artifacts. Keep them under a domain-specific evidence directory while the audit is active, but do not stage or commit large binary collections without explicit owner approval. The audit report must remain understandable even if raw recordings are stored outside Git.
+Screenshots and recordings are working artifacts. The owner decided on 2026-09-24 that live audits should retain a concise screenshot set under the domain-specific evidence directory for every materially distinct workflow step and state. Avoid redundant click-by-click frames, fabricated states, and sensitive data. Do not stage or commit large binary collections without explicit owner approval. The audit report must remain understandable even if raw recordings are stored outside Git.
 
-The default working location is `docs/ux/evidence/<work-item>/`. Keep raw binary
-artifacts untracked until the owner decides whether they belong in Git or should
-move to Figma/external storage. “Read-only live audit” means no application,
+The default working location is `docs/ux/evidence/<work-item>/`. Keep the concise
+PNG set in that directory as working-tree evidence; leave binaries untracked unless
+the owner explicitly approves staging/committing or moving them to Figma/external
+storage. “Read-only live audit” means no application,
 dependency, configuration, or backend source changes; the task may write its audit
 report/evidence and may create explicitly recorded transactions only in the
 approved disposable local database.
+
+**Standing local test-data authorization (recorded 2026-09-25):** The owner confirms
+that the current localhost database is a disposable testing environment and authorizes
+UX audits to create, edit, deactivate, and otherwise exercise clearly named dummy data
+within the exact work-item scope without asking again for routine fixture mutations.
+Every mutation and retained/cleanup state must still be recorded. This is not production
+authorization, does not expand a work item's scope, and does not waive an explicit
+final-action confirmation when an operation posts financial, stock, debt, or other
+transactional effects.
 
 Suggested artifact naming:
 
@@ -111,7 +121,7 @@ Use these finding priorities:
 - `PLANNED`: ready to start in dependency order.
 - `IN_PROGRESS`: evidence or design work is underway.
 - `EVIDENCE_COMPLETE`: live audit and report are complete; no design is implied.
-- `DESIGN_REVIEW`: a Figma proposal is ready for owner review.
+- `DESIGN_REVIEW`: a design proposal is ready for owner review.
 - `APPROVED`: the owner approved the design direction.
 - `IMPLEMENTED`: approved UX was delivered and verified in application code.
 - `BLOCKED`: the required environment, data, hardware, decision, or contract is unavailable.
@@ -134,26 +144,35 @@ Use these finding priorities:
 | 3 | UXR-A09 | Cashier search, cart, and scanner behavior | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 4 | UXR-A10 | Checkout and post-checkout printing | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 5 | UXR-A11 | Sales history, detail, and reprint | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 6 | UXR-D00 | Visual direction comparison and owner selection | PLANNED | FIGMA_DESIGN | `gpt-5.6-sol`, high |
+| 6 | UXR-D00 | Visual direction comparison and owner selection | APPROVED | FIGMA_DESIGN | `gpt-5.6-sol`, high |
 | 7 | UXR-A03 | Item categories | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 8 | UXR-A04 | Item master and location inventory | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 9 | UXR-A05 | Stock movement history | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 10 | UXR-A06 | Stock adjustment | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 11 | UXR-A07 | Stock transfer | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 12 | UXR-A12 | Supplier master data | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 13 | UXR-A13 | Goods-receipt history and detail | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 14 | UXR-A14 | Goods-receipt creation | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 15 | UXR-A15 | Supplier payables and payment | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 16 | UXR-A16 | Expense history and creation | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 17 | UXR-A17 | Expense void/reversal | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 18 | UXR-A02 | Operational dashboard | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 19 | UXR-A18 | Cross-domain evidence synthesis | PLANNED | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 9 | UXR-A05 | Stock movement history | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 10 | UXR-A06 | Stock adjustment | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 11 | UXR-A07 | Stock transfer | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 12 | UXR-A12 | Supplier master data | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 13 | UXR-A13 | Goods-receipt history and detail | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 14 | UXR-A14 | Goods-receipt creation | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 15 | UXR-A15 | Supplier payables and payment | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 16 | UXR-A16 | Expense history and creation | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 17 | UXR-A17 | Expense void/reversal | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 18 | UXR-A02 | Operational dashboard | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 19 | UXR-A18 | Cross-domain evidence synthesis | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
+| 20 | UXR-D16 | Light and dark appearance modes | APPROVED | FIGMA_DESIGN | `gpt-5.6-sol`, high |
 
 Cashier work comes first because it is the highest-frequency, most time-sensitive working mode. UXR-D00 then compares visual directions using evidence from the shell, cashier, checkout, and sales-history workflows before broader domain design begins. Back-office audits follow the operational sequence from item setup through stock, purchasing, debt, and expense handling. Dashboard audit comes after its drill-down destinations so its navigation value can be judged in context.
 
-**Status audit (2026-09-15):** UXR-A01, UXR-A03, UXR-A04, UXR-A08, UXR-A09, UXR-A10, and UXR-A11 have complete live evidence and reports. UXR-A03 and UXR-A04 were completed ahead of their table position. All four UXR-D00 audit prerequisites are complete, so the visual-direction comparison is the next dependency-ordered item once the owner provides its Figma target. If live audits continue in parallel, UXR-A05 is the next unfinished audit in table order. FE-19's store-laptop physical scanner gate remains outstanding and was not cleared by UXR-A09, UXR-A10, or UXR-A11.
+**Status audit (updated 2026-09-27):** UXR-A01 through UXR-A18 now have complete evidence and reports. UXR-A02 verified the server-owned dashboard summaries, all four drill-downs, natural stale warning and refresh recovery, keyboard order, and one/two/three-column responsive behavior; it also repeated the shared stale-breadcrumb defect. UXR-A18 consolidated 77 findings into two now-resolved P0s, 42 P1 findings, and 33 P2 findings, with cross-domain priorities, journey handoffs, an owner-decision register, and a recommended design order. `TRANSFER-01` was resolved after synthesis by persisting the account-bound exact request and idempotency key before posting and reconciling uncertain outcomes through the backend's existing same-key idempotent POST; no endpoint or stock rule changed. The owner approved UXR-D00's explicitly defined mode-aware hybrid after iterative cashier and navigation review; the decision is recorded in `docs/ux/design/visual-direction-decision.md`. UXR-A14 posted disposable receipt `GR/IX-2026/0003`, adding an unpaid fixture with both STORE and WAREHOUSE lines. UXR-A15 found P0 `PAYMENT-01`, the encoded path-variable route for slash-containing receipt references; the frontend/backend transport was corrected to a query parameter and verified by live partial QRIS and full BANK_TRANSFER payments. UXR-A16 posted disposable expense `#2` against open cash session `#15`; UXR-A17 then reversed it with an owner-confirmed reason and retained the immutable original/reversal audit. Closed-session expense `#1` remains the ineligible fixture. All domain audit dependencies are complete. UXR-D00, UXR-D02, UXR-D03, UXR-D04, UXR-D05, and UXR-D06 are owner-approved. Every other UXR-D01 through UXR-D16 domain now has a reviewable design and is recorded as `DESIGN_REVIEW` in `docs/ux/design/design-review-register.md`. UXR-D02's seven-day chart and STORE-stock attention remain implementation-gated on the requested backend read models. FE-19's store-laptop physical scanner gate remains outstanding and was not cleared by UXR-A09, UXR-A10, or UXR-A11.
 
-Live audits may continue while UXR-D00 is under review. Domain Figma work begins only after its own evidence is complete and UXR-D00 has an owner-approved direction; it does not need to wait for every audit. Application implementation must wait for owner approval of that domain's design.
+**Design status update (2026-09-28):** UXR-D00 through UXR-D16 are now owner-approved. The design
+review queue is complete; the next phase is documentation-only `IMPLEMENTATION_REBASELINE` work,
+followed by separately authorized one-domain frontend changes. No design approval by itself
+authorizes application implementation.
+
+**Design approval status correction (2026-09-28):** The current authoritative register supersedes the
+earlier status sentence above. UXR-D01 through UXR-D16 are owner-approved.
+
+Live audits may continue alongside eligible domain design work. Domain Figma work begins only after its own evidence is complete and UXR-D00 has an owner-approved direction; it does not need to wait for every audit. Application implementation must wait for owner approval of that domain's design.
 
 ### 6.1 Early visual-direction checkpoint
 
@@ -174,7 +193,7 @@ Each candidate must include:
 - annotations for density, typography, color/surface hierarchy, navigation, form/table treatment, status communication, focus, and accessibility;
 - exported screenshots or a comparison board that can be reviewed without opening each frame separately.
 
-The owner may approve one candidate or an explicitly documented hybrid of named traits. The model must not choose or mark a direction approved on the owner's behalf. Record the final choice and rationale in `docs/ux/design/visual-direction-decision.md`. UXR-D01 through UXR-D15 must follow that decision unless later domain evidence justifies and records a specific deviation.
+The owner may approve one candidate or an explicitly documented hybrid of named traits. The model must not choose or mark a direction approved on the owner's behalf. Record the final choice and rationale in `docs/ux/design/visual-direction-decision.md`. UXR-D01 through UXR-D16 must follow that decision unless later domain evidence justifies and records a specific deviation.
 
 ## 7. Live-audit work items
 
@@ -215,7 +234,7 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 ### UXR-A02 — Operational dashboard
 
 - **Domain:** Dashboard.
-- **Status:** `PLANNED`.
+- **Status:** `EVIDENCE_COMPLETE`.
 - **Execution class:** `LIVE_AUDIT`.
 - **Dependencies:** UXR-A01 and completed audits for its drill-down destinations.
 - **Environment gate:** Backend operational-overview data supports normal, zero/no-session, and refresh observations in disposable data.
@@ -230,6 +249,14 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 **Copy-ready prompt**
 
 > Perform UXR-A02 as a read-only live UX audit of `/dashboard`. Read the required Bloom docs and prior domain audit reports, inspect Git status, and use the existing local app with disposable data. Capture normal, zero, no-open-session, backend-stale, refresh-success, and safely reproducible refresh-failure behavior; inspect information hierarchy, Indonesian labels/formatting, responsive layout, keyboard access, status announcements, and every approved drill-down. Write `docs/ux/audits/uxr-a02-dashboard.md` with evidence, findings, priorities, and limitations. Do not add metrics, aggregate values in the browser, redesign charts, change application code, install dependencies, or use production data.
+
+**Evidence-complete note (2026-09-26):** Live evidence covered zero sales with an open cash
+session and outstanding payables, all recognized drill-downs, retained-data refresh, success,
+natural server-deadline expiry, keyboard order/focus, and `1440×900`, `1024×768`, and `760×768`
+layouts without page-level overflow. No-open-session, zero-payables, initial error, and retained-data
+refresh failure remain explicitly labelled source/test evidence because the audit did not alter the
+financial fixture or force an outage. Findings are recorded in
+[`uxr-a02-dashboard.md`](../ux/audits/uxr-a02-dashboard.md). UXR-A18 is now dependency-complete.
 
 ### UXR-A03 — Item categories
 
@@ -272,7 +299,7 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 ### UXR-A05 — Stock movement history
 
 - **Domain:** Stock movements.
-- **Status:** `PLANNED`.
+- **Status:** `EVIDENCE_COMPLETE`.
 - **Execution class:** `LIVE_AUDIT`.
 - **Dependencies:** UXR-A04.
 - **Environment gate:** Disposable data contains representative opening, receipt, adjustment, transfer, sale, and reversal movements where implemented.
@@ -288,10 +315,12 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 
 > Perform UXR-A05 as a read-only live UX audit of stock movement history. With disposable representative movement data, exercise `/stock-movements`, item-scoped navigation, supported filters, paging, empty/loading/error states, source references, decimal quantity/UOM, location/direction, actor/time, keyboard, and narrow-table behavior. Produce `docs/ux/audits/uxr-a05-stock-movements.md` with evidence-backed P0/P1/P2 findings. Do not post movements, reconstruct data in the frontend, redesign, implement, or change repository/dependency state.
 
+**Evidence note (2026-09-23):** The completed read-only report and evidence index are in `docs/ux/audits/uxr-a05-stock-movements.md` and `docs/ux/evidence/uxr-a05/`. Live evidence covered the two-page ledger, item-scoped entry, exact SKU/direction/location filters, filtered empty recovery, representative opening/receipt/sale references, exact decimal UOM quantities, before/after balances, actor/time, keyboard order, and 760×768/768×768 responsive behavior. No movement was posted. The local ledger did not contain adjustment, transfer, receipt-cancellation/reversal, or stock-opname rows, and the shared services were not interrupted to manufacture error evidence; both limitations are explicit. UXR-D05 may now proceed to design review work without implying implementation approval.
+
 ### UXR-A06 — Stock adjustment
 
 - **Domain:** Stock adjustment.
-- **Status:** `PLANNED`.
+- **Status:** `EVIDENCE_COMPLETE`.
 - **Execution class:** `LIVE_AUDIT`.
 - **Dependencies:** UXR-A04 and UXR-A05.
 - **Environment gate:** Disposable items support safe ADD, REMOVE, and CORRECTION scenarios; database can be reseeded.
@@ -307,10 +336,12 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 
 > Perform UXR-A06 as a live UX audit of stock adjustment only. Use a disposable/reseedable local dataset and record all created transactions. Exercise list/detail/create, item selection, STORE/WAREHOUSE, ADD/REMOVE positive deltas, CORRECTION absolute target including zero, whole/fractional quantity validation, confirmation, pending, safe conflicts, backend-confirmed results, keyboard/focus, and responsive behavior. Inspect existing automated tests for dangerous states that cannot be reproduced safely; label those as test evidence rather than live evidence. Write `docs/ux/audits/uxr-a06-stock-adjustment.md`. Do not force ambiguous production-like failures, calculate stock locally, audit transfer, redesign, implement, or install dependencies.
 
+**Evidence note (2026-09-24):** The completed report and evidence index are in `docs/ux/audits/uxr-a06-stock-adjustment.md` and `docs/ux/evidence/uxr-a06/`. Live evidence used two disposable whole/fractional items and recorded `SA/IX-2026/0001` for STORE ADD plus WAREHOUSE REMOVE and `SA/IX-2026/0002` for a STORE CORRECTION from `2,5 meter` to absolute zero. An owner-requested visual recapture added a third disposable fixture and `SA/IX-2026/0003` (STORE ADD `1 pcs`, server-confirmed `6 → 7 pcs`) plus 21 persistent PNGs covering setup, validation, selection, confirmation, result/detail, filtering, responsive overflow, movement trace, and cleanup. The genuine pending frame could not be retained because the local request settled too quickly; original live DOM and test evidence remain cited rather than fabricating latency. All disposable items were deactivated while audit history was preserved. Concurrent conflict and dangerous ambiguous/storage/malformed-response states remain explicitly labelled repository/test evidence. UXR-D06 may now proceed to design review work without implying implementation approval.
+
 ### UXR-A07 — Stock transfer
 
 - **Domain:** Stock transfer.
-- **Status:** `PLANNED`.
+- **Status:** `EVIDENCE_COMPLETE`.
 - **Execution class:** `LIVE_AUDIT`.
 - **Dependencies:** UXR-A04 and UXR-A05.
 - **Environment gate:** Disposable STORE/WAREHOUSE stock permits safe transfer and validation scenarios.
@@ -325,6 +356,8 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 **Copy-ready prompt**
 
 > Perform UXR-A07 as a live UX audit of the single-item stock-transfer workflow using disposable local stock. Exercise item lookup, source/destination selection and swap, identical-location prevention, whole/fractional quantity, advisory availability, validation, confirmation, pending, safe backend conflict, success reference, focus, keyboard, and responsive layout. Record created transfers and cleanup/reseed, then write `docs/ux/audits/uxr-a07-stock-transfer.md`. Do not audit adjustment, introduce multi-item concepts, calculate stock in the browser, redesign, implement, or change dependencies.
+
+**Evidence note (2026-09-24):** Live workflow evidence, 33 persistent screenshots, backend/repository review, and focused tests are recorded in `docs/ux/audits/uxr-a07-stock-transfer.md` and `docs/ux/evidence/uxr-a07/`. The audit created `ST/IX-2026/0001` for WAREHOUSE→STORE `2 pcs` and `ST/IX-2026/0002` for STORE→WAREHOUSE `0,75 meter`, verified their paired movements, exercised deterministic insufficient-stock rejection, and covered keyboard/focus plus `760×768`/`768×768` responsive behavior. It identified a P0 repository-evidenced ambiguous-outcome recovery gap: the transfer request/key is memory-only and the backend has no request-key status lookup. After explicit owner confirmation, both disposable items were deactivated through Bloom's UI; active Data Barang returned no `UXRA07` items, while transfer and movement audit history remained readable. UXR-D07 may now proceed to design review work without implying implementation approval.
 
 ### UXR-A08 — Cash-session operation
 
@@ -407,7 +440,7 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 ### UXR-A12 — Supplier master data
 
 - **Domain:** Suppliers.
-- **Status:** `PLANNED`.
+- **Status:** `EVIDENCE_COMPLETE`.
 - **Execution class:** `LIVE_AUDIT`.
 - **Dependencies:** UXR-A01.
 - **Environment gate:** Disposable active/inactive and referenced suppliers exist.
@@ -423,10 +456,12 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 
 > Perform UXR-A12 as a live UX audit of suppliers only. With disposable active, inactive, and referenced supplier records, exercise search/list/paging/filter, detail, create, immutable-code edit, validation/duplicate conflict, deactivate confirmation, focus/keyboard, and narrow layouts. Capture evidence and write `docs/ux/audits/uxr-a12-suppliers.md`. Preserve stable supplier identity and deactivation/history semantics. Do not audit goods receipts or payments, hard-delete data, redesign, implement, or install dependencies.
 
+**Evidence note (2026-09-24):** The completed live report and 21 persistent screenshots are in `docs/ux/audits/uxr-a12-suppliers.md` and `docs/ux/evidence/uxr-a12/`. The audit read an existing referenced supplier with a server-owned outstanding balance, created and edited `UXRA12-SUP`, exercised required validation plus normalized duplicate conflicts while active and inactive, confirmed immutable-code behavior, deactivated the fixture with explicit retained-history language, and verified active/inactive discovery plus keyboard focus. Five focused test files passed 26 tests. A live P1 responsive defect occurs at the `768×768` boundary: the expanded sidebar and desktop supplier table activate together, producing `870 px` body scroll width inside a `753 px` client width and moving the row action off-screen; `760×768` correctly uses cards without overflow. UXR-D12 may now proceed to design review work without implying implementation approval. UXR-A13 is the next unfinished audit.
+
 ### UXR-A13 — Goods-receipt history and detail
 
 - **Domain:** Goods-receipt read workflow.
-- **Status:** `PLANNED`.
+- **Status:** `EVIDENCE_COMPLETE`.
 - **Execution class:** `LIVE_AUDIT`.
 - **Dependencies:** UXR-A04 and UXR-A12.
 - **Environment gate:** Representative unpaid, partial, and paid receipts exist with decimal lines and both stock locations where valid.
@@ -442,10 +477,37 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 
 > Perform UXR-A13 as a live UX audit of goods-receipt list/detail only. Use representative unpaid, partial, and paid disposable receipts with decimal UOM/location lines. Exercise list loading/error/empty, supported filters/paging and calendar-date behavior, supplier/reference/status comprehension, detail hierarchy, total/paid/outstanding, keyboard, and responsive tables. Write `docs/ux/audits/uxr-a13-goods-receipt-history.md`. Do not create receipts, post payments, calculate financial values, redesign, implement, or change dependencies.
 
+**Partial-evidence note (2026-09-24):** The read-only live pass, 16 persistent screenshots,
+backend/repository review, and 19 passing focused tests are recorded in
+`docs/ux/audits/uxr-a13-goods-receipt-history.md` and `docs/ux/evidence/uxr-a13/`.
+At the time of that pass, the only live receipt was posted/unpaid with one decimal
+WAREHOUSE line; the database contained no partially paid receipt, paid receipt, or
+STORE-line receipt. UXR-A14 later added an unpaid receipt with both locations, but
+partial and paid live examples remain absent. Because
+representative receipts are this item's explicit block condition and creating receipts or
+posting payments was out of A13 scope, the audit remained `BLOCKED` rather than claiming
+`EVIDENCE_COMPLETE`. The captured pass identifies page-level narrow overflow, payment-form
+interruption of the detail read hierarchy, long keyboard traversal, invalid heading levels,
+mixed date notation, and repeated implementation-facing server copy. A short recapture may
+complete A13 after disposable representative data is seeded through an authorized workflow.
+
+**Historical follow-up block note (2026-09-25):** The owner authorized creation of the missing
+paid/partial fixtures during UXR-A15. Full CASH and partial QRIS attempts both failed
+before controller handling because the current payment endpoint cannot transport the
+generated slash-containing receipt reference. No payment was recorded. A13 was
+blocked at that point on P0 `PAYMENT-01`, not on test-data authorization; see the A15 report.
+
+**Evidence-complete follow-up (2026-09-26):** `PAYMENT-01` was corrected by moving
+the exact receipt code from a path variable to the `code` query parameter. The live
+recapture recorded `GR/IX-2026/0002` as partially paid and `GR/IX-2026/0001` as
+paid, while `GR/IX-2026/0003` remains unpaid with STORE and WAREHOUSE lines. The
+17-shot A13 evidence set and linked A15 success evidence satisfy the representative
+data gate. UXR-D13 may proceed to design review work.
+
 ### UXR-A14 — Goods-receipt creation
 
 - **Domain:** Goods receipt posting.
-- **Status:** `PLANNED`.
+- **Status:** `EVIDENCE_COMPLETE`.
 - **Execution class:** `LIVE_AUDIT`.
 - **Dependencies:** UXR-A04, UXR-A12, and UXR-A13.
 - **Environment gate:** Disposable supplier/items and reseedable stock/debt data exist.
@@ -461,10 +523,22 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 
 > Perform UXR-A14 as a live UX audit of goods-receipt creation using disposable/reseedable data. Exercise supplier/item lookup, repeated lines, whole/fraction quantity, purchase price, per-line location, received time/offset, draft persistence, validation, confirmation, pending, safe conflict, exact recovery, and backend-confirmed total/paid/outstanding/status. Record created data and cleanup, then write `docs/ux/audits/uxr-a14-goods-receipt-create.md`. Do not add initial payment, create suppliers, force ambiguous failures, treat previews as authoritative, redesign, implement, or change dependencies.
 
+**Evidence-complete note (2026-09-25):** The live pass, 19 persistent screenshots,
+backend/repository review, and 28 passing focused tests are recorded in
+`docs/ux/audits/uxr-a14-goods-receipt-create.md` and `docs/ux/evidence/uxr-a14/`.
+After explicit final-action confirmation, the audit posted `GR/IX-2026/0003` with
+one whole STORE line and two fractional repeated-SKU lines across WAREHOUSE/STORE.
+The server confirmed `POSTED` / `UNPAID`, `Rp 28.250,2188` total/outstanding, and
+`Rp 0` paid. The fixture remains as local transaction history. Safe conflict and
+ambiguous-network recovery were not forced live; exact frozen replay, duplicate
+protection, field-error recovery, and idempotency conflict remain focused source/test
+evidence. Findings cover review formatting/localization, narrow repeated-line height,
+mixed date notation, redundant supplier echo, and result heading semantics.
+
 ### UXR-A15 — Supplier payables and payment
 
 - **Domain:** Supplier debt and one-receipt payment.
-- **Status:** `PLANNED`.
+- **Status:** `EVIDENCE_COMPLETE`.
 - **Execution class:** `LIVE_AUDIT`.
 - **Dependencies:** UXR-A08, UXR-A13, and UXR-A14.
 - **Environment gate:** Disposable unpaid/partial receipts and an open session for CASH scenarios exist.
@@ -480,10 +554,32 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 
 > Perform UXR-A15 as a live UX audit of supplier payables and one-receipt payment using disposable data. Exercise payable discovery, supplier/receipt context, backend outstanding/status, partial/full payment, CASH/BANK_TRANSFER/QRIS differences, CASH session gating, overpayment rejection, confirmation, pending, safe conflicts, exact recovery, refresh failure messaging, keyboard, and responsive behavior. Record all financial test mutations and cleanup. Write `docs/ux/audits/uxr-a15-payables-payment.md`. Do not add multi-receipt allocation, credit/prepayment, reversal, local debt calculation, redesign, implementation, or dependencies.
 
+**Historical blocked-evidence note (2026-09-25):** The live report, 14 screenshots, direct HTTP
+evidence, frontend/backend source review, and 48 passing focused tests are recorded in
+`docs/ux/audits/uxr-a15-payables-payment.md` and `docs/ux/evidence/uxr-a15/`.
+Payable discovery, filtering, method/session copy, full/partial confirmation, focus,
+exact recovery locking, and responsive behavior were exercised. A full CASH attempt
+and partial QRIS attempt were submitted after explicit owner confirmation; neither
+created a payment. P0 `PAYMENT-01` was the blocker: frontend and backend placed the
+slash-containing receipt code in one path variable, and Tomcat rejects the encoded
+slash with HTTP 400 before controller handling. The UI consequently reports an
+ambiguous outcome and cannot complete exact replay. UXR-A15 and the missing A13
+paid/partial recapture were blocked until the endpoint contract and real container
+integration could be corrected. UXR-D14 was not eligible from mocked success states alone.
+
+**Evidence-complete follow-up (2026-09-26):** The controller and frontend now use
+`/api/goods-receipts/payments?code={receiptCode}`. After restart and explicit
+action-time confirmation, live partial QRIS and full BANK_TRANSFER payments
+completed; backend refresh returned `PARTIALLY_PAID`/`Rp 6.888.888` outstanding and
+`PAID`/`Rp 0` outstanding. The report now indexes 18 screenshots, including both
+success states and the combined payable/receipt lists. Focused frontend tests,
+targeted lint/build, backend controller tests, and the backend web-module suite
+passed. UXR-A15 is evidence complete and UXR-D14 may proceed to design review work.
+
 ### UXR-A16 — Expense history and creation
 
 - **Domain:** Unexpected expense history and posting.
-- **Status:** `PLANNED`.
+- **Status:** `EVIDENCE_COMPLETE`.
 - **Execution class:** `LIVE_AUDIT`.
 - **Dependencies:** UXR-A08.
 - **Environment gate:** Disposable open/closed session history and safe expense posting are available.
@@ -499,10 +595,22 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 
 > Perform UXR-A16 as a live UX audit of expense history/create using disposable sessions and data. Exercise history paging/loading/error/empty, record hierarchy, no/open-session gating, category and “Alasan / catatan”, decimal amount, validation, confirmation, pending, safe conflict, exact recovery, backend-confirmed result, keyboard, and responsive behavior. Record mutations and cleanup, then write `docs/ux/audits/uxr-a16-expense-create.md`. Do not void expenses, administer categories, calculate drawer cash, redesign, implement, or install dependencies.
 
+**Evidence-complete note (2026-09-26):** The live report, 13 persistent screenshots,
+backend/repository review, and 31 passing focused tests are recorded in
+`docs/ux/audits/uxr-a16-expense-create.md` and `docs/ux/evidence/uxr-a16/`.
+After explicit final-action confirmation, the audit posted disposable expense `#2`
+for `Rp 12.345,6789`, category `OTHER`, against verified open cash session `#15`.
+The backend-confirmed result and refreshed history preserve the exact amount,
+classification, description, actor, and session. The record remains active for A17;
+existing expense `#1` supplies a closed-session example. Findings cover long shell
+keyboard traversal, weak multi-record scan labels, backend-limited history retrieval,
+and inconsistent empty breadcrumbs. History/create/result avoid horizontal overflow
+at `1024×768` and `760×768`. UXR-A17 is the next dependency-ordered audit.
+
 ### UXR-A17 — Expense void/reversal
 
 - **Domain:** Expense correction.
-- **Status:** `PLANNED`.
+- **Status:** `EVIDENCE_COMPLETE`.
 - **Execution class:** `LIVE_AUDIT`.
 - **Dependencies:** UXR-A16.
 - **Environment gate:** Disposable eligible, already-voided, and closed-session examples exist or can be safely created.
@@ -518,10 +626,22 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 
 > Perform UXR-A17 as a live UX audit of expense void/reversal using disposable eligible, already-voided, and closed-session records. Exercise eligibility/block reason, fresh detail, reason entry, confirmation, pending, safe stale/conflict, exact recovery, retained audit result, original-session context, focus, keyboard, and responsive behavior. Record mutations/cleanup and write `docs/ux/audits/uxr-a17-expense-void.md`. Do not delete/edit expenses, invent post-close correction, audit sale/payment correction, redesign, implement, or change dependencies.
 
+**Evidence-complete note (2026-09-26):** The live report and 13 persistent screenshots
+cover backend eligibility, closed-session blocking, fresh detail, required reason,
+owner-confirmed reversal, retained original/audit facts, original-session context,
+keyboard/focus, and wide/narrow behavior. Expense `#2` was reversed once with reason
+`Audit UXR-A17 pembatalan pengeluaran uji`; expense `#1` remains an active
+closed-session example. Findings cover unreliable live dialog entry/cancellation
+focus, a persistent auxiliary-refresh warning after confirmed success, stale
+cross-domain breadcrumbs, and dense confirmation/result hierarchy. Pending,
+stale/conflict, exact recovery, storage, and account-isolation states remain clearly
+labelled source/test evidence. UXR-D15 is now dependency-complete. UXR-A02 has also completed, so
+UXR-A18 was dependency-complete and has now produced the cross-domain synthesis.
+
 ### UXR-A18 — Cross-domain evidence synthesis
 
 - **Domain:** UX evidence synthesis; no application domain implementation.
-- **Status:** `PLANNED`.
+- **Status:** `EVIDENCE_COMPLETE`.
 - **Execution class:** `LIVE_AUDIT`.
 - **Dependencies:** All required UXR-A01 through UXR-A17 reports.
 - **Environment gate:** Each included report separates evidence, inference, and owner decisions.
@@ -537,9 +657,17 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 
 > Perform UXR-A18 as a read-only synthesis of completed Bloom UX audit reports. Read the frontend contract, frontend roadmap, UX roadmap, and every included `docs/ux/audits/uxr-a*.md` report. Do not operate the app unless a cited fact needs narrow verification. Produce `docs/ux/audits/release-1-ux-synthesis.md` containing preserved strengths, repeated evidence-backed problems, journey handoff issues, P0/P1/P2 prioritization, an evidence index, owner decisions needed, and recommended Figma domain order. Link every conclusion to source scenarios and distinguish evidence from inference. Do not create designs, propose a global rewrite, change business rules, generate detailed implementation PRs, or modify application/dependency state.
 
-## 8. Figma design queue
+**Evidence-complete note (2026-09-26):** The synthesis in
+[`release-1-ux-synthesis.md`](../ux/audits/release-1-ux-synthesis.md) consolidates all 17 domain
+reports and 77 recorded findings. It distinguishes one unresolved transfer-recovery P0 from the
+resolved supplier-payment transport P0, preserves backend-authority and transaction-safety strengths,
+identifies repeated responsive/shell/focus/localization/traceability patterns, records journey
+handoffs and owner decisions, and recommends a Figma order without approving designs or changing
+application, dependency, product, or backend state.
 
-UXR-D00 begins after its representative audits are `EVIDENCE_COMPLETE`. Each domain design item, UXR-D01 through UXR-D15, begins only after its required audit is `EVIDENCE_COMPLETE` and UXR-D00 is `APPROVED`. Use `gpt-5.6-sol` with high reasoning for visual-direction comparison, the initial low-fidelity flow, and the refined Figma proposal. The Figma task must use the relevant Figma skills before calling Figma write tools.
+## 8. Design queue
+
+UXR-D00 begins after its representative audits are `EVIDENCE_COMPLETE`. Each domain design item, UXR-D01 through UXR-D15, begins only after its required audit is `EVIDENCE_COMPLETE` and UXR-D00 is `APPROVED`. The cross-cutting UXR-D16 appearance-mode task begins after UXR-D00 is `APPROVED` and representative cashier and back-office domain frames exist. Use `gpt-5.6-sol` with high reasoning for visual-direction comparison, the initial low-fidelity flow, and the refined proposal. When Figma is available, the task must use the relevant Figma skills before calling Figma write tools. An interactive HTML review artifact may be used when Figma access is unavailable, provided the same evidence, state, responsive, accessibility, and backend-authority requirements are preserved.
 
 | Design item | Domain | Audit dependency | Required design coverage |
 | --- | --- | --- | --- |
@@ -559,11 +687,179 @@ UXR-D00 begins after its representative audits are `EVIDENCE_COMPLETE`. Each dom
 | UXR-D13 | Goods receipts | UXR-A13 and UXR-A14 | List/detail and creation as separate Figma flows |
 | UXR-D14 | Payables/payment | UXR-A15 | Debt discovery, one-receipt payment, payment methods and states |
 | UXR-D15 | Expenses | UXR-A16 and UXR-A17 | History/create and void as separate Figma flows |
+| UXR-D16 | Appearance modes | UXR-D00 approval plus representative cashier and back-office frames | Approved palette mapped to light and dark modes, preference behavior, semantic-state parity, focus/contrast validation, and older-user legibility |
+
+### Current design-review status
+
+The authoritative status register is
+[`docs/ux/design/design-review-register.md`](../ux/design/design-review-register.md). As of 2026-09-28,
+UXR-D00 through UXR-D16 are `APPROVED`. Approval records the design direction; it does not authorize
+implementation. The reviewed domains use one authoritative interactive review suite so the sidebar,
+header, Operational Blue tokens, appearance toggle, focus treatment, and narrow navigation do not
+drift between domains.
+
+**Sales-history design note (2026-09-28):** UXR-D11 was prepared for focused owner review. The refined
+direction retains only the exact backend-supported code, creator, start-date, and end-date filters;
+stable server paging; all server-returned lifecycle/payment/correction and monetary facts; persisted
+line UOM/location; and sale-reference-only reprinting. It replaces page-level narrow-table overflow
+with labelled grouped records, uses Indonesian application-owned inverted-range recovery, restores
+semantic detail headings, and distinguishes print-service acknowledgement from verified physical
+paper output. This review state preceded the owner approval recorded below.
+
+**Sales-history owner approval note (2026-09-28):** The owner approved the refined labelled list,
+grouped no-overflow narrow records, Indonesian date recovery, backend-authoritative detail hierarchy,
+and sale-safe latest print-service acknowledgement language. The binding direction is recorded in
+`docs/ux/design/uxr-d11-sales-history-decision.md`; implementation remains separately gated.
+
+**Item-category design note (2026-09-23):** The owner approved UXR-D03 after reviewing the refined
+active-list, create/edit, validation/conflict, deactivation, and narrow-desktop treatment. The
+decision retains Operational Blue, icon-only 44-pixel row actions with accessible names, separate
+updated-by/updated-at fields, and a linked list breadcrumb from create/edit. The decision record is
+[`uxr-d03-item-categories-decision.md`](../ux/design/uxr-d03-item-categories-decision.md). UXR-D03 is
+`APPROVED` for design direction; application implementation has not begun.
+
+**Item-master design note (2026-09-23):** The owner approved UXR-D04 as sufficiently resolved for
+implementation planning, while allowing small implementation-stage refinements. The direction keeps
+exact prices, UOM/fraction rules, item detail, barcode, item-scoped stock history, metadata editing,
+deactivation, and separate STORE/WAREHOUSE quantities. It establishes a reusable list pattern that
+groups identity fields, uses compact accessible icon actions, and stacks labelled row content at
+narrow widths without treating the pattern as a global design system. The decision record is
+[`uxr-d04-item-master-decision.md`](../ux/design/uxr-d04-item-master-decision.md). UXR-D04 is
+`APPROVED` for design direction; application implementation has not begun.
+
+**Stock-adjustment design note (2026-09-27):** The owner approved UXR-D06 after reviewing normal
+history, filtered empty, searchable item selection, create, confirmation, definitive rejection,
+server-confirmed success, persisted detail, ambiguous recovery, and narrow-desktop treatments. The
+direction preserves backend-owned stock results, delta-versus-absolute action meaning, durable
+recovery, keyboard/focus behavior, and the existing MUI baseline. The decision record is
+[`uxr-d06-stock-adjustment-decision.md`](../ux/design/uxr-d06-stock-adjustment-decision.md). UXR-D06
+is `APPROVED` for design direction; application implementation has not begun.
+
+**Stock-movement design note (2026-09-27):** The owner approved UXR-D05 after refining the existing
+item/SKU, direction, location, and reset filters; a scan-oriented ledger with explicit headers; and an
+in-context detail modal. The accepted list keeps item/code/UOM, movement/source, location,
+before-to-after balance, and actor/time visible while moving the source reference and expanded audit
+facts into the modal. The decision record is
+[`uxr-d05-stock-movements-decision.md`](../ux/design/uxr-d05-stock-movements-decision.md). UXR-D05 is
+`APPROVED` for design direction; application implementation has not begun.
+
+**Inventory-navigation refinement (2026-09-27):** The owner combined `Riwayat stok` and
+`Transfer stok` into one `Pergerakan stok` sidebar destination. History is the default view and
+`Buat transfer stok` is its primary action. UXR-D05 and UXR-D07 are approved; the transfer command
+keeps its separate backend-authoritative transaction and recovery semantics.
+
+**Stock-transfer design approval (2026-09-27):** The owner approved the familiar transfer form order,
+searchable item combobox, explicit source/destination with labelled swap, numeric quantity plus UOM,
+optional description, refresh action, and self-contained confirmation. The binding decision is in
+`docs/ux/design/uxr-d07-stock-transfer-decision.md`. This design approval does not authorize frontend
+implementation; implementation must first be re-baselined into one-domain PR work.
+
+**Cash-session design approval (2026-09-27):** The owner approved one `Sesi kas` destination that
+shows the verified current session and paged server history without merging their API meanings. The
+accepted direction uses Indonesian money entry, requests expected cash only when closing, never
+predicts variance in the browser, retains the server-final reconciliation, verifies the resulting
+no-session state before offering a new session, and preserves full narrow-desktop facts. History
+pagination explicitly shows page size, visible range and total, current page, and labelled
+previous/next actions. The binding decision is in
+`docs/ux/design/uxr-d08-cash-sessions-decision.md`; implementation remains separately gated.
+
+**Cashier checkout design approval (2026-09-27):** The owner rejected separate D09 cart and D10
+checkout page compositions in favor of the previously reviewed whole-cashier workspace. D09 and D10
+remain separate evidence/implementation boundaries, but share one design: item discovery stays on the
+left, while cart, estimate, editable discount and explanation, CASH/QRIS, tender, compact in-place
+confirmation, known rejection, exact-key ambiguous recovery, backend-confirmed result, and sale-first
+print states occupy the right transaction panel. Confirmation is retained as a deliberate final safety
+step, not route navigation or a repeated screen. Both items are `APPROVED` for design direction; the
+binding decision is recorded in `docs/ux/design/uxr-d09-d10-cashier-decision.md`. No application
+implementation or new backend preview contract is authorized.
+
+**Supplier design approval (2026-09-28):** The owner approved the focused UXR-D12 direction with
+explicit list columns and pagination, backend-owned outstanding balance, audit-rich detail,
+pre-commit normalization guidance, immutable-code edit, retained duplicate conflict,
+history-preserving deactivation, cancel-first focus, and labelled narrow grouped rows. The binding
+decision is recorded in `docs/ux/design/uxr-d12-suppliers-decision.md`; implementation remains a
+separate one-domain change.
+
+**Goods-receipt design approval (2026-09-28):** The owner approved the focused UXR-D13 direction
+covering the three backend payment states in history, URL-backed filters and paging, receipt-first
+detail with received lines before the secondary payment action, compact per-location creation lines
+including repeated SKUs, Indonesian received date/time guidance, advisory input estimate, localized
+confirmation, pending lock, exact-request recovery, backend-confirmed result, and no-overflow narrow
+layouts. The binding decision is recorded in
+`docs/ux/design/uxr-d13-goods-receipts-decision.md`; implementation remains a separate one-domain
+change.
+
+**Payables and supplier-payment design approval (2026-09-28):** The owner approved the focused
+UXR-D14 direction covering supported receipt/supplier-name discovery, receipt-first detail, received
+lines and payment history before mutation, one-receipt amount/method/reference/note entry, explicit
+CASH and non-cash session meaning, cancel-first confirmation, pending lock, exact account-bound
+recovery, definitive rejection, backend-refreshed success, corrected query-parameter transport, and
+no-overflow narrow layouts. Existing backend APIs are sufficient for the approved receipt-level flow.
+Optional stable `supplierCode` filtering is assumed to be in progress as a future discovery
+refinement and is not an implementation blocker. The binding decision is recorded in
+`docs/ux/design/uxr-d14-payables-payment-decision.md`; implementation remains a separate one-domain
+change.
+
+**Expense design approval (2026-09-28):** The owner approved the focused UXR-D15 direction covering
+the paging-only labelled history, active and closed-session eligibility, exact open-session-bound
+creation, cancel-first confirmation, pending lock, exact account-bound recovery, definitive
+rejection, backend-confirmed creation, audit-rich detail, reasoned void confirmation, void
+pending/recovery/result, retained original and reversal facts, explicit server-owned session impact,
+and no-overflow narrow layouts. The binding decision is recorded in
+`docs/ux/design/uxr-d15-expenses-voids-decision.md`; implementation remains a separate one-domain
+change.
+
+**Authentication/navigation review note (2026-09-27):** The owner accepted UXR-D01's shared
+navigation and header shell, including grouped icon-and-label navigation, removal of the redundant
+“Back office” label, the fixed lower-left current-user area, explicit appearance action,
+wide-screen collapse/expand, and narrow-screen overlay navigation. UXR-D01 remains
+`DESIGN_REVIEW` because its login, failure, pending, session-expiry, protected-return, and not-found
+states still require an explicit owner decision. This partial review does not authorize application
+implementation.
+
+**Authentication owner approval (2026-09-28):** The owner approved UXR-D01's fully
+Indonesian normal, required-field validation, rejected-credential, pending, protected-session
+checking, session-expiry, protected-return, and authenticated not-found states. It uses only the
+existing username/password contract, preserves a safe internal destination, and moves focus to the
+destination page heading after successful login. Headless interaction checks passed,
+and the 760-pixel login layout keeps all fields and actions visible without horizontal overflow.
+The binding direction is recorded in `docs/ux/design/uxr-d01-auth-navigation-decision.md`;
+implementation remains separately gated.
+
+**Appearance-mode owner approval (2026-09-28):** The owner approved UXR-D16's light-default,
+Operational Blue appearance direction with optional `Gelap` and `Ikuti sistem` modes, local-device
+persistence, system-light/system-dark resolution, semantic-state parity, and wide/narrow behavior.
+Automated token checks show at least 4.89:1 for the reviewed text/status/focus pairs in light mode and
+6.79:1 in dark mode. The binding decision is recorded in
+`docs/ux/design/uxr-d16-appearance-modes-decision.md`; implementation remains separately gated.
+
+**Dashboard direction note (2026-09-23):** The owner accepted the operational dashboard hierarchy
+and the addition of one secondary seven-day sales bar chart. The decision, exclusions, accessibility
+coverage, and required backend aggregation gate are recorded in
+[`uxr-d02-dashboard-direction.md`](../ux/design/uxr-d02-dashboard-direction.md). UXR-A02 is now
+`EVIDENCE_COMPLETE` and supports the accepted operational hierarchy, while adding breadcrumb,
+keyboard-bypass, summary-density, and copy constraints. That evidence is now incorporated in
+[`uxr-d02-dashboard-review.md`](../ux/design/uxr-d02-dashboard-review.md). On 2026-09-27, the owner
+approved the refined Dashboard direction after sending the backend request to the backend agent.
+UXR-D02 is now `APPROVED`; the decision is recorded in
+[`uxr-d02-dashboard-decision.md`](../ux/design/uxr-d02-dashboard-decision.md). The seven-day chart
+and STORE-stock attention remain implementation-gated until the requested backend read models exist.
+Approval does not authorize frontend aggregation, inferred stock rules, or implementation with
+placeholder business data.
+
+**Dashboard review refinement (2026-09-27):** An external UX review was reconciled against UXR-A02
+and the implemented backend contract. The candidate now uses simpler copy, exposes the already
+available cash-session opener/time, compacts active-session expenses, and tests one action-oriented
+“Perlu perhatian” panel. Exact scale-four money remains visible. STORE stock attention and the
+seven-day chart are both backend-gated; their required read models and exclusions are specified in
+[`uxr-d02-dashboard-backend-request.md`](../ux/design/uxr-d02-dashboard-backend-request.md).
+Recent cross-domain activity, payable due dates, inferred session health, and a permanent shortcut
+grid remain excluded pending evidence or a separate contract.
 
 ### UXR-D00 — Visual direction comparison and owner selection
 
 - **Domain:** Product visual direction; no business-domain implementation.
-- **Status:** `PLANNED`.
+- **Status:** `APPROVED`.
 - **Execution class:** `FIGMA_DESIGN`.
 - **Dependencies:** UXR-A01, UXR-A09, UXR-A10, and UXR-A11 must be `EVIDENCE_COMPLETE`.
 - **User-visible goal:** Let the owner compare realistic alternatives before later screens inherit a visual direction.
@@ -575,9 +871,45 @@ UXR-D00 begins after its representative audits are `EVIDENCE_COMPLETE`. Each dom
 - **Block condition:** Representative audit evidence, the target Figma file/project, or owner availability for selection is missing.
 - **Split trigger:** More than three candidates or full domain-state coverage is requested; keep those ideas for the relevant UXR-D01 through UXR-D15 item.
 
+**Design-review note (updated 2026-09-20):** The comparison board is in the supplied [Bloom — UXR-D00 Visual Direction](https://www.figma.com/design/DwiEHRGnvWb4aZW4iGZztS/Bloom-%E2%80%94-UXR-D00-Visual-Direction?node-id=6-2). It contains exactly three candidates with cashier/checkout, back-office list/detail, and 760×768 narrow-desktop frames using the same Indonesian content and backend-confirmed fixture. Figma MCP quota exhaustion blocked the final full-board screenshot export, so review used the Figma board and deterministic in-conversation comparisons. The owner approved the explicitly defined mode-aware hybrid after refining and accepting its Operational Blue cashier and navigation treatments. The selected traits and rationale are recorded in `docs/ux/design/visual-direction-decision.md`.
+
 **Copy-ready visual-direction prompt**
 
 > Perform only UXR-D00, Bloom's visual-direction comparison. Read `AGENTS.md`, the frontend contract, the frontend and UX roadmaps, and the completed UXR-A01, UXR-A09, UXR-A10, and UXR-A11 reports with their referenced evidence. Inspect the current components and use the required Figma skills in `[FIGMA_FILE_OR_NODE]`. Create exactly three clearly differentiated candidates—compact operational, calm guided, and mode-aware hybrid—using identical Bahasa Indonesia copy, data, transaction state, and viewports. For each candidate, create one representative cashier/cart or checkout frame, one back-office list/detail frame, and one narrow-desktop responsive frame. Preserve backend authority, current transaction/recovery meaning, keyboard/focus behavior, and useful existing components. Provide Figma links, exported screenshots or a single comparison board, and a concise matrix covering density, speed, comprehension, accessibility, responsiveness, reuse cost, and trade-offs. Stop at `DESIGN_REVIEW`; do not choose or approve a winner, create full workflows, modify application code, invent APIs/business rules, or build a global design system. After the owner responds, record the selected candidate or explicitly named hybrid traits and rationale in `docs/ux/design/visual-direction-decision.md` and mark UXR-D00 `APPROVED`.
+
+### UXR-D16 — Light and dark appearance modes
+
+- **Domain:** Cross-cutting application appearance; no business-domain behavior change.
+- **Status:** `APPROVED`.
+- **Execution class:** `FIGMA_DESIGN`.
+- **Dependencies:** UXR-D00 is `APPROVED`, and at least one representative approved cashier frame and one representative approved back-office frame are available.
+- **User-visible goal:** Provide a legible light default and an optional dark appearance without changing features, transaction meaning, or navigation.
+- **Exact scope:** Map the owner-approved palette to light and dark semantic tokens; define the initial mode, an explicit appearance control, system-preference behavior, persistence, and no-flash loading behavior; compare the same cashier, back-office, narrow-desktop, focus, selected, disabled, success, warning, error, pending, and server-rejection states in both modes.
+- **Older-user baseline:** Treat light mode as the default candidate for the store unless owner testing decides otherwise. In production-scale frames, target at least 16 px for primary body and control text, 14 px for secondary text, 16–17 px medium/semibold for item names, 16–18 px semibold for important prices and values, and 24 px for page headings; reserve 11–12 px text for genuinely nonessential content only. Use at least 44 × 44 px interactive targets and 48–52 px height for the primary payment action. Keep unmistakable focus, explicit metadata labels, and labels/icons in addition to color; verify at 200% browser zoom and do not use hue alone to communicate status or selection.
+- **Out of scope:** Removing or changing features, theme-specific business behavior, inventing backend preferences, a global component-library replacement, unrelated visual redesign, or application implementation.
+- **Recommended model:** `gpt-5.6-sol`, high reasoning.
+- **Expected output:** Figma light/dark comparison frames, the final semantic color/token mapping, preference-behavior decision, contrast/focus checks, affected reusable-component inventory, and unresolved owner decisions.
+- **Validation:** Light and dark modes preserve identical copy, data, actions, focus order, keyboard behavior, responsive behavior, and backend-authoritative states. Normal text targets at least 4.5:1 contrast; large text, focus indicators, and necessary control/state boundaries target at least 3:1. Status remains understandable without color.
+- **Block condition:** UXR-D00 has no owner-approved direction, representative domain frames are unavailable, or the owner has not decided the default/system/manual preference behavior.
+- **Split trigger:** Implement light mode first and defer dark mode if dark-theme work would delay a required domain workflow; do not partially theme transaction or recovery states.
+
+**Historical review note (updated 2026-09-26):** Early exploration narrowed the palette to
+Operational Blue and Warm Plum. The owner later approved Operational Blue in UXR-D00; Warm Plum is no
+longer a candidate. Older-user feedback supports a larger, lower-density default, persistent cashier
+context, and a simplified but still complete back-office list/detail composition; it does not justify
+removing information required by the more complex back-office task. UXR-D16 records light/dark work
+separately so appearance work does not silently expand UXR-D00 or imply implementation.
+
+**Owner approval note (2026-09-28):** The owner approved the refined light-default direction,
+`Terang`/`Gelap`/`Ikuti sistem` behavior, local browser/device persistence, system-preference
+following, pre-paint preference resolution, Operational Blue semantic-token parity, older-user
+legibility, and identical business content and behavior across appearances. The binding decision is
+recorded in `docs/ux/design/uxr-d16-appearance-modes-decision.md`; implementation remains separately
+gated.
+
+**Copy-ready appearance-mode prompt**
+
+> Design only UXR-D16 after UXR-D00 and the representative cashier/back-office frames are approved. Read `AGENTS.md`, the frontend contract, both frontend/UX roadmaps, `docs/ux/design/visual-direction-decision.md`, and the approved representative domain decisions. Use the required Figma skills. Apply the approved palette to identical light and dark cashier, back-office, narrow-desktop, focus, selected, disabled, success, warning, error, pending, and server-rejection states. Define light-default/system/manual/persistence behavior as explicit owner decisions; do not assume a backend preference endpoint. Preserve every feature, route, transaction/recovery meaning, keyboard/focus order, and backend-authoritative value. Validate readable type, 200% zoom, non-color status cues, focus visibility, and contrast targets. Return Figma links, semantic token mapping, component impact, preference behavior, validation notes, and unresolved decisions. Do not implement code, replace the component library, create theme-specific business behavior, invent APIs, or redesign unrelated workflows.
 
 For each Figma item:
 
@@ -640,6 +972,6 @@ The E2E proposal must separately address deterministic seed/reset, transaction c
 These inputs should be recorded during UXR-00 or the first relevant audit:
 
 1. Actual store-laptop browser viewport and display scaling; use `1440x900` wide and `1024x768` narrow only as temporary audit viewports until the real device is recorded.
-2. Whether raw screenshots/recordings may be committed, should remain local working artifacts, or should be uploaded directly to the selected Figma project.
+2. Whether the owner-approved local screenshot sets should later be committed or uploaded to Figma/external storage; until then they remain untracked working-tree evidence.
 3. Which disposable database reset/reseed procedure is approved for live transaction capture.
 4. The Figma file/project that will hold domain designs and who besides the owner will review them.

@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Roadmap
 
-Last updated: 2026-09-12
+Last updated: 2026-09-26
 
 ## 1. How to use this roadmap
 
@@ -404,6 +404,15 @@ The contract explains stable product and architecture rules. A planning pass is 
 
 > Implement FE-14 only after an atomic backend transfer contract exists. Inspect controller/DTO/validation/service and use the exact decimal/source/destination/result fields. Build one JavaScript transfer workflow using existing components, with same-location prevention, UOM/fraction-aware input, confirmation, pending, duplicate-click prevention, conflict recovery, success reference, and affected-data refresh. Add focused tests. Never implement transfer as two frontend stock calls or calculate remaining stock locally.
 
+**Recovery correction (2026-09-26):** UXR-A07 finding `TRANSFER-01` is resolved without a new
+backend endpoint. Before the POST, the frontend now durably stores the exact request, generated
+idempotency key, and authenticated `accountId` in tab storage. An ambiguous response, navigation, or
+reload keeps the form locked and can only replay that exact request/key; the backend's existing
+same-key idempotent POST returns the stored result. A different account is quarantined from the
+attempt/result, malformed or owner-mismatched responses remain uncertain, key conflicts fail closed,
+and unavailable storage prevents the POST. Focused transfer/API tests, the 398-test frontend suite,
+targeted lint, and the production build pass. No transfer endpoint or stock rule changed.
+
 ### FE-15 — Current/open cash session
 
 - **Domain:** Cash-session status and opening.
@@ -695,6 +704,7 @@ The contract explains stable product and architecture rules. A planning pass is 
 - **Expected output:** A deliberately simple Release 1 payment flow with backend-enforced overpayment and drawer rules.
 - **Validation:** Tests for each method, partial/full, overpay, CASH without/with session, duplicate/ambiguous submit, server-updated outstanding/status; keyboard/confirmation; tests/build/lint.
 - **Block condition:** Cleared on 2026-09-13 by the backend `accountId` contract and FE-28-specific migration.
+- **Transport follow-up:** Corrected on 2026-09-26 to `POST /api/goods-receipts/payments?code={receiptCode}` after live UXR-A15 showed Tomcat rejecting slash-containing receipt references in the former path-variable route. Live partial QRIS and full BANK_TRANSFER payments, receipt refresh, focused frontend/backend tests, build, and lint passed without changing payment business rules.
 - **Split trigger:** If payment-method interactions exceed the limit, extract shared one-receipt submission state and split CASH from non-cash UI without enabling unsupported allocation.
 
 **Implementation note (2026-09-10):** Verified current payment controller/DTO/validation/service, receipt balance reads, idempotency, conflicts, drawer movement, and the newer payment migration runbook's correction boundary. Receipt detail now supports one-receipt partial/full payments, durable exact-key replay after ambiguous responses/navigation/reload, CASH-only session gating, and separately refreshed backend receipt values. The main backend domain document retains stale unresolved-payment wording; the [transaction plan](fe-28-supplier-payment.md) records the precise implementation/supplement used. Reversal UI and FE-25 timezone filtering are excluded.

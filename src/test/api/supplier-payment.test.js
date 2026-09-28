@@ -13,8 +13,9 @@ it('encodes one receipt and posts only the supplied payment intent and stable ke
 
     await expect(supplierPaymentApi.createSupplierPayment('GR/28', request, 'same-key', options)).resolves.toBe(response);
     expect(requestApi).toHaveBeenLastCalledWith({
-        url: '/api/goods-receipts/GR%2F28/payments',
+        url: '/api/goods-receipts/payments',
         method: 'POST',
+        params: { code: 'GR/28' },
         data: request,
         headers: { 'Idempotency-Key': 'same-key' },
         timeout: 15000
@@ -32,8 +33,9 @@ it('propagates an uncertain submission error without retrying or replacing the r
     await expect(supplierPaymentApi.createSupplierPayment('GR-28', request, 'same-key')).rejects.toBe(error);
     expect(requestApi).toHaveBeenCalledTimes(1);
     expect(requestApi).toHaveBeenLastCalledWith({
-        url: '/api/goods-receipts/GR-28/payments',
+        url: '/api/goods-receipts/payments',
         method: 'POST',
+        params: { code: 'GR-28' },
         data: request,
         headers: { 'Idempotency-Key': 'same-key' },
         timeout: 15000

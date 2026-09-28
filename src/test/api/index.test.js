@@ -123,7 +123,8 @@ describe('normalizeApiError', () => {
 
     it.each([
         ['CashSessionConflictException', API_DOMAIN_ERROR_CODE.CASH_SESSION_CONFLICT],
-        ['CheckoutIdempotencyConflictException', API_DOMAIN_ERROR_CODE.CHECKOUT_IDEMPOTENCY_CONFLICT]
+        ['CheckoutIdempotencyConflictException', API_DOMAIN_ERROR_CODE.CHECKOUT_IDEMPOTENCY_CONFLICT],
+        ['IdempotencyConflictException', API_DOMAIN_ERROR_CODE.STOCK_TRANSFER_IDEMPOTENCY_CONFLICT]
     ])('maps checkout conflict type %s without exposing its raw payload', (errorType, domainCode) => {
         const normalized = normalizeApiError(createHttpError(409, {
             errorType,

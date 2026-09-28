@@ -83,7 +83,7 @@ const EXPENSE = {
 }
 
 const SUPPLIER_PAYMENT = {
-    create: code => `/api/goods-receipts/${ encodeURIComponent(code) }/payments`
+    create: '/api/goods-receipts/payments'
 }
 
 export {
