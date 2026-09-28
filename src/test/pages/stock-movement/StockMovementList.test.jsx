@@ -46,6 +46,8 @@ describe('StockMovementList', () => {
         stockMovementApi.getStockMovementList.mockResolvedValue(response({ content: [movement] }));
         render(<StockMovementList />, { route: '/stock-movements?itemSku=KAIN-00001' });
 
+        expect(screen.getByRole('link', { name: 'Buat transfer stok' }))
+            .toHaveAttribute('href', '/stock-transfers/new');
         expect((await screen.findAllByText('Kain katun')).length).toBeGreaterThan(0);
         expect(screen.getAllByText('KAIN-00001').length).toBeGreaterThan(0);
         expect(screen.getAllByText('+12,5 meter').length).toBeGreaterThan(0);

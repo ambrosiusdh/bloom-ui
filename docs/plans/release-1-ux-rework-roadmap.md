@@ -1,6 +1,6 @@
 # Bloom Release 1 UX Rework Roadmap
 
-Last updated: 2026-09-26
+Last updated: 2026-09-28
 
 ## 1. Purpose
 
@@ -898,7 +898,7 @@ cashier and navigation treatments. The selected traits and rationale are recorde
 
 **Copy-ready visual-direction prompt**
 
-> Perform only UXR-D00, Bloom's visual-direction comparison. Read `AGENTS.md`, the frontend contract, the frontend and UX roadmaps, and the completed UXR-A01, UXR-A09, UXR-A10, and UXR-A11 reports with their referenced evidence. Inspect the current components and create one deterministic interactive HTML comparison board in `[LOCAL_REVIEW_ARTIFACT_PATH]`. Create exactly three clearly differentiated candidates—compact operational, calm guided, and mode-aware hybrid—using identical Bahasa Indonesia copy, data, transaction state, and viewports. For each candidate, create one representative cashier/cart or checkout frame, one back-office list/detail frame, and one narrow-desktop responsive frame. Preserve backend authority, current transaction/recovery meaning, keyboard/focus behavior, and useful existing components. Provide the local artifact path, exported screenshots, and a concise matrix covering density, speed, comprehension, accessibility, responsiveness, reuse cost, and trade-offs. Stop at `DESIGN_REVIEW`; do not choose or approve a winner, create full workflows, modify application code, invent APIs/business rules, or build a global design system. After the owner responds, record the selected candidate or explicitly named hybrid traits and rationale in `docs/ux/design/visual-direction-decision.md` and mark UXR-D00 `APPROVED`.
+> Perform only UXR-D00, Bloom's visual-direction comparison. Read `AGENTS.md`, the frontend contract, the frontend and UX roadmaps, and the completed UXR-A01, UXR-A09, UXR-A10, and UXR-A11 reports with their referenced evidence. Inspect the current components and create one deterministic interactive HTML comparison board at `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-uxr-d00-comparison.html`. Create exactly three clearly differentiated candidates—compact operational, calm guided, and mode-aware hybrid—using identical Bahasa Indonesia copy, data, transaction state, and viewports. For each candidate, create one representative cashier/cart or checkout frame, one back-office list/detail frame, and one narrow-desktop responsive frame. Preserve backend authority, current transaction/recovery meaning, keyboard/focus behavior, and useful existing components. Provide the local artifact path, exported screenshots, and a concise matrix covering density, speed, comprehension, accessibility, responsiveness, reuse cost, and trade-offs. Stop at `DESIGN_REVIEW`; do not choose or approve a winner, create full workflows, modify application code, invent APIs/business rules, or build a global design system. After the owner responds, record the selected candidate or explicitly named hybrid traits and rationale in `docs/ux/design/visual-direction-decision.md` and mark UXR-D00 `APPROVED`.
 
 ### UXR-D16 — Light and dark appearance modes
 
@@ -949,9 +949,10 @@ For each design item:
 - **Split trigger:** If a design item contains independently reviewable read and mutation workflows,
   present them as separate artifact sections or split the design item before approval.
 
-**Copy-ready domain design-artifact prompt template**
-
-> Design only `[UXR-DXX — DOMAIN]` for Bloom after UXR-D00 is owner-approved. First read `AGENTS.md`, `docs/architecture/release-1-frontend-contract.md`, `docs/plans/release-1-frontend-roadmap.md`, `docs/plans/release-1-ux-rework-roadmap.md`, `docs/ux/design/visual-direction-decision.md`, and `[AUDIT_REPORT_PATH]`. Inspect the current domain components and referenced screenshots/recordings. Extend `[CANONICAL_HTML_REVIEW_ARTIFACT]` rather than creating an unrelated visual language. Begin with the task flow and low-fidelity state coverage, then create a refined desktop design for the documented wide and narrow viewports that follows the approved visual direction. Preserve backend-owned facts, transaction recovery, current URLs unless evidence requires a change, Indonesian language, keyboard/focus behavior, and useful existing components. Resolve approved P0/P1 findings and identify optional P2 improvements. Include loading, empty, validation, pending, conflict, ambiguous/recovery, success, confirmation, and hardware-related states only where the audit shows they apply. Return the local artifact path and reviewed states, exported screenshots, a concise decision log, reused/new components, audit-scenario traceability, and owner decisions needed. Record any evidence-based deviation from the approved direction. Do not modify application code, invent APIs or business rules, create a whole-app design system, or redesign another domain.
+The design queue is complete. Do not regenerate domain designs during implementation. Use the
+approved decision record and the concrete prototype path named by the applicable execution step
+below; when a visual detail is ambiguous, the decision record, audit evidence, frontend contract,
+and backend contract take precedence over the prototype.
 
 ## 9. Implementation re-baseline
 
@@ -976,9 +977,260 @@ After one domain reaches `APPROVED`, run one documentation-only `IMPLEMENTATION_
 
 Use `gpt-5.6-sol` high for narrow visual/read-flow implementation. Use `gpt-5.6-sol` xhigh for cashier, stock mutation, cash-session, receipt posting, supplier payment, expense posting/reversal, and other designs where visual changes touch transaction state or durable recovery.
 
-**Copy-ready implementation-rebaseline prompt**
+The concrete queue below is the completed implementation rebaseline. It intentionally contains no
+prompt placeholders. Execute one step at a time from the latest accepted base; do not start a
+dependent step while its predecessor is still under review.
 
-> Re-baseline implementation work for only `[DOMAIN]` after owner approval recorded in `[APPROVED_DECISION_RECORD]` and represented by `[APPROVED_HTML_ARTIFACT_AND_REVIEWED_STATES]`. Read `AGENTS.md`, both frontend and UX roadmaps, the frontend contract, the domain audit report with its evidence, the approved decision record, the canonical interactive HTML artifact, its exported screenshots, and the current implementation/tests. Treat the decision record and audited backend contract as authoritative when a prototype detail is ambiguous. Do not implement code. Add or update only the UX roadmap's implementation section with the smallest reviewable frontend PR entries needed to deliver the approved design. Each PR must own one coherent workflow, preserve backend authority and durable recovery, name exact current components likely to change, include loading/error/empty/conflict/pending/success plus accessibility/keyboard/responsive/localization acceptance criteria where applicable, stay near the existing review-size limits, and contain one copy-ready implementation prompt. Include visual validation against the named HTML states and automated regression coverage. Do not include unrelated cleanup, global redesign, dependency migration, route restructuring, unsupported APIs/business rules, or unapproved design alternatives.
+### 9.1 Shared execution rules
+
+- UXR-D00 is a design reference, not a standalone implementation step. Its prototype is
+  `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-uxr-d00-comparison.html`.
+- Before each step, inspect `git status`, preserve existing work, and read `AGENTS.md`,
+  `docs/architecture/release-1-frontend-contract.md`, both frontend and UX roadmaps, the named audit,
+  the named decision record, the prototype, and the current implementation/tests.
+- Treat the backend contract and approved decision record as authoritative when the HTML prototype is
+  ambiguous. Never calculate authoritative stock, totals, debt, payment state, cash change, or
+  reconciliation in the browser.
+- Keep MUI and useful existing components. Do not combine unrelated cleanup, dependency migration,
+  route restructuring, another domain, or a global design-system rewrite with a step.
+- Include applicable loading, error, empty, validation, conflict, pending, ambiguous recovery,
+  success, accessibility, keyboard, Indonesian localization, light/dark, and narrow-desktop behavior.
+- Add or update focused Vitest/React Testing Library coverage. Run the focused tests, `npm test`,
+  `npm run lint`, and `npm run build`; document any pre-existing failure separately.
+- Update the frontend contract/roadmap status for the completed step. Do not commit or push unless the
+  owner explicitly requests it.
+
+### 9.2 Concrete execution order
+
+| Order | Implementation item | Approved design | Dependency |
+| --- | --- | --- | --- |
+| 1 | UXI-01 Appearance foundation | UXR-D16 | Approved design documents present |
+| 2 | UXI-02 Shared navigation shell | UXR-D01 | UXI-01 |
+| 3 | UXI-03 Authentication and protected entry | UXR-D01 | UXI-02 |
+| 4 | UXI-04 Item categories | UXR-D03 | UXI-02; first low-risk back-office pattern |
+| 5 | UXI-05 Cash-session current state, history, and opening | UXR-D08 | UXI-01–UXI-02 |
+| 6 | UXI-06 Cash-session close, reconciliation, and detail | UXR-D08 | UXI-05 |
+| 7 | UXI-07 Cashier discovery and cart | UXR-D09 | UXI-05 |
+| 8 | UXI-08 Checkout and durable recovery | UXR-D10 | UXI-07 |
+| 9 | UXI-09 Sale result and printing | UXR-D10 | UXI-08 |
+| 10 | UXI-10 Sales history, detail, and reprint | UXR-D11 | UXI-09 |
+| 11 | UXI-11 Item list, detail, and location inventory | UXR-D04 | UXI-04 |
+| 12 | UXI-12 Item creation, editing, and deactivation | UXR-D04 | UXI-11 |
+| 13 | UXI-13 Stock-movement history and detail | UXR-D05 | UXI-11 |
+| 14 | UXI-14 Stock adjustment | UXR-D06 | UXI-13 |
+| 15 | UXI-15 Stock transfer | UXR-D07 | UXI-13–UXI-14 |
+| 16 | UXI-16 Supplier list and detail | UXR-D12 | UXI-04 |
+| 17 | UXI-17 Supplier creation, editing, and deactivation | UXR-D12 | UXI-16 |
+| 18 | UXI-18 Goods-receipt history and detail | UXR-D13 | UXI-16 |
+| 19 | UXI-19 Goods-receipt creation and recovery | UXR-D13 | UXI-17–UXI-18 |
+| 20 | UXI-20 Payable discovery and receipt debt detail | UXR-D14 | UXI-18 |
+| 21 | UXI-21 Supplier payment and recovery | UXR-D14 | UXI-20 |
+| 22 | UXI-22 Expense history and creation | UXR-D15 | UXI-05–UXI-06 |
+| 23 | UXI-23 Expense void and reversal | UXR-D15 | UXI-22 |
+| 24 | UXI-24 Operational dashboard | UXR-D02 | Destination screens complete and backend read models available |
+| 25 | UXI-25 Cross-domain verification | All approved designs | UXI-01–UXI-24 |
+
+### 9.3 Copy-ready execution prompts
+
+#### UXI-01 — Appearance foundation
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-appearance-modes-final-review.html`
+
+Decision: `docs/ux/design/uxr-d16-appearance-modes-decision.md`
+
+> Implement only UXI-01, Bloom's appearance foundation. Read `AGENTS.md`, the frontend contract, both roadmaps, `docs/ux/design/visual-direction-decision.md`, `docs/ux/design/uxr-d16-appearance-modes-decision.md`, and the prototype at `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-appearance-modes-final-review.html`. Inspect `src/themes/index.js`, `src/main.jsx`, `src/App.jsx`, `src/index.css`, and existing tests. Implement semantic Operational Blue tokens, light-first rendering, `Terang`/`Gelap`/`Ikuti sistem`, local-device persistence, system-preference updates, and pre-paint resolution without changing business behavior or page layouts. Cover cashier/back-office, wide/narrow, and normal/selected/focus/success/warning/error/rejected/pending/disabled parity. Keep MUI; do not add a backend preference. Add focused tests, then run `npm test`, `npm run lint`, and `npm run build`. Update the relevant plan status; do not commit or push.
+
+#### UXI-02 — Shared navigation shell
+
+Status: `IMPLEMENTED`
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-navigation-shell-review.html`
+
+Decision/audit: `docs/ux/design/uxr-d01-auth-navigation-decision.md`; `docs/ux/audits/uxr-a01-auth-navigation.md`
+
+> Implement only UXI-02, Bloom's shared navigation shell. Read `AGENTS.md`, the frontend contract, both roadmaps, `docs/ux/audits/uxr-a01-auth-navigation.md`, `docs/ux/design/uxr-d01-auth-navigation-decision.md`, and `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-navigation-shell-review.html`. Inspect `src/App.jsx`, `src/App.scss`, `src/components/app/Header.jsx`, `src/components/app/Sidebar.jsx`, `src/components/app/sidebar/SidebarItem.jsx`, `src/routes/index.jsx`, and navigation tests. Implement the approved grouped icon-and-label sidebar, fixed lower-left account area, no “Back office” label, route-derived selected state and breadcrumbs, wide collapse, narrow overlay drawer, Escape close, focus restoration, and combined `Pergerakan stok` navigation. Preserve every existing route and authorization rule. Add focused navigation and responsive tests, then run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-03 — Authentication and protected entry
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D01 Akses & navigasi** and review **Masuk**, **Kolom kosong**, **Kredensial salah**, **Sedang masuk**, **Memeriksa sesi**, **Sesi berakhir**, **Kembali ke tujuan**, and **Halaman tidak ditemukan**.
+
+Decision/audit: `docs/ux/design/uxr-d01-auth-navigation-decision.md`; `docs/ux/audits/uxr-a01-auth-navigation.md`
+
+> Implement only UXI-03, Bloom authentication and protected entry. Read `AGENTS.md`, the frontend contract, both roadmaps, `docs/ux/audits/uxr-a01-auth-navigation.md`, `docs/ux/design/uxr-d01-auth-navigation-decision.md`, and the D01 states in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `src/pages/login/Login.jsx`, `src/pages/NotFound.jsx`, `src/routes/index.jsx`, `src/stores/modules/auth.js`, `src/api/auth.js`, and their tests. Implement fully Indonesian login, required-field focus, generic retained credential failure, one locked pending submission, protected-session checking without protected-content flash, safe path/query/hash return, destination-heading focus, session-expiry explanation without transaction resubmission, and authenticated not-found recovery. Do not add auth fields, methods, or endpoints. Add focused tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-04 — Item categories
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-item-categories-review.html`
+
+Decision/audit: `docs/ux/design/uxr-d03-item-categories-decision.md`; `docs/ux/audits/uxr-a03-item-categories.md`
+
+> Implement only UXI-04, Bloom item categories. Read `AGENTS.md`, the frontend contract, both roadmaps, `docs/ux/audits/uxr-a03-item-categories.md`, `docs/ux/design/uxr-d03-item-categories-decision.md`, and `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-item-categories-review.html`. Inspect `ItemCategoryList.jsx`, `ItemCategoryUpsert.jsx`, the category store/API/constants, and category tests. Implement the approved labelled list, separate updated-by/updated-at facts, 44-pixel accessible icon actions, linked create/edit breadcrumb, validation/conflict retention, safe deactivation, pagination, and labelled narrow records. Preserve current endpoints and category semantics. Add focused tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-05 — Cash-session current state, history, and opening
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D08 Sesi kas** and review no-session, open-session, opening, history, pagination, and narrow states.
+
+Decision/audit: `docs/ux/design/uxr-d08-cash-sessions-decision.md`; `docs/ux/audits/uxr-a08-cash-sessions.md`
+
+> Implement only UXI-05, Bloom cash-session current state, history, and opening. Read `AGENTS.md`, the governing contracts/roadmaps, `docs/ux/audits/uxr-a08-cash-sessions.md`, `docs/ux/design/uxr-d08-cash-sessions-decision.md`, and the D08 states in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `CashSessionHistory.jsx`, `CurrentCashSession.jsx`, the cash-session store/API/money helpers, and tests. Implement one destination with separately sourced current-session and server-paged history, Indonesian opening-money entry, correct no-session state, explicit page size/range/page/navigation, and complete narrow records. Do not predict reconciliation or merge API meanings. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-06 — Cash-session close, reconciliation, and detail
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D08 Sesi kas** and review close confirmation, pending, backend-confirmed reconciliation, post-close verification, detail, failure/recovery, and narrow states.
+
+Decision/audit: `docs/ux/design/uxr-d08-cash-sessions-decision.md`; `docs/ux/audits/uxr-a08-cash-sessions.md`
+
+> Implement only UXI-06, Bloom cash-session close, reconciliation, and detail. Read the governing documents, `docs/ux/audits/uxr-a08-cash-sessions.md`, `docs/ux/design/uxr-d08-cash-sessions-decision.md`, and D08 in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `CashSessionDetail.jsx`, `CloseCashSessionDialog.jsx`, `CurrentCashSession.jsx`, the cash-session store/API, and tests. Implement expected-cash entry only at close, cancel-first confirmation, one pending close, server-final reconciliation and variance, verified transition to no-session before offering a new session, error/retry behavior, and narrow detail hierarchy. Never calculate expected cash or variance authoritatively in the frontend. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-07 — Cashier discovery and cart
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-cashier-workspace-rework.html`; review workspace empty/populated/search/scanner/stock-check/discount/cancel and narrow states.
+
+Decision/audit: `docs/ux/design/uxr-d09-d10-cashier-decision.md`; `docs/ux/audits/uxr-a09-cashier-cart.md`
+
+> Implement only UXI-07, Bloom cashier discovery and cart. Read the governing documents, `docs/ux/audits/uxr-a09-cashier-cart.md`, `docs/ux/design/uxr-d09-d10-cashier-decision.md`, and `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-cashier-workspace-rework.html`. Inspect `Cashier.jsx`, `CashierCart.jsx`, scanner/quantity utilities, constants, stores, and cashier tests. Implement the approved two-panel workspace: search/scanner and category filters on the left; simple item rows with name/category/SKU/UOM/stock/price; persistent cart on the right with compact quantity controls, line price, subtotal/estimated total, editable discount and conditional reason, CASH/QRIS/tender preparation, cancel confirmation, and narrow transaction access. Preserve fractional rules, focus recovery, stock/session gating, and advisory pre-checkout totals. Do not call checkout or add backend fields in this step. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-08 — Checkout and durable recovery
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-cashier-workspace-rework.html`; review confirm/review, submitting, checking, known rejection, unknown outcome, and same-request recovery states.
+
+Decision/audit: `docs/ux/design/uxr-d09-d10-cashier-decision.md`; `docs/ux/audits/uxr-a10-checkout-print.md`
+
+> Implement only UXI-08, Bloom checkout and durable recovery. Read the governing documents, `docs/ux/audits/uxr-a10-checkout-print.md`, `docs/ux/design/uxr-d09-d10-cashier-decision.md`, and checkout/recovery states in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-cashier-workspace-rework.html`. Inspect `CashierCheckout.jsx`, `CashierPurchaseConfirmationModal.jsx`, `sale-checkout.js`, `src/api/sale.js`, sale/cash-session stores, and checkout tests. Implement compact in-place confirmation, exact CASH/QRIS request meaning, duplicate-submit lock, account-bound exact request and idempotency persistence before posting, definitive rejection, and ambiguous same-key recovery without route navigation or cart mutation. The backend remains authoritative for totals, discount acceptance, tender, change, sale result, and stock. Add focused failure/recovery tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-09 — Sale result and printing
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-cashier-workspace-rework.html`; review result plus print-pending, print-success, and print-error states.
+
+Decision/audit: `docs/ux/design/uxr-d09-d10-cashier-decision.md`; `docs/ux/audits/uxr-a10-checkout-print.md`
+
+> Implement only UXI-09, Bloom sale result and printing. Read the governing documents, `docs/ux/audits/uxr-a10-checkout-print.md`, `docs/ux/design/uxr-d09-d10-cashier-decision.md`, and result/printing states in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-cashier-workspace-rework.html`. Inspect cashier checkout/result code, `src/utils/receipt-print.js`, receipt-print constants, sale API/store, and tests. Implement sale-first success, server-returned official amounts, printing as a separate retryable operation, duplicate print lock, failure that never implies sale failure, and success wording that reports print-service acknowledgement without claiming physical paper output. Preserve sale detail access and new-sale reset. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-10 — Sales history, detail, and reprint
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D11 Riwayat penjualan** and review list, invalid range, empty/error, detail, reprint states, and narrow list/detail.
+
+Decision/audit: `docs/ux/design/uxr-d11-sales-history-decision.md`; `docs/ux/audits/uxr-a11-sales.md`
+
+> Implement only UXI-10, Bloom sales history, detail, and reprint. Read the governing documents, `docs/ux/audits/uxr-a11-sales.md`, `docs/ux/design/uxr-d11-sales-history-decision.md`, and D11 in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `SaleList.jsx`, `SaleDetail.jsx`, sale cards/tables, sale store/API, print utilities, date controls, and tests. Implement only supported code/creator/start/end filters, Indonesian inverted-range validation, stable server paging, labelled wide and grouped narrow records, semantic detail hierarchy, backend-rendered statuses/money, persisted line UOM/location, and sale-safe reprint pending/success/failure. Do not infer payment/correction state or recalculate amounts. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-11 — Item list, detail, and location inventory
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-item-master-review.html`
+
+Decision/audit: `docs/ux/design/uxr-d04-item-master-decision.md`; `docs/ux/audits/uxr-a04-items.md`
+
+> Implement only UXI-11, Bloom item list, detail, and location inventory. Read the governing documents, `docs/ux/audits/uxr-a04-items.md`, `docs/ux/design/uxr-d04-item-master-decision.md`, and `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-item-master-review.html`. Inspect `ItemList.jsx`, item detail/barcode/audit modals, item store/API/constants, and tests. Implement grouped identity, exact server prices, UOM/fraction facts, separate STORE/WAREHOUSE quantities, compact accessible row actions, full detail/audit/barcode access, filters/paging, and labelled narrow records without horizontal page overflow. Do not aggregate stock or change item rules. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-12 — Item creation, editing, and deactivation
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-item-master-review.html`; review create/opening, validation/conflict, edit/locks, deactivation, and narrow-form states.
+
+Decision/audit: `docs/ux/design/uxr-d04-item-master-decision.md`; `docs/ux/audits/uxr-a04-items.md`
+
+> Implement only UXI-12, Bloom item creation, editing, and deactivation. Read the governing documents, `docs/ux/audits/uxr-a04-items.md`, `docs/ux/design/uxr-d04-item-master-decision.md`, and the relevant states in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-item-master-review.html`. Inspect `ItemCreate.jsx`, `ItemEdit.jsx`, item fields/utilities/store/API, and tests. Implement the approved field hierarchy, opening quantities by location, whole/fractional guidance, immutable/locked facts, retained server validation/conflict, and history-preserving deactivation confirmation/focus behavior. Preserve exact decimal inputs and backend authority. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-13 — Stock-movement history and detail
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D05 Riwayat stok** and review list, filters/reset, empty, detail modal, and narrow states.
+
+Decision/audit: `docs/ux/design/uxr-d05-stock-movements-decision.md`; `docs/ux/audits/uxr-a05-stock-movements.md`
+
+> Implement only UXI-13, Bloom stock-movement history and detail. Read the governing documents, `docs/ux/audits/uxr-a05-stock-movements.md`, `docs/ux/design/uxr-d05-stock-movements-decision.md`, and D05 in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `StockMovementList.jsx`, stock-movement API, routes/navigation, and tests. Implement item/SKU, direction, and location filters with reset; labelled item/movement/location/balance/actor-time columns; grouped narrow records; and an accessible in-context detail modal using already available row facts/reference data. Keep `Buat transfer stok` as the primary action under combined `Pergerakan stok`. Do not invent a detail endpoint. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-14 — Stock adjustment
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-stock-adjustment-review.html`
+
+Decision/audit: `docs/ux/design/uxr-d06-stock-adjustment-decision.md`; `docs/ux/audits/uxr-a06-stock-adjustment.md`
+
+> Implement only UXI-14, Bloom stock adjustment. Read the governing documents, `docs/ux/audits/uxr-a06-stock-adjustment.md`, `docs/ux/design/uxr-d06-stock-adjustment-decision.md`, and `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-stock-adjustment-review.html`. Inspect stock-adjustment list/create/detail pages, components, store/API/utilities, and tests. Implement history, searchable item selection, ADD/REMOVE/CORRECTION meaning, UOM-aware quantity, confirmation, one pending request, definitive rejection, exact-request ambiguous recovery, backend-confirmed result/detail, and labelled narrow layouts. Never calculate final stock authoritatively. Add tests for each action and recovery path, then run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-15 — Stock transfer
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-stock-transfer-review.html`
+
+Decision/audit: `docs/ux/design/uxr-d07-stock-transfer-decision.md`; `docs/ux/audits/uxr-a07-stock-transfer.md`
+
+> Implement only UXI-15, Bloom stock transfer. Read the governing documents, `docs/ux/audits/uxr-a07-stock-transfer.md`, `docs/ux/design/uxr-d07-stock-transfer-decision.md`, and `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-stock-transfer-review.html`. Inspect `StockTransferCreate.jsx`, stock-transfer store/API, routes, shared quantity controls, and tests. Implement searchable item selection, explicit source/destination, labelled swap, source availability display, UOM-aware numeric quantity, optional description, refresh, self-contained confirmation, pending lock, known rejection, exact account-bound recovery, backend-confirmed result, and wide/narrow behavior. Keep transfer under `Pergerakan stok`; do not invent stock calculations or endpoints. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-16 — Supplier list and detail
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D12 Pemasok** and review list, paging, active/inactive, detail, error/empty, and narrow states.
+
+Decision/audit: `docs/ux/design/uxr-d12-suppliers-decision.md`; `docs/ux/audits/uxr-a12-suppliers.md`
+
+> Implement only UXI-16, Bloom supplier list and detail. Read the governing documents, `docs/ux/audits/uxr-a12-suppliers.md`, `docs/ux/design/uxr-d12-suppliers-decision.md`, and D12 in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `SupplierList.jsx`, `SupplierDetail.jsx`, supplier store/API/utilities, and tests. Implement supported search/status/paging, labelled columns and grouped narrow records, backend-owned outstanding balance, complete contact/audit facts, clear inactive treatment, loading/error/empty recovery, and accessible compact actions. Do not infer debt. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-17 — Supplier creation, editing, and deactivation
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D12 Pemasok** and review create, normalization guidance, immutable-code edit, duplicate conflict, deactivation confirmation, inactive result, and narrow form.
+
+Decision/audit: `docs/ux/design/uxr-d12-suppliers-decision.md`; `docs/ux/audits/uxr-a12-suppliers.md`
+
+> Implement only UXI-17, Bloom supplier creation, editing, and deactivation. Read the governing documents, `docs/ux/audits/uxr-a12-suppliers.md`, `docs/ux/design/uxr-d12-suppliers-decision.md`, and D12 mutation states in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `SupplierUpsert.jsx`, supplier detail/list actions, store/API/utilities, and tests. Implement pre-commit normalization guidance, immutable supplier code during edit, retained duplicate conflict, safe history-preserving deactivation with cancel-first focus and Escape restoration, and complete narrow forms. Preserve backend validation and debt history. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-18 — Goods-receipt history and detail
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D13 Penerimaan barang** and review list, payment-state filters, detail, error/empty, and narrow states.
+
+Decision/audits: `docs/ux/design/uxr-d13-goods-receipts-decision.md`; `docs/ux/audits/uxr-a13-goods-receipt-history.md`; `docs/ux/audits/uxr-a14-goods-receipt-create.md`
+
+> Implement only UXI-18, Bloom goods-receipt history and detail. Read the governing documents, both UXR-A13/A14 audits, `docs/ux/design/uxr-d13-goods-receipts-decision.md`, and D13 in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect receipt list/detail pages, info/items components, receipt store/API, and tests. Implement URL-backed supported filters/paging, UNPAID/PARTIALLY_PAID/PAID states from the server, labelled/grouped narrow records, and receipt-first detail with audit/payment facts and received item/location lines before the secondary payment action. Do not infer payment status, debt, or totals. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-19 — Goods-receipt creation and recovery
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D13 Penerimaan barang** and review create, per-location lines, repeated SKU, validation, confirmation, pending, rejection, exact-request recovery, success, and narrow states.
+
+Decision/audits: `docs/ux/design/uxr-d13-goods-receipts-decision.md`; UXR-A13/A14 reports above.
+
+> Implement only UXI-19, Bloom goods-receipt creation and recovery. Read the governing documents, UXR-A13/A14 audits, `docs/ux/design/uxr-d13-goods-receipts-decision.md`, and D13 creation states in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `GoodsReceiptCreate.jsx`, receipt line/lookup components, create helpers/store/API, and tests. Implement compact item-location lines including repeated SKUs, Indonesian received date/time guidance, advisory input estimate, validation, localized cancel-first confirmation, one pending exact request, definitive rejection, durable same-request recovery, backend-confirmed receipt result, and no-overflow narrow layout. Do not calculate official totals/debt/payment state. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-20 — Payable discovery and receipt debt detail
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D14 Utang pemasok** and review list, search/paging, receipt detail, payment history, error/empty, and narrow states.
+
+Decision/audit: `docs/ux/design/uxr-d14-payables-payment-decision.md`; `docs/ux/audits/uxr-a15-payables-payment.md`
+
+> Implement only UXI-20, Bloom payable discovery and receipt debt detail. Read the governing documents, `docs/ux/audits/uxr-a15-payables-payment.md`, `docs/ux/design/uxr-d14-payables-payment-decision.md`, and D14 in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `SupplierPayableList.jsx`, receipt detail/payment components, supplier-payment API/store/utilities, and tests. Implement only supported receipt/supplier-name discovery and paging, receipt-first debt detail, received lines and payment history before mutation, exact backend balances/payment states, and grouped narrow records. Optional supplier-code filtering must remain gated until the backend contract exists. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-21 — Supplier payment and recovery
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D14 Utang pemasok** and review amount/method/reference/note form, CASH/non-cash meaning, confirmation, pending, rejection, exact recovery, refreshed success, and narrow states.
+
+Decision/audit: `docs/ux/design/uxr-d14-payables-payment-decision.md`; `docs/ux/audits/uxr-a15-payables-payment.md`
+
+> Implement only UXI-21, Bloom one-receipt supplier payment and recovery. Read the governing documents, UXR-A15 audit, D14 decision, and D14 payment states in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `SupplierPayment.jsx`, supplier-payment API/store/utilities, receipt detail integration, and tests. Implement exact amount/method/reference/note entry, explicit CASH versus non-cash session meaning, cancel-first confirmation, pending lock, corrected query-parameter transport, exact account-bound recovery, definitive rejection, and backend-refreshed success/history/balance. Do not calculate outstanding balance or payment status. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-22 — Expense history and creation
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D15 Pengeluaran** and review history, active/closed eligibility, create, validation, confirmation, pending, recovery, result, and narrow states.
+
+Decision/audits: `docs/ux/design/uxr-d15-expenses-voids-decision.md`; `docs/ux/audits/uxr-a16-expense-create.md`; `docs/ux/audits/uxr-a17-expense-void.md`
+
+> Implement only UXI-22, Bloom expense history and creation. Read the governing documents, UXR-A16/A17 audits, `docs/ux/design/uxr-d15-expenses-voids-decision.md`, and D15 in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `ExpenseHistory.jsx`, `ExpenseCreate.jsx`, expense record/helpers/store/API, and tests. Implement paged labelled history, active versus closed-session eligibility, exact open-session-bound creation, decimal/category/note validation, cancel-first confirmation, pending lock, account-bound exact recovery, definitive rejection, backend-confirmed result, and grouped narrow records. Do not infer cash-session impact or balances. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-23 — Expense void and reversal
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D15 Pengeluaran** and review detail, reasoned void confirmation, pending, uncertain recovery, rejection, void result, retained original/reversal facts, and narrow states.
+
+Decision/audits: `docs/ux/design/uxr-d15-expenses-voids-decision.md`; UXR-A16/A17 reports above.
+
+> Implement only UXI-23, Bloom expense void and reversal. Read the governing documents, UXR-A16/A17 audits, the D15 decision, and D15 void states in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `ExpenseVoidDialog.jsx`, `ExpenseRecord.jsx`, expense-void store/API/utilities, history integration, and tests. Implement audit-rich detail, required reason, cancel-first confirmation, pending lock, exact account-bound ambiguous recovery, definitive rejection, backend-confirmed void result, immutable original plus reversal facts, and explicit server-returned session impact. Never delete the original or calculate reversal/session totals. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-24 — Operational dashboard
+
+Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-dashboard-rework.html`
+
+Decision/audit/backend gate: `docs/ux/design/uxr-d02-dashboard-decision.md`; `docs/ux/audits/uxr-a02-dashboard.md`; `docs/ux/design/uxr-d02-dashboard-backend-request.md`
+
+> Implement only UXI-24, Bloom's operational dashboard, after verifying the backend read models requested in `docs/ux/design/uxr-d02-dashboard-backend-request.md` exist. Read the governing documents, UXR-A02 audit, D02 decision/backend request, and `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-dashboard-rework.html`. Inspect `Dashboard.jsx`, dashboard components/store/API, navigation destinations, and tests. Implement four server-owned summaries, action-oriented attention, one seven-day sales chart, exact drill-downs, loading/no-session/zero/stale/refresh-error states, keyboard bypass/focus, and one/two/three-column responsive layouts. Do not aggregate sales or stock in the frontend and do not ship placeholder business data. If either required backend read model is absent, stop and report the gate without implementing approximations. Add tests and run the full validation commands. Update plan status; do not commit or push.
+
+#### UXI-25 — Cross-domain verification
+
+Primary prototypes: `bloom-appearance-modes-final-review.html`, `bloom-navigation-shell-review.html`, `bloom-cashier-workspace-rework.html`, `bloom-design-review-suite.html`, and `bloom-dashboard-rework.html` in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61`.
+
+> Verify the completed Bloom UX rework without adding features or broad refactors. Read `AGENTS.md`, the frontend contract, both roadmaps, `docs/ux/design/design-review-register.md`, every approved decision record, and the five primary prototypes in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61`. Inspect the final diff and exercise authentication/protected return, cash-session open/close, cashier search/cart, CASH and QRIS checkout, ambiguous recovery, printing, sales reprint, item/stock operations, receipt creation, supplier payment, expense creation/void, dashboard drill-downs, light/dark/system modes, keyboard/focus order, 200% zoom, and 760-pixel narrow desktop. Run `npm test`, `npm run lint`, and `npm run build`. Record remaining hardware-only scanner/printer checks and any backend-gated dashboard work explicitly. Fix only regressions introduced by the rework; do not commit or push.
 
 ## 10. Optional E2E automation decision
 

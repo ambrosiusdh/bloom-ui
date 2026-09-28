@@ -2,70 +2,38 @@ import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useMediaQuery } from "@mui/material";
 import {
-    ClipboardCheckIcon,
-    ArrowLeftRightIcon,
-    HandCoinsIcon,
-    HistoryIcon,
-    LayoutDashboardIcon,
     LogOutIcon,
-    PackageSearchIcon,
-    ReceiptTextIcon,
-    TagsIcon,
-    TruckIcon,
-    UsersIcon,
-    UserIcon,
+    ShoppingCartIcon,
     XIcon
 } from "lucide-react";
 import PropTypes from "prop-types";
 
 import { useAppStore, useAuthStore } from "@stores/index.js";
 
+import {
+    isNavigationItemSelected,
+    navigationGroups
+} from "./navigation.js";
 import SidebarItem from "./sidebar/SidebarItem.jsx";
 
-const navigationGroups = [
-    {
-        id: 'navigation-summary',
-        label: 'Ringkasan',
-        items: [
-            { to: '/dashboard', icon: LayoutDashboardIcon, label: 'Dashboard', end: true }
-        ]
-    },
-    {
-        id: 'navigation-inventory',
-        label: 'Persediaan',
-        items: [
-            { to: '/items', icon: PackageSearchIcon, label: 'Data Barang' },
-            { to: '/item-categories', icon: TagsIcon, label: 'Kategori Barang' },
-            { to: '/goods-receipts', icon: TruckIcon, label: 'Penerimaan Barang' },
-            { to: '/stock-adjustments', icon: ClipboardCheckIcon, label: 'Penyesuaian Stok' },
-            { to: '/stock-transfers/new', icon: ArrowLeftRightIcon, label: 'Transfer Stok' },
-            { to: '/stock-movements', icon: HistoryIcon, label: 'Riwayat Pergerakan Stok' }
-        ]
-    },
-    {
-        id: 'navigation-procurement',
-        label: 'Pembelian',
-        items: [
-            { to: '/suppliers', icon: UsersIcon, label: 'Pemasok' },
-            { to: '/payables', icon: HandCoinsIcon, label: 'Utang Pemasok' }
-        ]
-    },
-    {
-        id: 'navigation-sales',
-        label: 'Penjualan',
-        items: [
-            { to: '/sales', icon: ReceiptTextIcon, label: 'Riwayat Penjualan' }
-        ]
-    },
-    {
-        id: 'navigation-cash',
-        label: 'Kas',
-        items: [
-            { to: '/cash-sessions', icon: HistoryIcon, label: 'Riwayat Sesi Kas' },
-            { to: '/expenses', icon: HandCoinsIcon, label: 'Pengeluaran' }
-        ]
+const getInitials = currentUser => {
+    const accountName = currentUser?.name || currentUser?.username || 'Bloom';
+
+    return accountName
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(part => part[0]?.toUpperCase())
+        .join('');
+};
+
+const getRoleLabel = role => {
+    if (role === 'ADMIN') {
+        return 'Administrator';
     }
-];
+
+    return role || 'Pengguna';
+};
 
 export default function Sidebar({ navigationToggleRef = null }) {
     const isExpanded = useAppStore(state => state.isExpanded);
@@ -137,20 +105,22 @@ export default function Sidebar({ navigationToggleRef = null }) {
         await doLogout();
     };
 
+    const currentUserName = currentUser?.name || currentUser?.username || 'Pengguna Bloom';
+
     return (
         <>
             { isExpanded && (
                 <button
                     type="button"
                     className="bloom__navigation-backdrop"
-                    aria-label="Tutup navigasi back office"
+                    aria-label="Tutup navigasi utama"
                     onClick={ handleClose }
                 />
             ) }
 
             <aside
                 id="back-office-navigation"
-                className={ `bloom__sidebar ${isExpanded ? '' : 'bloom__sidebar--collapsed'} min-h-screen bg-maroon-600 text-white flex flex-col justify-between border-r border-gray-300 transition-all duration-300` }
+                className={ `bloom__sidebar ${isExpanded ? '' : 'bloom__sidebar--collapsed'}` }
                 role={ isNarrowViewport ? 'dialog' : undefined }
                 aria-modal={ isNarrowViewport && isExpanded ? 'true' : undefined }
                 aria-labelledby="back-office-navigation-title"
@@ -158,38 +128,32 @@ export default function Sidebar({ navigationToggleRef = null }) {
                 inert={ isNarrowViewport && !isExpanded ? true : undefined }
                 onKeyDown={ handleKeyDown }
             >
-                <div>
-                    <div className="flex items-center gap-3 px-4 h-16 border-b mb-4 pb-2">
-                        <UserIcon
-                            aria-hidden="true"
-                            className="w-10 h-10 rounded-full shrink-0"
-                        />
-
-                        <div className={ isExpanded ? 'min-w-0' : 'sr-only' }>
-                            <div className="font-semibold truncate">{ currentUser?.name }</div>
-                            <div className="text-xs truncate">{ currentUser?.role }</div>
-                        </div>
-
-                        <button
-                            type="button"
-                            className="ml-auto p-2 rounded text-white hover:bg-maroon-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:hidden"
-                            aria-label="Tutup navigasi back office"
-                            onClick={ handleClose }
-                        >
-                            <XIcon aria-hidden="true" />
-                        </button>
+                <div className="bloom__sidebar-brand">
+                    <div className="bloom__sidebar-mark" aria-hidden="true">B</div>
+                    <div className={ isExpanded ? 'bloom__sidebar-brand-copy' : 'sr-only' }>
+                        <span className="bloom__sidebar-brand-name">Bloom</span>
                     </div>
 
+                    <button
+                        type="button"
+                        className="bloom__sidebar-close"
+                        aria-label="Tutup navigasi utama"
+                        onClick={ handleClose }
+                    >
+                        <XIcon aria-hidden="true" />
+                    </button>
+                </div>
+
+                <div className="bloom__sidebar-navigation">
                     <h2
                         id="back-office-navigation-title"
                         className="sr-only"
                     >
-                        Navigasi back office
+                        Navigasi utama
                     </h2>
 
                     <nav
-                        className="px-4 space-y-5"
-                        aria-label="Destinasi back office"
+                        aria-label="Destinasi utama"
                     >
                         { navigationGroups.map((group, groupIndex) => (
                             <section
@@ -198,18 +162,19 @@ export default function Sidebar({ navigationToggleRef = null }) {
                             >
                                 <h3
                                     id={ group.id }
-                                    className={ `${isExpanded ? 'px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-white/80' : 'sr-only'}` }
+                                    className={ isExpanded ? 'bloom__sidebar-group-title' : 'sr-only' }
                                 >
                                     { group.label }
                                 </h3>
 
-                                <div className="space-y-2">
+                                <div className="bloom__sidebar-group-items">
                                     { group.items.map((item, itemIndex) => (
                                         <SidebarItem
                                             key={ item.to }
                                             { ...item }
                                             itemRef={ groupIndex === 0 && itemIndex === 0 ? firstNavigationItemRef : null }
                                             isExpanded={ isExpanded }
+                                            isSelected={ isNavigationItemSelected(item, location.pathname) }
                                             onClick={ handleNavigate }
                                         />
                                     )) }
@@ -219,23 +184,37 @@ export default function Sidebar({ navigationToggleRef = null }) {
                     </nav>
                 </div>
 
-                <div className="px-4 py-4 space-y-2 border-t border-white/20">
+                <div className="bloom__sidebar-footer">
                     <SidebarItem
                         to="/cashier"
                         state={ { cashierReturnTo: `${location.pathname}${location.search}${location.hash}` } }
-                        icon={ HandCoinsIcon }
-                        label="Kasir"
+                        icon={ ShoppingCartIcon }
+                        label="Buka Kasir"
                         isExpanded={ isExpanded }
+                        isSelected={ false }
                         onClick={ handleNavigate }
-                        end
                     />
 
-                    <SidebarItem
-                        onClick={ handleLogout }
-                        icon={ LogOutIcon }
-                        label="Keluar"
-                        isExpanded={ isExpanded }
-                    />
+                    <div className="bloom__sidebar-account" role="group" aria-label="Akun saat ini">
+                        <div className="bloom__sidebar-avatar" aria-hidden="true">
+                            { getInitials(currentUser) }
+                        </div>
+
+                        <div className={ isExpanded ? 'bloom__sidebar-account-copy' : 'sr-only' }>
+                            <span className="bloom__sidebar-account-name">{ currentUserName }</span>
+                            <span className="bloom__sidebar-account-role">{ getRoleLabel(currentUser?.role) }</span>
+                        </div>
+
+                        <button
+                            type="button"
+                            className="bloom__sidebar-logout"
+                            aria-label="Keluar akun"
+                            title={ isExpanded ? undefined : 'Keluar akun' }
+                            onClick={ handleLogout }
+                        >
+                            <LogOutIcon aria-hidden="true" />
+                        </button>
+                    </div>
                 </div>
             </aside>
         </>

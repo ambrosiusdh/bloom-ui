@@ -3,53 +3,432 @@
 }
 
 .bloom {
+  --bloom-shell-bg: #f3f6fb;
+  --bloom-shell-surface: #ffffff;
+  --bloom-shell-border: #d6deea;
+  --bloom-shell-text: #15233a;
+  --bloom-shell-muted: #53637a;
+  --bloom-shell-sidebar: #0d244f;
+  --bloom-shell-sidebar-hover: #17386f;
+  --bloom-shell-sidebar-text: #f7faff;
+  --bloom-shell-sidebar-muted: #c9d6ea;
+  --bloom-shell-primary: #2563eb;
+  --bloom-shell-primary-strong: #1d4ed8;
+  --bloom-shell-primary-soft: #e6efff;
+  --bloom-shell-primary-soft-text: #153d91;
+  --bloom-shell-focus: #f59e0b;
+
+  min-width: 0;
+  background: var(--bloom-shell-bg);
+  color: var(--bloom-shell-text);
+
   &__navigation-backdrop {
     display: none;
   }
 
   &__sidebar {
-    flex: 0 0 16rem;
-    width: 16rem;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    width: 18rem;
+    height: 100vh;
+    height: 100dvh;
+    min-width: 0;
+    flex: 0 0 18rem;
+    flex-direction: column;
+    overflow: hidden;
+    color: var(--bloom-shell-sidebar-text);
+    background: var(--bloom-shell-sidebar);
+    border-right: 1px solid rgb(247 250 255 / 14%);
+    transition: flex-basis 180ms ease, width 180ms ease, transform 180ms ease;
 
     &--collapsed {
-      flex-basis: 5rem;
-      width: 5rem;
+      width: 5.25rem;
+      flex-basis: 5.25rem;
     }
   }
 
-  &__content-main {
-    overflow: auto;
-    max-height: calc(100vh - 48px);
+  &__sidebar-brand {
+    display: flex;
+    min-height: 4.5rem;
+    flex: 0 0 4.5rem;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgb(247 250 255 / 14%);
   }
+
+  &__sidebar-mark {
+    display: grid;
+    width: 2.625rem;
+    height: 2.625rem;
+    flex: 0 0 2.625rem;
+    place-items: center;
+    color: #ffffff;
+    background: var(--bloom-shell-primary);
+    border-radius: 0.75rem;
+    font-size: 1.1875rem;
+    font-weight: 600;
+  }
+
+  &__sidebar-brand-copy,
+  &__sidebar-account-copy {
+    min-width: 0;
+  }
+
+  &__sidebar-brand-name {
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
+
+  &__sidebar-close {
+    display: none;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    margin-left: auto;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    color: var(--bloom-shell-sidebar-text);
+    background: transparent;
+    border: 0;
+    border-radius: 0.625rem;
+  }
+
+  &__sidebar-navigation {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.875rem 0.75rem 1.125rem;
+    scrollbar-color: rgb(247 250 255 / 38%) transparent;
+    scrollbar-width: thin;
+
+    section + section {
+      margin-top: 1.125rem;
+    }
+  }
+
+  &__sidebar-group-title {
+    margin: 0 0.625rem 0.4375rem;
+    color: var(--bloom-shell-sidebar-muted);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.35;
+  }
+
+  &__sidebar-group-items {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  &__sidebar-footer {
+    flex: 0 0 auto;
+    padding: 0.75rem;
+    background: var(--bloom-shell-sidebar);
+    border-top: 1px solid rgb(247 250 255 / 14%);
+
+    > .bloom-sidebar-item {
+      justify-content: center;
+      min-height: 3.125rem;
+      margin-bottom: 0.625rem;
+      color: #ffffff;
+      background: var(--bloom-shell-primary);
+      border-color: rgb(255 255 255 / 22%);
+      font-weight: 600;
+
+      &:hover {
+        background: var(--bloom-shell-primary-strong);
+      }
+    }
+  }
+
+  &__sidebar-account {
+    display: grid;
+    grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+    align-items: center;
+    gap: 0.5625rem;
+  }
+
+  &__sidebar-avatar {
+    display: grid;
+    width: 2.75rem;
+    height: 2.75rem;
+    place-items: center;
+    color: var(--bloom-shell-sidebar-text);
+    background: var(--bloom-shell-sidebar-hover);
+    border-radius: 50%;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  &__sidebar-account-name,
+  &__sidebar-account-role {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__sidebar-account-name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+  }
+
+  &__sidebar-account-role {
+    margin-top: 0.125rem;
+    color: var(--bloom-shell-sidebar-muted);
+    font-size: 0.8125rem;
+  }
+
+  &__sidebar-logout {
+    display: inline-flex;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    color: var(--bloom-shell-sidebar-text);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.625rem;
+
+    &:hover {
+      background: var(--bloom-shell-sidebar-hover);
+    }
+  }
+
+  &__sidebar--collapsed &__sidebar-brand,
+  &__sidebar--collapsed .bloom-sidebar-item {
+    justify-content: center;
+  }
+
+  &__sidebar--collapsed &__sidebar-navigation,
+  &__sidebar--collapsed &__sidebar-footer {
+    padding-inline: 0.625rem;
+  }
+
+  &__sidebar--collapsed &__sidebar-account {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  &__sidebar--collapsed &__sidebar-avatar {
+    display: none;
+  }
+
+  &__content {
+    min-width: 0;
+  }
+
+  &__content-main {
+    max-height: calc(100vh - 4.5rem);
+    max-height: calc(100dvh - 4.5rem);
+    overflow: auto;
+  }
+}
+
+.bloom-sidebar-item {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 2.875rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5625rem 0.6875rem;
+  color: var(--bloom-shell-sidebar-text);
+  text-align: left;
+  text-decoration: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.625rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 150ms ease, color 150ms ease;
+
+  &:hover {
+    color: var(--bloom-shell-sidebar-text);
+    background: var(--bloom-shell-sidebar-hover);
+  }
+
+  &--selected {
+    color: var(--bloom-shell-primary-soft-text);
+    background: var(--bloom-shell-primary-soft);
+    font-weight: 600;
+
+    &:hover {
+      color: var(--bloom-shell-primary-soft-text);
+      background: var(--bloom-shell-primary-soft);
+    }
+
+    &::before {
+      position: absolute;
+      left: 0.25rem;
+      width: 0.25rem;
+      height: 1.5rem;
+      content: "";
+      background: var(--bloom-shell-primary);
+      border-radius: 9999px;
+    }
+  }
+
+  &__icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: 0 0 1.25rem;
+    stroke-width: 1.9;
+  }
+
+  &__label {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.bloom__sidebar--collapsed .bloom-sidebar-item--selected::before {
+  left: 0.1875rem;
+}
+
+.bloom__sidebar a:focus-visible,
+.bloom__sidebar button:focus-visible,
+.bloom-header a:focus-visible,
+.bloom-header button:focus-visible {
+  outline: 3px solid var(--bloom-shell-focus);
+  outline-offset: 2px;
+}
+
+.bloom-header {
+  display: flex;
+  min-height: 4.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.875rem;
+  padding: 0.625rem 1.375rem;
+  color: var(--bloom-shell-text);
+  background: var(--bloom-shell-surface);
+  border-bottom: 1px solid var(--bloom-shell-border);
+
+  &__expand {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.875rem;
+  }
+
+  &__navigation-toggle.MuiButton-root {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0;
+    color: var(--bloom-shell-text);
+    background: var(--bloom-shell-surface);
+    border: 1px solid var(--bloom-shell-border);
+    border-radius: 0.625rem;
+
+    &:hover {
+      background: var(--bloom-shell-bg);
+    }
+  }
+
+  &__breadcrumbs {
+    min-width: 0;
+    color: var(--bloom-shell-muted);
+
+    a {
+      color: var(--bloom-shell-muted);
+      text-decoration: none;
+
+      &:hover {
+        color: var(--bloom-shell-primary-strong);
+        text-decoration: underline;
+      }
+    }
+
+    .MuiBreadcrumbs-li:last-child .MuiTypography-root {
+      overflow: hidden;
+      color: var(--bloom-shell-text);
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  &--cashier {
+    padding-inline: 1rem;
+  }
+}
+
+.dark .bloom {
+  --bloom-shell-bg: #0a1220;
+  --bloom-shell-surface: #111c2f;
+  --bloom-shell-border: #2d3b52;
+  --bloom-shell-text: #f5f8ff;
+  --bloom-shell-muted: #b5c1d3;
+  --bloom-shell-sidebar: #07152e;
+  --bloom-shell-sidebar-hover: #12305f;
+  --bloom-shell-sidebar-muted: #bdcbe0;
+  --bloom-shell-primary: #6f9cff;
+  --bloom-shell-primary-strong: #8bb0ff;
+  --bloom-shell-primary-soft: #173463;
+  --bloom-shell-primary-soft-text: #f2f6ff;
+  --bloom-shell-focus: #fbbf24;
 }
 
 @media (max-width: 767px) {
   .bloom {
     &__navigation-backdrop {
-      background: rgb(0 0 0 / 50%);
-      border: 0;
-      border-radius: 0;
-      display: block;
-      inset: 0;
-      padding: 0;
       position: fixed;
       z-index: 30;
+      inset: 0;
+      display: block;
+      padding: 0;
+      background: rgb(4 12 28 / 58%);
+      border: 0;
+      border-radius: 0;
     }
 
-    &__sidebar {
-      flex-basis: auto;
-      inset: 0 auto 0 0;
-      max-width: calc(100vw - 3rem);
+    &__sidebar,
+    &__sidebar--collapsed {
       position: fixed;
-      transform: translateX(0);
-      width: 16rem;
       z-index: 40;
-
-      &--collapsed {
-        transform: translateX(-100%);
-        visibility: hidden;
-        width: 16rem;
-      }
+      inset: 0 auto 0 0;
+      width: min(21.25rem, calc(100vw - 3.25rem));
+      height: 100vh;
+      height: 100dvh;
+      flex-basis: auto;
+      box-shadow: 1rem 0 2.125rem rgb(4 12 28 / 34%);
     }
+
+    &__sidebar--collapsed {
+      visibility: hidden;
+      transform: translateX(-104%);
+    }
+
+    &__sidebar-close {
+      display: inline-flex;
+    }
+
+    &__content-main {
+      max-height: none;
+    }
+  }
+
+  .bloom-header {
+    padding-inline: 1rem;
+
+    &__breadcrumbs .MuiBreadcrumbs-li:first-child,
+    &__breadcrumbs .MuiBreadcrumbs-separator:first-of-type {
+      display: none;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bloom__sidebar,
+  .bloom-sidebar-item {
+    transition: none;
   }
 }

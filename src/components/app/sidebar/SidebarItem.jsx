@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 
 const propTypes = {
@@ -6,7 +6,7 @@ const propTypes = {
     icon: PropTypes.elementType.isRequired,
     label: PropTypes.string.isRequired,
     isExpanded: PropTypes.bool.isRequired,
-    end: PropTypes.bool,
+    isSelected: PropTypes.bool,
     itemRef: PropTypes.shape({ current: PropTypes.object }),
     onClick: PropTypes.func,
     state: PropTypes.object,
@@ -18,63 +18,47 @@ export default function SidebarItem(props) {
         icon: Icon,
         label,
         isExpanded,
-        end = false,
+        isSelected = false,
         itemRef = null,
         onClick = null,
         state = null
     } = props
 
-    const className = isActive => `
-            flex
-            font-semibold
-            items-center 
-            w-full
-            p-2
-            rounded
-            gap-3 
-            transition-colors 
-            duration-200
-            whitespace-nowrap
-            focus-visible:outline
-            focus-visible:outline-2
-            focus-visible:outline-offset-2
-            focus-visible:outline-white
-            ${
-                isActive
-                    ? "bg-white text-maroon-700"
-                    : "text-white hover:bg-maroon-700"
-            }`;
+    const className = [
+        'bloom-sidebar-item',
+        isSelected ? 'bloom-sidebar-item--selected' : ''
+    ].filter(Boolean).join(' ');
 
     const content = (
         <>
             <Icon
                 aria-hidden="true"
-                className="shrink-0 text-xl"
+                className="bloom-sidebar-item__icon"
             />
-            <span className={ isExpanded ? "font-semibold" : "sr-only" }>
+            <span className={ isExpanded ? 'bloom-sidebar-item__label' : 'sr-only' }>
                 { label }
             </span>
         </>
     );
 
     return to ? (
-        <NavLink
+        <Link
             ref={ itemRef }
             to={ to }
             state={ state }
-            end={ end }
+            aria-current={ isSelected ? 'page' : undefined }
             title={ isExpanded ? undefined : label }
-            className={ ({ isActive }) => className(isActive) }
+            className={ className }
             onClick={ onClick }
         >
             { content }
-        </NavLink>
+        </Link>
     ) : (
         <button
             ref={ itemRef }
             type="button"
             title={ isExpanded ? undefined : label }
-            className={ `${className(false)} bg-transparent hover:border-transparent` }
+            className={ className }
             onClick={ onClick }
         >
             { content }

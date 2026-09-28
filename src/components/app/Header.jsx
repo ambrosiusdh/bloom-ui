@@ -1,22 +1,39 @@
 import { Link, useLocation } from "react-router-dom";
-import { Breadcrumbs, Button, Typography } from "@mui/material";
-import { AlignLeftIcon, ArrowLeftIcon } from "lucide-react";
+import { Breadcrumbs, Button, Typography, useMediaQuery } from "@mui/material";
+import {
+    ArrowLeftIcon,
+    MenuIcon,
+    PanelLeftCloseIcon,
+    PanelLeftOpenIcon
+} from "lucide-react";
 import PropTypes from "prop-types";
 
-import { useAppStore, useBreadcrumbStore } from "@stores/index.js";
+import { useAppStore } from "@stores/index.js";
+
+import { getRouteBreadcrumbs } from "./navigation.js";
 
 export default function Header({ cashierMode = false, navigationToggleRef = null }) {
     const toggleExpand = useAppStore(state => state.toggleExpand);
     const isExpanded = useAppStore(state => state.isExpanded);
-    const breadcrumbs = useBreadcrumbStore(state => state.breadcrumbs);
     const location = useLocation();
+    const isNarrowViewport = useMediaQuery('(max-width: 767px)');
+    const breadcrumbs = getRouteBreadcrumbs(location.pathname);
     const cashierReturnTo = location.state?.cashierReturnTo || '/dashboard';
+
     const doExpand = () => {
         toggleExpand();
-    }
+    };
+
+    const navigationLabel = isNarrowViewport
+        ? (isExpanded ? 'Tutup navigasi utama' : 'Buka navigasi utama')
+        : (isExpanded ? 'Ciutkan navigasi utama' : 'Bentangkan navigasi utama');
+
+    const NavigationIcon = isNarrowViewport
+        ? MenuIcon
+        : (isExpanded ? PanelLeftCloseIcon : PanelLeftOpenIcon);
 
     return (
-        <header className={ `bloom-header h-12 border-b flex justify-between items-center ${cashierMode ? 'px-4' : 'pl-4'}` }>
+        <header className={ `bloom-header ${cashierMode ? 'bloom-header--cashier' : ''}` }>
             { cashierMode ? (
                 <>
                     <Typography
@@ -39,29 +56,32 @@ export default function Header({ cashierMode = false, navigationToggleRef = null
                     <Button
                         ref={ navigationToggleRef }
                         id="back-office-navigation-toggle"
-                        variant="contained"
                         aria-controls="back-office-navigation"
                         aria-expanded={ isExpanded }
-                        aria-label={ isExpanded ? 'Tutup navigasi back office' : 'Buka navigasi back office' }
+                        aria-label={ navigationLabel }
+                        className="bloom-header__navigation-toggle"
                         onClick={ doExpand }
                     >
-                        <AlignLeftIcon aria-hidden="true" />
+                        <NavigationIcon aria-hidden="true" />
                     </Button>
 
-                    <Breadcrumbs aria-label="breadcrumb">
+                    <Breadcrumbs
+                        aria-label="Lokasi halaman"
+                        separator="/"
+                        className="bloom-header__breadcrumbs"
+                    >
                         { breadcrumbs.map((breadcrumb, index) =>
-                            breadcrumb?.to ? (
+                            typeof breadcrumb === 'object' ? (
                                 <Link
-                                    key={ index }
-                                    underline="hover"
-                                    color="inherit"
+                                    key={ breadcrumb.to }
                                     to={ breadcrumb.to }
                                 >
                                     { breadcrumb.label }
                                 </Link>
                             ) : (
                                 <Typography
-                                    key={ index }
+                                    key={ `${breadcrumb}-${index}` }
+                                    component="span"
                                 >
                                     { breadcrumb }
                                 </Typography>
@@ -71,7 +91,7 @@ export default function Header({ cashierMode = false, navigationToggleRef = null
                 </div>
             ) }
         </header>
-    )
+    );
 }
 
 Header.propTypes = {
