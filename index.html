@@ -1,10 +1,38 @@
 <!doctype html>
-<html lang="en">
+<html lang="id" data-appearance-preference="light" data-appearance="light">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bloom App</title>
+    <script>
+      (() => {
+        const storageKey = 'bloom.appearance';
+        const supportedPreferences = ['light', 'dark', 'system'];
+        let preference = 'light';
+
+        try {
+          const savedPreference = window.localStorage.getItem(storageKey);
+
+          if (supportedPreferences.includes(savedPreference)) {
+            preference = savedPreference;
+          }
+        } catch {
+          preference = 'light';
+        }
+
+        const systemPrefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches === true;
+        const resolvedAppearance = preference === 'system'
+          ? (systemPrefersDark ? 'dark' : 'light')
+          : preference;
+        const root = document.documentElement;
+
+        root.classList.toggle('dark', resolvedAppearance === 'dark');
+        root.dataset.appearancePreference = preference;
+        root.dataset.appearance = resolvedAppearance;
+        root.style.colorScheme = resolvedAppearance;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

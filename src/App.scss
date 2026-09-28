@@ -19,7 +19,7 @@
     width: 3.25rem;
     height: 3.25rem;
     place-items: center;
-    color: #ffffff;
+    color: var(--bloom-shell-on-primary, #ffffff);
     background: var(--bloom-shell-primary, #2563eb);
     border-radius: 0.875rem;
   }
@@ -36,21 +36,6 @@
 }
 
 .bloom {
-  --bloom-shell-bg: #f3f6fb;
-  --bloom-shell-surface: #ffffff;
-  --bloom-shell-border: #d6deea;
-  --bloom-shell-text: #15233a;
-  --bloom-shell-muted: #53637a;
-  --bloom-shell-sidebar: #0d244f;
-  --bloom-shell-sidebar-hover: #17386f;
-  --bloom-shell-sidebar-text: #f7faff;
-  --bloom-shell-sidebar-muted: #c9d6ea;
-  --bloom-shell-primary: #2563eb;
-  --bloom-shell-primary-strong: #1d4ed8;
-  --bloom-shell-primary-soft: #e6efff;
-  --bloom-shell-primary-soft-text: #153d91;
-  --bloom-shell-focus: #f59e0b;
-
   min-width: 0;
   background: var(--bloom-shell-bg);
   color: var(--bloom-shell-text);
@@ -98,7 +83,7 @@
     height: 2.625rem;
     flex: 0 0 2.625rem;
     place-items: center;
-    color: #ffffff;
+    color: var(--bloom-shell-on-primary);
     background: var(--bloom-shell-primary);
     border-radius: 0.75rem;
     font-size: 1.1875rem;
@@ -167,7 +152,7 @@
       justify-content: center;
       min-height: 3.125rem;
       margin-bottom: 0.625rem;
-      color: #ffffff;
+      color: var(--bloom-shell-on-primary);
       background: var(--bloom-shell-primary);
       border-color: rgb(255 255 255 / 22%);
       font-weight: 600;
@@ -366,6 +351,14 @@
     gap: 0.875rem;
   }
 
+  &__actions {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
   &__navigation-toggle.MuiButton-root {
     min-width: 2.75rem;
     min-height: 2.75rem;
@@ -408,6 +401,56 @@
   }
 }
 
+.bloom-appearance-control {
+  flex: 0 0 auto;
+
+  &__button.MuiButton-root {
+    min-height: 2.75rem;
+    color: var(--bloom-shell-text);
+    background: transparent;
+    border: 1px solid var(--bloom-shell-border);
+    border-radius: 0.625rem;
+    white-space: nowrap;
+
+    &:hover {
+      background: var(--bloom-shell-surface-soft);
+    }
+  }
+
+  &__menu.MuiPaper-root {
+    width: min(23rem, calc(100vw - 2rem));
+    color: var(--bloom-shell-text);
+    background: var(--bloom-shell-surface);
+    border: 1px solid var(--bloom-shell-border-strong);
+    border-radius: 0.875rem;
+    box-shadow: 0 1.125rem 2.75rem rgb(23 42 76 / 22%);
+  }
+
+  &__option.MuiMenuItem-root {
+    min-height: 3.625rem;
+    margin: 0.25rem 0.5rem;
+    padding: 0.5625rem 0.625rem;
+    border: 1px solid transparent;
+    border-radius: 0.625rem;
+
+    .MuiListItemIcon-root {
+      min-width: 2.25rem;
+      color: inherit;
+    }
+
+    .MuiListItemText-secondary {
+      color: var(--bloom-shell-muted);
+      white-space: normal;
+    }
+  }
+
+  &__policy.MuiTypography-root {
+    padding: 0.75rem 1.125rem 0.625rem;
+    color: var(--bloom-shell-muted);
+    border-top: 1px solid var(--bloom-shell-border);
+  }
+}
+
 .not-found {
   display: grid;
   min-height: min(38rem, calc(100vh - 7rem));
@@ -447,29 +490,13 @@
 
   &__action.MuiButton-root {
     margin-top: 0.5rem;
-    color: #ffffff;
+    color: var(--bloom-shell-on-primary);
     background: var(--bloom-shell-primary);
 
     &:hover {
       background: var(--bloom-shell-primary-strong);
     }
   }
-}
-
-.dark .bloom {
-  --bloom-shell-bg: #0a1220;
-  --bloom-shell-surface: #111c2f;
-  --bloom-shell-border: #2d3b52;
-  --bloom-shell-text: #f5f8ff;
-  --bloom-shell-muted: #b5c1d3;
-  --bloom-shell-sidebar: #07152e;
-  --bloom-shell-sidebar-hover: #12305f;
-  --bloom-shell-sidebar-muted: #bdcbe0;
-  --bloom-shell-primary: #6f9cff;
-  --bloom-shell-primary-strong: #8bb0ff;
-  --bloom-shell-primary-soft: #173463;
-  --bloom-shell-primary-soft-text: #f2f6ff;
-  --bloom-shell-focus: #fbbf24;
 }
 
 @media (max-width: 767px) {
@@ -513,11 +540,27 @@
 
   .bloom-header {
     padding-inline: 1rem;
+    flex-wrap: wrap;
 
     &__breadcrumbs .MuiBreadcrumbs-li:first-child,
     &__breadcrumbs .MuiBreadcrumbs-separator:first-of-type {
       display: none;
     }
+  }
+}
+
+@media (max-width: 520px) {
+  .bloom-header__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .bloom-appearance-control__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
   }
 }
 

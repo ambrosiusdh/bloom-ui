@@ -129,7 +129,7 @@ export default function Dashboard() {
                         onClick={ () => fetchDashboardData({ isRefresh: true }) }
                         disabled={ isLoading }
                         aria-describedby="dashboard-last-updated"
-                        className="border-maroon-600 text-maroon-600 hover:bg-maroon-600/5"
+                        className="border-operational-600 text-operational-600 hover:bg-operational-600/5"
                     >
                         { isLoading ? 'Memuat...' : 'Perbarui data' }
                     </Button>

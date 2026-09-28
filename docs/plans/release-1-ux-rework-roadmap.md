@@ -1034,6 +1034,8 @@ dependent step while its predecessor is still under review.
 
 #### UXI-01 — Appearance foundation
 
+Status: `IMPLEMENTED`
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-appearance-modes-final-review.html`
 
 Decision: `docs/ux/design/uxr-d16-appearance-modes-decision.md`

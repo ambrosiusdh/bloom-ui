@@ -10,6 +10,7 @@ import PropTypes from "prop-types";
 
 import { useAppStore } from "@stores/index.js";
 
+import AppearanceControl from "./AppearanceControl.jsx";
 import { getRouteBreadcrumbs } from "./navigation.js";
 
 export default function Header({ cashierMode = false, navigationToggleRef = null }) {
@@ -43,52 +44,61 @@ export default function Header({ cashierMode = false, navigationToggleRef = null
                         Kasir
                     </Typography>
 
-                    <Button
-                        component={ Link }
-                        to={ cashierReturnTo }
-                        startIcon={ <ArrowLeftIcon /> }
-                    >
-                        Kembali ke menu utama
-                    </Button>
+                    <div className="bloom-header__actions">
+                        <Button
+                            component={ Link }
+                            to={ cashierReturnTo }
+                            startIcon={ <ArrowLeftIcon /> }
+                        >
+                            Kembali ke menu utama
+                        </Button>
+                        <AppearanceControl />
+                    </div>
                 </>
             ) : (
-                <div className="bloom-header__expand flex gap-4 items-center">
-                    <Button
-                        ref={ navigationToggleRef }
-                        id="back-office-navigation-toggle"
-                        aria-controls="back-office-navigation"
-                        aria-expanded={ isExpanded }
-                        aria-label={ navigationLabel }
-                        className="bloom-header__navigation-toggle"
-                        onClick={ doExpand }
-                    >
-                        <NavigationIcon aria-hidden="true" />
-                    </Button>
+                <>
+                    <div className="bloom-header__expand flex gap-4 items-center">
+                        <Button
+                            ref={ navigationToggleRef }
+                            id="back-office-navigation-toggle"
+                            aria-controls="back-office-navigation"
+                            aria-expanded={ isExpanded }
+                            aria-label={ navigationLabel }
+                            className="bloom-header__navigation-toggle"
+                            onClick={ doExpand }
+                        >
+                            <NavigationIcon aria-hidden="true" />
+                        </Button>
 
-                    <Breadcrumbs
-                        aria-label="Lokasi halaman"
-                        separator="/"
-                        className="bloom-header__breadcrumbs"
-                    >
-                        { breadcrumbs.map((breadcrumb, index) =>
-                            typeof breadcrumb === 'object' ? (
-                                <Link
-                                    key={ breadcrumb.to }
-                                    to={ breadcrumb.to }
-                                >
-                                    { breadcrumb.label }
-                                </Link>
-                            ) : (
-                                <Typography
-                                    key={ `${breadcrumb}-${index}` }
-                                    component="span"
-                                >
-                                    { breadcrumb }
-                                </Typography>
-                            )
-                        ) }
-                    </Breadcrumbs>
-                </div>
+                        <Breadcrumbs
+                            aria-label="Lokasi halaman"
+                            separator="/"
+                            className="bloom-header__breadcrumbs"
+                        >
+                            { breadcrumbs.map((breadcrumb, index) =>
+                                typeof breadcrumb === 'object' ? (
+                                    <Link
+                                        key={ breadcrumb.to }
+                                        to={ breadcrumb.to }
+                                    >
+                                        { breadcrumb.label }
+                                    </Link>
+                                ) : (
+                                    <Typography
+                                        key={ `${breadcrumb}-${index}` }
+                                        component="span"
+                                    >
+                                        { breadcrumb }
+                                    </Typography>
+                                )
+                            ) }
+                        </Breadcrumbs>
+                    </div>
+
+                    <div className="bloom-header__actions">
+                        <AppearanceControl />
+                    </div>
+                </>
             ) }
         </header>
     );

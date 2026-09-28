@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Contract
 
-Last updated: 2026-09-28
+Last updated: 2026-09-29
 
 ## 1. Purpose
 
@@ -29,6 +29,11 @@ Bloom UI is currently a JavaScript React application:
 - Material UI, Sass, and existing utility styles.
 - Vitest, React Testing Library, and jsdom for frontend tests.
 - PropTypes and existing ESLint rules for current runtime/static checks.
+- UXI-01 appearance foundation is implemented: first use renders in light mode; operators can choose
+  `Terang`, `Gelap`, or `Ikuti sistem`; the explicit browser/device-local choice resolves before
+  application paint; system mode follows later operating-system changes; and shared Operational Blue,
+  semantic state, focus, surface, text, border, and disabled tokens drive both MUI and existing shell
+  styles without an account preference or backend endpoint.
 - FE-04 cashier-focused layout is implemented: `/cashier` uses a focused shell with a clear back-office escape while preserving the route and shared theme.
 - FE-05 back-office navigation accessibility is implemented: current destinations are semantically grouped, route-active, keyboard accessible, and usable as a responsive drawer without adding or changing routes.
 - FE-06 item-category reliability is implemented: active-category list/create/edit/deactivate flows match the current backend contract and cover explicit async, validation, conflict, pending, success, confirmation, and focus behavior.

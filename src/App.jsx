@@ -107,7 +107,7 @@ function App() {
     }
 
     return (
-        <div className={ `bloom ${isCashierMode ? 'bloom--cashier' : ''} flex w-full min-h-screen bg-gray-100 dark:bg-zinc-900 text-zinc-900 dark:text-white transition duration-300` }>
+        <div className={ `bloom ${isCashierMode ? 'bloom--cashier' : ''} flex w-full min-h-screen` }>
             <Loader />
 
             { !hideLayout && !isCashierMode && (

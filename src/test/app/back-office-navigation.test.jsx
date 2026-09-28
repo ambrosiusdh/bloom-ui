@@ -127,6 +127,8 @@ describe('back-office navigation', () => {
 
         const breadcrumbs = screen.getByRole('navigation', { name: 'Lokasi halaman' });
 
+        expect(screen.getByRole('button', { name: 'Tampilan aplikasi: Terang' }))
+            .toBeInTheDocument();
         expect(within(breadcrumbs).getByText('Persediaan')).toBeInTheDocument();
         expect(within(breadcrumbs).getByRole('link', { name: 'Pergerakan stok' }))
             .toHaveAttribute('href', '/stock-movements');

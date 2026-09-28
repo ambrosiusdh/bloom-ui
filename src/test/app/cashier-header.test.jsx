@@ -35,6 +35,9 @@ describe('cashier header', () => {
 
         const returnLink = screen.getByRole('link', { name: 'Kembali ke menu utama' });
 
+        expect(screen.getByRole('button', { name: 'Tampilan aplikasi: Terang' }))
+            .toBeInTheDocument();
+
         await user.tab();
 
         expect(returnLink).toHaveFocus();
