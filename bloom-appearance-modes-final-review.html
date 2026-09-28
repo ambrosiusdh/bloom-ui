@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bloom UXR-D16 — Review mode terang dan gelap</title>
+    <style>
+        * { box-sizing: border-box; }
+        html { background: #e8eef7; color: #15243b; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+        body { margin: 0; min-width: 320px; overflow-x: hidden; }
+        button, select, input { font: inherit; }
+        button, select { min-height: 44px; }
+        button { cursor: pointer; }
+        button:disabled { cursor: not-allowed; }
+        .review { max-width: 1600px; margin: 0 auto; padding: 24px; }
+        .review__header { display: grid; gap: 18px; margin-bottom: 24px; }
+        .review__eyebrow { margin: 0; color: #1552a2; font-size: 14px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
+        .review h1 { margin: 4px 0 6px; font-size: clamp(26px, 3vw, 38px); line-height: 1.12; }
+        .review__lede { max-width: 920px; margin: 0; color: #41536d; font-size: 16px; line-height: 1.6; }
+        .review__controls { display: grid; grid-template-columns: repeat(5, minmax(150px, 1fr)); gap: 12px; padding: 16px; background: #fff; border: 1px solid #bfccdc; border-radius: 16px; box-shadow: 0 8px 24px rgb(24 50 85 / 8%); }
+        .review__field { min-width: 0; }
+        .review__field label { display: block; margin-bottom: 6px; color: #334964; font-size: 14px; font-weight: 700; }
+        .review__field select { width: 100%; padding: 8px 34px 8px 12px; color: #172b45; background: #fff; border: 1px solid #6d7f95; border-radius: 9px; }
+        .review__field select:focus-visible { outline: 3px solid #7a2e00; outline-offset: 2px; }
+        .review__decision { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 12px 14px; color: #263c57; background: #f5f8fc; border: 1px solid #c4d0df; border-radius: 10px; font-size: 14px; }
+        .review__decision strong { color: #123f78; }
+        .review__status { margin-left: auto; font-weight: 700; }
+        .comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+        .mode-card { min-width: 0; overflow: hidden; border: 1px solid #9eb0c5; border-radius: 16px; box-shadow: 0 10px 30px rgb(15 38 70 / 12%); }
+        .mode-card__label { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; min-height: 48px; padding: 10px 14px; color: #11243c; background: #f8fafc; border-bottom: 1px solid #b8c5d4; font-size: 14px; font-weight: 750; }
+        .mode-card__label span:last-child { color: #4d6079; font-weight: 600; }
+        .product { --bg: #f3f6fa; --surface: #ffffff; --surface-2: #f8fafc; --text: #142238; --muted: #53657a; --border: #b3c0cf; --border-strong: #73859a; --primary: #1457a6; --primary-hover: #0d4588; --primary-text: #ffffff; --sidebar: #0d2f57; --sidebar-text: #f7fbff; --sidebar-muted: #c5d6e7; --selected: #dcecff; --selected-text: #0a3d78; --focus: #7a2e00; --success-bg: #e7f6ed; --success-border: #257643; --success-text: #174f2c; --warning-bg: #fff4d6; --warning-border: #9b6714; --warning-text: #65420a; --error-bg: #fdebec; --error-border: #b3313c; --error-text: #7d2029; --info-bg: #e6f1ff; --info-border: #2d68aa; --info-text: #1c4c82; --disabled-bg: #e1e6ec; --disabled-text: #667587; --overlay: rgb(4 16 31 / 62%); min-width: 0; color: var(--text); background: var(--bg); font-size: 16px; line-height: 1.45; }
+        .product[data-theme="dark"] { --bg: #0d1724; --surface: #152235; --surface-2: #1b2a3e; --text: #f2f7fc; --muted: #c5d1df; --border: #52657b; --border-strong: #8ea0b4; --primary: #67a9f2; --primary-hover: #8bc0fa; --primary-text: #07182b; --sidebar: #071b32; --sidebar-text: #f4f8fc; --sidebar-muted: #bfd1e3; --selected: #1f456f; --selected-text: #f5f9ff; --focus: #ffd166; --success-bg: #173c2a; --success-border: #72cc91; --success-text: #d9f7e4; --warning-bg: #493817; --warning-border: #e7b85c; --warning-text: #fff0c9; --error-bg: #4b2328; --error-border: #f28c95; --error-text: #ffe1e4; --info-bg: #173758; --info-border: #7ab5f3; --info-text: #e3f1ff; --disabled-bg: #2a3747; --disabled-text: #aeb9c6; --overlay: rgb(0 0 0 / 72%); color-scheme: dark; }
+        .product * { min-width: 0; }
+        .product button, .product input, .product select { color: inherit; }
+        .product button:focus-visible, .product input:focus-visible, .product select:focus-visible, .product a:focus-visible, .demo-focus { outline: 3px solid var(--focus); outline-offset: 3px; }
+        .product button { border: 1px solid transparent; border-radius: 8px; font-weight: 750; }
+        .product button:disabled, .product input:disabled { color: var(--disabled-text); background: var(--disabled-bg); border-color: var(--border); opacity: 1; }
+        .shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 690px; }
+        .sidebar { display: flex; flex-direction: column; color: var(--sidebar-text); background: var(--sidebar); }
+        .brand { display: flex; align-items: center; min-height: 68px; padding: 0 18px; border-bottom: 1px solid rgb(255 255 255 / 18%); font-size: 22px; font-weight: 800; }
+        .nav { flex: 1; padding: 14px 10px; }
+        .nav-group { margin: 10px 8px 6px; color: var(--sidebar-muted); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+        .nav-item { display: flex; gap: 10px; align-items: center; min-height: 44px; margin: 4px 0; padding: 9px 10px; color: inherit; border-radius: 8px; font-size: 14px; font-weight: 650; text-decoration: none; }
+        .nav-item::before { width: 18px; text-align: center; content: "○"; }
+        .nav-item[aria-current="page"] { color: var(--selected-text); background: var(--selected); }
+        .nav-item[aria-current="page"]::before { content: "●"; }
+        .account { padding: 12px; border-top: 1px solid rgb(255 255 255 / 18%); }
+        .account strong, .account span { display: block; overflow-wrap: anywhere; }
+        .account span { color: var(--sidebar-muted); font-size: 14px; }
+        .workspace { display: flex; flex-direction: column; min-width: 0; }
+        .topbar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; min-height: 68px; padding: 10px 18px; background: var(--surface); border-bottom: 1px solid var(--border); }
+        .topbar strong { font-size: 18px; }
+        .top-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+        .mini-action { min-height: 44px; padding: 8px 12px; color: var(--text); background: var(--surface); border-color: var(--border-strong) !important; }
+        .page { padding: 20px; }
+        .page-title { margin: 0; font-size: 24px; line-height: 1.25; }
+        .page-subtitle { margin: 6px 0 18px; color: var(--muted); font-size: 14px; }
+        .cashier { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, .85fr); gap: 16px; }
+        .panel { padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 4px 12px rgb(0 0 0 / 8%); }
+        .panel h2 { margin: 0 0 12px; font-size: 18px; }
+        .search-row { display: flex; gap: 8px; }
+        .field { width: 100%; min-height: 46px; padding: 10px 12px; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; font-size: 16px; }
+        .primary { min-height: 48px; padding: 10px 16px; color: var(--primary-text) !important; background: var(--primary); }
+        .secondary { min-height: 44px; padding: 9px 13px; color: var(--text); background: var(--surface); border-color: var(--border-strong) !important; }
+        .result, .cart-line, .grouped-row { display: grid; gap: 8px; padding: 12px 0; border-top: 1px solid var(--border); }
+        .result { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+        .item-name { font-size: 17px; font-weight: 750; }
+        .support { color: var(--muted); font-size: 14px; }
+        .status-inline { display: inline-flex; gap: 6px; align-items: center; font-weight: 750; }
+        .cart-line { grid-template-columns: minmax(0, 1fr) auto; }
+        .money { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+        .summary { display: grid; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+        .summary-row { display: flex; justify-content: space-between; gap: 12px; }
+        .summary-row strong { text-align: right; }
+        .stack { display: grid; gap: 12px; }
+        .state-banner { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; margin: 0 0 16px; padding: 12px 14px; border: 1px solid; border-radius: 10px; }
+        .state-banner strong { display: block; margin-bottom: 2px; }
+        .state-banner__icon { font-size: 20px; font-weight: 900; line-height: 1.2; }
+        .state-banner--success { color: var(--success-text); background: var(--success-bg); border-color: var(--success-border); }
+        .state-banner--warning { color: var(--warning-text); background: var(--warning-bg); border-color: var(--warning-border); }
+        .state-banner--error { color: var(--error-text); background: var(--error-bg); border-color: var(--error-border); }
+        .state-banner--info { color: var(--info-text); background: var(--info-bg); border-color: var(--info-border); }
+        .selected-row { margin: -1px -8px 0; padding: 12px 8px; color: var(--selected-text); background: var(--selected); border: 2px solid var(--primary); border-radius: 8px; }
+        .spinner { display: inline-block; width: 18px; height: 18px; border: 3px solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: -3px; animation: spin .8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) { .spinner { animation: none; border-right-color: currentColor; } }
+        .table-wrap { max-width: 100%; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 10px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+        th { color: var(--muted); font-weight: 800; }
+        td[data-label="Jumlah"] { font-variant-numeric: tabular-nums; font-weight: 750; }
+        .pagination { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; margin-top: 14px; color: var(--muted); font-size: 14px; }
+        .pagination__actions { display: flex; gap: 8px; }
+        .state-gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+        .state-swatch { min-height: 112px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+        .state-swatch strong { display: block; margin-bottom: 6px; }
+        .state-swatch button { width: 100%; margin-top: 8px; }
+        .product.is-narrow .shell { display: block; min-height: 720px; }
+        .product.is-narrow .sidebar { display: none; }
+        .product.is-narrow .topbar { align-items: stretch; }
+        .product.is-narrow .topbar::before { display: grid; place-items: center; width: 44px; min-height: 44px; content: "☰"; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; }
+        .product.is-narrow .topbar strong { align-self: center; }
+        .product.is-narrow .page { padding: 14px; }
+        .product.is-narrow .cashier { grid-template-columns: 1fr; }
+        .product.is-narrow .search-row { display: grid; }
+        .product.is-narrow table, .product.is-narrow thead, .product.is-narrow tbody, .product.is-narrow tr, .product.is-narrow th, .product.is-narrow td { display: block; }
+        .product.is-narrow thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+        .product.is-narrow tr { margin-bottom: 12px; padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; }
+        .product.is-narrow td { display: grid; grid-template-columns: minmax(105px, .8fr) minmax(0, 1.2fr); gap: 8px; padding: 7px 0; border: 0; overflow-wrap: anywhere; }
+        .product.is-narrow td::before { color: var(--muted); content: attr(data-label); font-weight: 750; }
+        .product.is-narrow .state-gallery { grid-template-columns: 1fr; }
+        .product.is-zoomed { font-size: 200%; }
+        .product.is-zoomed .shell { grid-template-columns: 1fr; }
+        .product.is-zoomed .sidebar { display: none; }
+        .product.is-zoomed .cashier { grid-template-columns: 1fr; }
+        .product.is-zoomed .topbar { align-items: stretch; }
+        .product.is-zoomed .page { padding: 14px; }
+        .product.is-zoomed .state-gallery { grid-template-columns: 1fr; }
+        .mode-card.is-narrow { max-width: 420px; width: 100%; justify-self: center; }
+        .documentation { margin-top: 24px; padding: 20px; background: #fff; border: 1px solid #bfccdc; border-radius: 16px; }
+        .documentation h2 { margin: 0 0 12px; font-size: 22px; }
+        .doc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+        .doc-section { min-width: 0; }
+        .doc-section h3 { margin: 14px 0 8px; font-size: 17px; }
+        .doc-section ul, .doc-section ol { margin: 0; padding-left: 22px; }
+        .doc-section li { margin: 6px 0; line-height: 1.5; }
+        .token-table { width: 100%; font-size: 13px; }
+        .token-table code { overflow-wrap: anywhere; }
+        .pass { color: #176b35; font-weight: 800; }
+        .review-note { margin-top: 18px; padding: 12px 14px; color: #513900; background: #fff6dc; border: 1px solid #9b6b13; border-radius: 10px; }
+        @media (max-width: 1100px) { .review__controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } .comparison, .doc-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 620px) { .review { padding: 12px; } .review__controls { grid-template-columns: 1fr; } .review__status { margin-left: 0; } }
+    </style>
+</head>
+<body>
+    <main class="review">
+        <header class="review__header">
+            <div>
+                <p class="review__eyebrow">UXR-D16 · keputusan pemilik disetujui</p>
+                <h1>Mode terang dan gelap Bloom</h1>
+                <p class="review__lede">Perbandingan tersinkron untuk konteks Kasir dan Back office. Data, Bahasa Indonesia, urutan, fokus, responsif, dan makna transaksi tetap identik; hanya token tampilan yang berubah.</p>
+            </div>
+            <section class="review__controls" aria-label="Kontrol review tampilan">
+                <div class="review__field">
+                    <label for="preference">Preferensi</label>
+                    <select id="preference">
+                        <option value="light">Terang</option>
+                        <option value="dark">Gelap</option>
+                        <option value="system">Ikuti sistem</option>
+                    </select>
+                </div>
+                <div class="review__field">
+                    <label for="system-sample">Contoh sistem</label>
+                    <select id="system-sample">
+                        <option value="light">Sistem terang</option>
+                        <option value="dark">Sistem gelap</option>
+                    </select>
+                </div>
+                <div class="review__field">
+                    <label for="screen">Layar contoh</label>
+                    <select id="screen">
+                        <option value="cashier">Kasir · /cashier</option>
+                        <option value="backoffice">Pengeluaran · /expenses</option>
+                    </select>
+                </div>
+                <div class="review__field">
+                    <label for="state">Keadaan</label>
+                    <select id="state">
+                        <option value="normal">Normal</option>
+                        <option value="selected">Terpilih</option>
+                        <option value="focus">Fokus keyboard</option>
+                        <option value="disabled">Dinonaktifkan</option>
+                        <option value="success">Berhasil</option>
+                        <option value="warning">Peringatan / hasil belum pasti</option>
+                        <option value="error">Kesalahan</option>
+                        <option value="pending">Sedang diproses</option>
+                        <option value="rejected">Ditolak server</option>
+                    </select>
+                </div>
+                <div class="review__field">
+                    <label for="viewport">Viewport</label>
+                    <select id="viewport">
+                        <option value="wide">Desktop lebar</option>
+                        <option value="narrow">Desktop sempit · 760 px</option>
+                        <option value="zoom">Zoom browser 200%</option>
+                    </select>
+                </div>
+            </section>
+            <div class="review__decision" role="status" aria-live="polite">
+                <span><strong>Default pertama:</strong> Terang</span>
+                <span><strong>Penyimpanan:</strong> browser/perangkat lokal</span>
+                <span><strong>Backend:</strong> tidak ada endpoint preferensi</span>
+                <span><strong>Sistem:</strong> mengikuti perubahan OS saat “Ikuti sistem” aktif</span>
+                <span class="review__status" id="resolved-preference">Pilihan tersimpan: Terang · hasil: Terang</span>
+            </div>
+        </header>
+
+        <section class="comparison" aria-label="Perbandingan identik mode terang dan gelap">
+            <article class="mode-card" data-card="light">
+                <div class="mode-card__label"><span>Terang</span><span>Referensi default toko</span></div>
+                <div class="product" data-theme="light" id="light-preview"></div>
+            </article>
+            <article class="mode-card" data-card="dark">
+                <div class="mode-card__label"><span>Gelap</span><span>Konten dan perilaku identik</span></div>
+                <div class="product" data-theme="dark" id="dark-preview"></div>
+            </article>
+        </section>
+
+        <section class="documentation" aria-labelledby="review-details-title">
+            <h2 id="review-details-title">Catatan keputusan dan validasi</h2>
+            <div class="doc-grid">
+                <section class="doc-section">
+                    <h3>Pemetaan token semantik</h3>
+                    <div class="table-wrap">
+                        <table class="token-table">
+                            <thead><tr><th>Token</th><th>Terang</th><th>Gelap</th><th>Peran</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>background</code></td><td>#F3F6FA</td><td>#0D1724</td><td>Kanvas aplikasi</td></tr>
+                                <tr><td><code>surface</code></td><td>#FFFFFF</td><td>#152235</td><td>Panel dan header</td></tr>
+                                <tr><td><code>text</code></td><td>#142238</td><td>#F2F7FC</td><td>Teks utama</td></tr>
+                                <tr><td><code>muted</code></td><td>#53657A</td><td>#C5D1DF</td><td>Teks pendukung</td></tr>
+                                <tr><td><code>primary</code></td><td>#1457A6</td><td>#67A9F2</td><td>Operational Blue/action</td></tr>
+                                <tr><td><code>focus</code></td><td>#7A2E00</td><td>#FFD166</td><td>Ring fokus 3 px</td></tr>
+                                <tr><td><code>success</code></td><td>#E7F6ED / #174F2C</td><td>#173C2A / #D9F7E4</td><td>Berhasil + ikon/teks</td></tr>
+                                <tr><td><code>warning</code></td><td>#FFF4D6 / #65420A</td><td>#493817 / #FFF0C9</td><td>Peringatan + ikon/teks</td></tr>
+                                <tr><td><code>error</code></td><td>#FDEBEC / #7D2029</td><td>#4B2328 / #FFE1E4</td><td>Gagal/ditolak + ikon/teks</td></tr>
+                                <tr><td><code>disabled</code></td><td>#E1E6EC / #667587</td><td>#2A3747 / #AEB9C6</td><td>Kontrol nonaktif</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                <section class="doc-section">
+                    <h3>Dampak komponen saat implementasi nanti</h3>
+                    <ul>
+                        <li><strong>Ubah token saja:</strong> MUI theme/CssBaseline, surface aplikasi, kartu/Paper, Alert, Button, field/select, Table, dialog, breadcrumb, dan focus ring.</li>
+                        <li><strong>Pertahankan struktur:</strong> App, Header, Sidebar/SidebarItem, Cashier, CashierCart, CashierCheckout, halaman riwayat/detail, dan modal konfirmasi.</li>
+                        <li><strong>Tambahan presentasi:</strong> satu kontrol Terang/Gelap/Ikuti sistem pada header dan penyelesaian preferensi sebelum paint.</li>
+                        <li><strong>Tidak berubah:</strong> route, API/store, payload, idempotency, session gate, kalkulasi server, urutan fokus, dan perilaku recovery.</li>
+                    </ul>
+                    <h3>Perilaku preferensi yang disetujui</h3>
+                    <ol>
+                        <li>Sebelum paint bermakna pertama, baca pilihan lokal <strong>Terang</strong>, <strong>Gelap</strong>, atau <strong>Ikuti sistem</strong>.</li>
+                        <li>Jika belum ada pilihan tersimpan, gunakan <strong>Terang</strong>; jangan menebak preferensi akun.</li>
+                        <li>Terang/Gelap menerapkan mode manual dan menyimpan enum itu pada browser/perangkat lokal.</li>
+                        <li>Ikuti sistem menyimpan enum <strong>sistem</strong>, menyelesaikan warna dari <code>prefers-color-scheme</code>, lalu mengikuti perubahan OS selama pilihan itu aktif.</li>
+                        <li>Tidak ada sinkronisasi akun, endpoint backend, atau perubahan perilaku bisnis ketika mode berganti.</li>
+                    </ol>
+                    <h3>Target validasi</h3>
+                    <ul>
+                        <li><span class="pass">Lulus target:</span> pasangan teks utama/pendukung terendah 5,98:1 (terang) dan 7,27:1 (gelap); status terendah 7,65:1 dan 9,97:1.</li>
+                        <li>Ring fokus 9,47:1 (terang) dan 11,10:1 (gelap); batas kontrol 3,78:1 dan 5,97:1.</li>
+                        <li>Body/control 16 px, pendukung 14 px, judul halaman 24 px, target aksi ≥ 44 px; aksi pembayaran utama 48 px.</li>
+                        <li>Setiap status memakai label, ikon, dan boundary; warna tidak berdiri sendiri.</li>
+                        <li>Narrow dan simulasi zoom 200% menumpuk konten tanpa overflow halaman horizontal.</li>
+                    </ul>
+                </section>
+            </div>
+            <p class="review-note"><strong>Keputusan belum tersisa:</strong> tidak ada untuk arah desain UXR-D16. Implementasi, migrasi token MUI/Tailwind lama, strategi pengujian no-flash, dan uji pada laptop toko tetap merupakan pekerjaan re-baseline terpisah.</p>
+        </section>
+    </main>
+
+    <script>
+        const preference = document.getElementById('preference');
+        const systemSample = document.getElementById('system-sample');
+        const screen = document.getElementById('screen');
+        const state = document.getElementById('state');
+        const viewport = document.getElementById('viewport');
+        const resolvedPreference = document.getElementById('resolved-preference');
+        const previews = [document.getElementById('light-preview'), document.getElementById('dark-preview')];
+        const cards = [...document.querySelectorAll('.mode-card')];
+
+        const statusContent = {
+            cashier: {
+                normal: '',
+                selected: '<div class="state-banner state-banner--info"><span class="state-banner__icon" aria-hidden="true">●</span><div><strong>Barang terpilih</strong>Kopi Bloom 250 g dipilih; tombol Tambahkan tetap menjadi langkah berikutnya.</div></div>',
+                focus: '<div class="state-banner state-banner--info"><span class="state-banner__icon" aria-hidden="true">⌨</span><div><strong>Fokus keyboard terlihat</strong>Fokus berada pada pencarian. Urutan berikutnya: Cari, Tambahkan, jumlah, metode, nominal, Tinjau pembayaran.</div></div>',
+                disabled: '<div class="state-banner state-banner--info"><span class="state-banner__icon" aria-hidden="true">⊘</span><div><strong>Transaksi dikunci</strong>Kontrol transaksi tidak aktif sampai sesi kas diverifikasi terbuka.</div></div>',
+                success: '<div class="state-banner state-banner--success" role="status"><span class="state-banner__icon" aria-hidden="true">✓</span><div><strong>Penjualan POS/IX/2026/0042 berhasil</strong>Total server Rp84.000 · Tunai Rp100.000 · Kembalian server Rp16.000. Pencetakan tetap hasil terpisah.</div></div>',
+                warning: '<div class="state-banner state-banner--warning"><span class="state-banner__icon" aria-hidden="true">!</span><div><strong>Hasil transaksi belum diketahui</strong>Keranjang dan permintaan persis tetap dikunci. Periksa status atau kirim ulang hanya dengan kunci idempotensi yang sama.</div></div>',
+                error: '<div class="state-banner state-banner--error" role="alert"><span class="state-banner__icon" aria-hidden="true">×</span><div><strong>Struk belum dapat dicetak</strong>Penjualan POS/IX/2026/0042 tetap berhasil. Coba cetak lagi tanpa mengirim ulang penjualan.</div></div>',
+                pending: '<div class="state-banner state-banner--info" role="status"><span class="state-banner__icon" aria-hidden="true"><span class="spinner"></span></span><div><strong>Mengirim transaksi satu kali</strong>Permintaan dan kunci yang sama sedang diproses. Semua kontrol transaksi dikunci.</div></div>',
+                rejected: '<div class="state-banner state-banner--error" role="alert"><span class="state-banner__icon" aria-hidden="true">×</span><div><strong>Transaksi ditolak server</strong>Stok Kopi Bloom 250 g berubah dan tidak mencukupi. Penjualan tidak tersimpan; keranjang dipertahankan untuk ditinjau.</div></div>'
+            },
+            backoffice: {
+                normal: '',
+                selected: '<div class="state-banner state-banner--info"><span class="state-banner__icon" aria-hidden="true">●</span><div><strong>Pengeluaran #42 terpilih</strong>Baris tetap menampilkan jumlah, sesi, pencatat, waktu, dan kelayakan pembatalan dari server.</div></div>',
+                focus: '<div class="state-banner state-banner--info"><span class="state-banner__icon" aria-hidden="true">⌨</span><div><strong>Fokus keyboard terlihat</strong>Fokus pada aksi detail #42; fokus dialog nantinya dimulai di Kembali dan dipulihkan ke pemicu.</div></div>',
+                disabled: '<div class="state-banner state-banner--info"><span class="state-banner__icon" aria-hidden="true">⊘</span><div><strong>Pembatalan tidak tersedia</strong>Sesi kas #14 sudah ditutup. Alasan blokir berasal dari server; catatan asli tetap terlihat.</div></div>',
+                success: '<div class="state-banner state-banner--success" role="status"><span class="state-banner__icon" aria-hidden="true">✓</span><div><strong>Pembatalan pengeluaran #42 tersimpan</strong>Catatan asli dipertahankan. Gerakan kompensasi dan dampak sesi ditampilkan dari hasil server.</div></div>',
+                warning: '<div class="state-banner state-banner--warning"><span class="state-banner__icon" aria-hidden="true">!</span><div><strong>Hasil tersimpan, penyegaran sesi tertunda</strong>Pembatalan tetap berhasil. Coba muat ulang dampak sesi tanpa mengulang mutasi.</div></div>',
+                error: '<div class="state-banner state-banner--error" role="alert"><span class="state-banner__icon" aria-hidden="true">×</span><div><strong>Riwayat pengeluaran gagal dimuat</strong>Tidak ada nilai finansial yang ditebak. Gunakan Muat ulang riwayat.</div></div>',
+                pending: '<div class="state-banner state-banner--info" role="status"><span class="state-banner__icon" aria-hidden="true"><span class="spinner"></span></span><div><strong>Membatalkan pengeluaran #42</strong>Pengeluaran dan alasan pertama dikunci untuk akun yang sama sampai hasil server diketahui.</div></div>',
+                rejected: '<div class="state-banner state-banner--error" role="alert"><span class="state-banner__icon" aria-hidden="true">×</span><div><strong>Pembatalan ditolak server</strong>Sesi kas sudah ditutup. Tidak ada pembatalan baru yang tersimpan; fakta terbaru menggantikan kelayakan lama.</div></div>'
+            }
+        };
+
+        function disabled(value) {
+            return value === 'disabled' || value === 'pending' ? ' disabled' : '';
+        }
+
+        function focusClass(value, target) {
+            return value === 'focus' && target ? ' demo-focus' : '';
+        }
+
+        function selectedClass(value) {
+            return value === 'selected' ? ' selected-row' : '';
+        }
+
+        function cashierMarkup(currentState) {
+            const locked = disabled(currentState);
+            return `
+                <div class="shell">
+                    <div class="workspace" style="grid-column: 1 / -1">
+                        <header class="topbar">
+                            <strong>Kasir</strong>
+                            <div class="top-actions"><button class="mini-action">◐ Tampilan</button><button class="mini-action">← Kembali ke menu utama</button></div>
+                        </header>
+                        <div class="page">
+                            ${statusContent.cashier[currentState]}
+                            <div class="cashier">
+                                <div class="stack">
+                                    <section class="panel" aria-label="Pencarian barang">
+                                        <h1 class="page-title">Cari barang</h1>
+                                        <p class="page-subtitle">Sesi kas #15 terbuka · Sari · 28 September 2026, 09.10 WIB</p>
+                                        <div class="search-row">
+                                            <input class="field${focusClass(currentState, true)}" value="kopi" aria-label="Nama atau SKU barang"${locked}>
+                                            <button class="primary"${locked}>Cari</button>
+                                        </div>
+                                    </section>
+                                    <section class="panel" aria-label="Hasil pencarian">
+                                        <h2>Hasil pencarian</h2>
+                                        <div class="result${selectedClass(currentState)}">
+                                            <div><div class="item-name">Kopi Bloom 250 g</div><div class="support">KB-250 · PIECE · Stok STORE terakhir: 18</div></div>
+                                            <button class="secondary"${locked}>Tambahkan</button>
+                                        </div>
+                                        <div class="result">
+                                            <div><div class="item-name">Gula Aren 500 g</div><div class="support">GA-500 · PIECE · Stok STORE terakhir: 7</div></div>
+                                            <button class="secondary"${locked}>Tambahkan</button>
+                                        </div>
+                                    </section>
+                                </div>
+                                <div class="stack">
+                                    <section class="panel" aria-label="Keranjang">
+                                        <h2>Transaksi saat ini</h2>
+                                        <div class="cart-line">
+                                            <div><div class="item-name">Kopi Bloom 250 g</div><div class="support">KB-250 · dari STORE</div></div>
+                                            <div><strong>2 PIECE</strong><div class="support">Rp42.000 / item</div></div>
+                                        </div>
+                                        <div class="summary"><div class="summary-row"><span>Perkiraan bayar</span><strong class="money">Rp84.000</strong></div><div class="support">Perkiraan untuk membantu kasir. Total resmi dihitung server saat dikonfirmasi.</div></div>
+                                    </section>
+                                    <section class="panel" aria-label="Pembayaran">
+                                        <h2>Pembayaran</h2>
+                                        <div class="stack">
+                                            <label>Metode pembayaran<select class="field"${locked}><option>CASH · Tunai</option><option>QRIS</option></select></label>
+                                            <label>Uang tunai diterima<input class="field" value="Rp100.000"${locked}></label>
+                                            <div class="support">Kembalian hanya ditentukan server setelah konfirmasi.</div>
+                                            <button class="primary"${locked}>Tinjau pembayaran</button>
+                                        </div>
+                                    </section>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        function backOfficeMarkup(currentState) {
+            const locked = disabled(currentState);
+            return `
+                <div class="shell">
+                    <aside class="sidebar" aria-label="Navigasi back office">
+                        <div class="brand">Bloom</div>
+                        <nav class="nav">
+                            <div class="nav-group">Ringkasan</div><a class="nav-item" href="#">Dashboard</a>
+                            <div class="nav-group">Persediaan</div><a class="nav-item" href="#">Data Barang</a><a class="nav-item" href="#">Pergerakan stok</a><a class="nav-item" href="#">Penerimaan Barang</a>
+                            <div class="nav-group">Pembelian</div><a class="nav-item" href="#">Pemasok</a><a class="nav-item" href="#">Utang Pemasok</a>
+                            <div class="nav-group">Kas</div><a class="nav-item" href="#">Sesi kas</a><a class="nav-item" href="#" aria-current="page">Pengeluaran</a>
+                        </nav>
+                        <div class="account"><strong>Admin Bloom</strong><span>Administrator</span></div>
+                    </aside>
+                    <div class="workspace">
+                        <header class="topbar"><strong>Pengeluaran / Riwayat</strong><div class="top-actions"><button class="mini-action">◐ Tampilan</button><button class="mini-action">Kasir</button></div></header>
+                        <div class="page">
+                            ${statusContent.backoffice[currentState]}
+                            <div class="topbar" style="padding: 0 0 16px; background: transparent; border: 0">
+                                <div><h1 class="page-title">Riwayat pengeluaran</h1><p class="page-subtitle">Seluruh sesi · terbaru terlebih dahulu</p></div>
+                                <button class="primary"${locked}>Catat pengeluaran</button>
+                            </div>
+                            <section class="panel" aria-label="Daftar pengeluaran">
+                                <div class="table-wrap">
+                                    <table>
+                                        <thead><tr><th>ID</th><th>Kategori dan catatan</th><th>Status</th><th>Jumlah</th><th>Sesi / pencatat</th><th>Aksi</th></tr></thead>
+                                        <tbody>
+                                            <tr class="${selectedClass(currentState)}"><td data-label="ID">#42</td><td data-label="Kategori dan catatan"><strong>Transportasi</strong><br><span class="support">Antar persediaan</span></td><td data-label="Status"><span class="status-inline">✓ Tercatat</span><br><span class="support">Dapat dibatalkan</span></td><td data-label="Jumlah">Rp125.000</td><td data-label="Sesi / pencatat">#15 · Admin Bloom<br><span class="support">28 Sep 2026, 14.20 WIB</span></td><td data-label="Aksi"><button class="secondary${focusClass(currentState, true)}"${locked}>Lihat detail</button></td></tr>
+                                            <tr><td data-label="ID">#41</td><td data-label="Kategori dan catatan"><strong>Utilitas</strong><br><span class="support">Token listrik</span></td><td data-label="Status"><span class="status-inline">⊘ Tidak dapat dibatalkan</span><br><span class="support">Sesi kas ditutup</span></td><td data-label="Jumlah">Rp350.000</td><td data-label="Sesi / pencatat">#14 · Admin Bloom<br><span class="support">27 Sep 2026, 18.02 WIB</span></td><td data-label="Aksi"><button class="secondary" disabled>Batalkan</button></td></tr>
+                                            <tr><td data-label="ID">#40</td><td data-label="Kategori dan catatan"><strong>Lainnya</strong><br><span class="support">Koreksi duplikat</span></td><td data-label="Status"><span class="status-inline">↩ Dibatalkan</span><br><span class="support">Catatan asli dipertahankan</span></td><td data-label="Jumlah">Rp80.000</td><td data-label="Sesi / pencatat">#14 · Sari<br><span class="support">27 Sep 2026, 16.45 WIB</span></td><td data-label="Aksi"><button class="secondary"${locked}>Lihat detail</button></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="pagination"><span>1–3 dari 3 · 10 data per halaman · Halaman 1</span><div class="pagination__actions"><button class="secondary" disabled>Sebelumnya</button><button class="secondary" disabled>Berikutnya</button></div></div>
+                            </section>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        function update() {
+            const currentScreen = screen.value;
+            const currentState = state.value;
+            const currentViewport = viewport.value;
+            const resolved = preference.value === 'system' ? systemSample.value : preference.value;
+            const labels = { light: 'Terang', dark: 'Gelap', system: 'Ikuti sistem' };
+            resolvedPreference.textContent = `Pilihan tersimpan: ${labels[preference.value]} · hasil: ${labels[resolved]}`;
+            systemSample.disabled = preference.value !== 'system';
+            previews.forEach(preview => {
+                preview.classList.toggle('is-narrow', currentViewport === 'narrow');
+                preview.classList.toggle('is-zoomed', currentViewport === 'zoom');
+                preview.innerHTML = currentScreen === 'cashier' ? cashierMarkup(currentState) : backOfficeMarkup(currentState);
+            });
+            cards.forEach(card => card.classList.toggle('is-narrow', currentViewport === 'narrow'));
+        }
+
+        const query = new URLSearchParams(window.location.search);
+        const hashReview = window.location.hash.startsWith('#review=')
+            ? window.location.hash.slice('#review='.length)
+            : '';
+        const reviewParameters = Object.fromEntries((hashReview || query.get('review') || '')
+            .split(',')
+            .map(part => part.split(':'))
+            .filter(part => part.length === 2));
+        const storedPreference = window.localStorage.getItem('bloom-uxr-d16-preference');
+        const allowed = {
+            preference: ['light', 'dark', 'system'],
+            system: ['light', 'dark'],
+            screen: ['cashier', 'backoffice'],
+            state: ['normal', 'selected', 'focus', 'disabled', 'success', 'warning', 'error', 'pending', 'rejected'],
+            viewport: ['wide', 'narrow', 'zoom']
+        };
+        const requestedPreference = reviewParameters.preference || query.get('preference') || storedPreference || 'light';
+
+        preference.value = allowed.preference.includes(requestedPreference) ? requestedPreference : 'light';
+        const requestedSystem = reviewParameters.system || query.get('system');
+        const requestedScreen = reviewParameters.screen || query.get('screen');
+        const requestedState = reviewParameters.state || query.get('state');
+        const requestedViewport = reviewParameters.viewport || query.get('viewport');
+
+        systemSample.value = allowed.system.includes(requestedSystem) ? requestedSystem : 'light';
+        screen.value = allowed.screen.includes(requestedScreen) ? requestedScreen : 'cashier';
+        state.value = allowed.state.includes(requestedState) ? requestedState : 'normal';
+        viewport.value = allowed.viewport.includes(requestedViewport) ? requestedViewport : 'wide';
+
+        preference.addEventListener('change', () => {
+            window.localStorage.setItem('bloom-uxr-d16-preference', preference.value);
+            update();
+        });
+        [systemSample, screen, state, viewport].forEach(control => control.addEventListener('change', update));
+        update();
+    </script>
+</body>
+</html>

@@ -11,11 +11,14 @@ The work proceeds one domain at a time:
 1. Exercise the current application in a live browser.
 2. Capture the complete workflow and important states.
 3. Produce an evidence-backed UX audit.
-4. Design the approved improvement in Figma.
+4. Design the approved improvement in a reviewable artifact. For Bloom Release 1, the canonical
+   domain designs are the interactive HTML artifacts, exported screenshots, and decision records.
 5. Validate the proposed design against Bloom's business and accessibility contracts.
 6. Create small implementation PR scopes only after the design is approved.
 
-The existing frontend contract and implementation remain authoritative until an approved UX design is implemented. A screenshot, audit observation, or Figma concept does not change a backend business rule or API contract.
+The existing frontend contract and implementation remain authoritative until an approved UX design
+is implemented. A screenshot, audit observation, HTML prototype, or external design concept does not
+change a backend business rule or API contract.
 
 ## 2. Current baseline
 
@@ -49,7 +52,7 @@ This roadmap does not add Cypress merely to capture screenshots. Live explorator
 ### 3.3 Avoid another big bang
 
 - Audit one coherent domain or route family per task.
-- Design one domain at a time in Figma.
+- Design one domain at a time in the approved review medium.
 - Do not create a global redesign before validating the highest-frequency cashier workflows.
 - Reuse current components and tokens where they remain suitable.
 - Create or change shared patterns only after repeated domain evidence supports them.
@@ -58,7 +61,9 @@ This roadmap does not add Cypress merely to capture screenshots. Live explorator
 
 ### 3.4 Owner approval
 
-The repository owner remains the primary UX decision-maker. AI-generated findings and Figma screens are proposals. Family usability feedback should be collected against a usable prototype or Release 1 candidate, not treated as a substitute for product ownership.
+The repository owner remains the primary UX decision-maker. AI-generated findings and design
+artifacts are proposals. Family usability feedback should be collected against a usable prototype or
+Release 1 candidate, not treated as a substitute for product ownership.
 
 ## 4. Evidence format
 
@@ -70,8 +75,8 @@ Screenshots and recordings are working artifacts. The owner decided on 2026-09-2
 
 The default working location is `docs/ux/evidence/<work-item>/`. Keep the concise
 PNG set in that directory as working-tree evidence; leave binaries untracked unless
-the owner explicitly approves staging/committing or moving them to Figma/external
-storage. “Read-only live audit” means no application,
+the owner explicitly approves staging/committing or moving them to an approved external
+evidence store. “Read-only live audit” means no application,
 dependency, configuration, or backend source changes; the task may write its audit
 report/evidence and may create explicitly recorded transactions only in the
 approved disposable local database.
@@ -130,9 +135,12 @@ Use these finding priorities:
 ### Execution class
 
 - `LIVE_AUDIT`: operate the existing app, capture evidence, and write findings; do not change application code.
-- `FIGMA_DESIGN`: create an evidence-backed design for one audited domain; do not change application code.
+- `DESIGN_ARTIFACT`: create an evidence-backed, reviewable design for one audited domain; do not
+  change application code. Use interactive HTML, exported screenshots, and a decision record for
+  the Bloom Release 1 work.
 - `ROADMAP_BASELINE`: create or update UX governance documentation; do not operate or change the application.
-- `IMPLEMENTATION_REBASELINE`: convert approved Figma work into small frontend PR entries; do not implement them in the same task.
+- `IMPLEMENTATION_REBASELINE`: convert approved design artifacts and decision records into small
+  frontend PR entries; do not implement them in the same task.
 
 ## 6. Recommended execution order
 
@@ -144,7 +152,7 @@ Use these finding priorities:
 | 3 | UXR-A09 | Cashier search, cart, and scanner behavior | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 4 | UXR-A10 | Checkout and post-checkout printing | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 5 | UXR-A11 | Sales history, detail, and reprint | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 6 | UXR-D00 | Visual direction comparison and owner selection | APPROVED | FIGMA_DESIGN | `gpt-5.6-sol`, high |
+| 6 | UXR-D00 | Visual direction comparison and owner selection | APPROVED | DESIGN_ARTIFACT | `gpt-5.6-sol`, high |
 | 7 | UXR-A03 | Item categories | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 8 | UXR-A04 | Item master and location inventory | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 9 | UXR-A05 | Stock movement history | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
@@ -158,7 +166,7 @@ Use these finding priorities:
 | 17 | UXR-A17 | Expense void/reversal | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 18 | UXR-A02 | Operational dashboard | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 19 | UXR-A18 | Cross-domain evidence synthesis | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 20 | UXR-D16 | Light and dark appearance modes | APPROVED | FIGMA_DESIGN | `gpt-5.6-sol`, high |
+| 20 | UXR-D16 | Light and dark appearance modes | APPROVED | DESIGN_ARTIFACT | `gpt-5.6-sol`, high |
 
 Cashier work comes first because it is the highest-frequency, most time-sensitive working mode. UXR-D00 then compares visual directions using evidence from the shell, cashier, checkout, and sales-history workflows before broader domain design begins. Back-office audits follow the operational sequence from item setup through stock, purchasing, debt, and expense handling. Dashboard audit comes after its drill-down destinations so its navigation value can be judged in context.
 
@@ -172,7 +180,9 @@ authorizes application implementation.
 **Design approval status correction (2026-09-28):** The current authoritative register supersedes the
 earlier status sentence above. UXR-D01 through UXR-D16 are owner-approved.
 
-Live audits may continue alongside eligible domain design work. Domain Figma work begins only after its own evidence is complete and UXR-D00 has an owner-approved direction; it does not need to wait for every audit. Application implementation must wait for owner approval of that domain's design.
+Live audits may continue alongside eligible domain design work. Domain design work begins only after
+its own evidence is complete and UXR-D00 has an owner-approved direction; it does not need to wait
+for every audit. Application implementation must wait for owner approval of that domain's design.
 
 ### 6.1 Early visual-direction checkpoint
 
@@ -204,8 +214,8 @@ The owner may approve one candidate or an explicitly documented hybrid of named 
 - **Execution class:** `ROADMAP_BASELINE`.
 - **Dependencies:** Implemented Release 1 frontend and its contract.
 - **Environment gate:** Repository inspection proves the working route/domain inventory.
-- **Exact scope:** Establish live-first capture rules, artifact format, audit order, Figma gate, and later implementation-rebaseline rule.
-- **Out of scope:** Live app operation, screenshots, Figma creation, application changes, Cypress installation.
+- **Exact scope:** Establish live-first capture rules, artifact format, audit order, design gate, and later implementation-rebaseline rule.
+- **Out of scope:** Live app operation, screenshots, design-artifact creation, application changes, Cypress installation.
 - **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** This roadmap.
 - **Validation:** Re-read the contract, frontend roadmap, current routes, and this document; verify documentation-only diff.
@@ -646,7 +656,7 @@ UXR-A18 was dependency-complete and has now produced the cross-domain synthesis.
 - **Dependencies:** All required UXR-A01 through UXR-A17 reports.
 - **Environment gate:** Each included report separates evidence, inference, and owner decisions.
 - **Exact scope:** Consolidate repeated interaction/copy/layout/accessibility problems, identify preserved strengths, map journey handoffs, rank P0/P1/P2 findings, and recommend domain design order.
-- **Out of scope:** Figma creation, a global design system, implementation backlog details, changing product/backend rules.
+- **Out of scope:** Design-artifact creation, a global design system, implementation backlog details, changing product/backend rules.
 - **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** `docs/ux/audits/release-1-ux-synthesis.md` with an evidence index and owner-decision register.
 - **Validation:** Every synthesized finding links back to domain evidence; repeated patterns are not generalized from a single screen.
@@ -655,19 +665,24 @@ UXR-A18 was dependency-complete and has now produced the cross-domain synthesis.
 
 **Copy-ready prompt**
 
-> Perform UXR-A18 as a read-only synthesis of completed Bloom UX audit reports. Read the frontend contract, frontend roadmap, UX roadmap, and every included `docs/ux/audits/uxr-a*.md` report. Do not operate the app unless a cited fact needs narrow verification. Produce `docs/ux/audits/release-1-ux-synthesis.md` containing preserved strengths, repeated evidence-backed problems, journey handoff issues, P0/P1/P2 prioritization, an evidence index, owner decisions needed, and recommended Figma domain order. Link every conclusion to source scenarios and distinguish evidence from inference. Do not create designs, propose a global rewrite, change business rules, generate detailed implementation PRs, or modify application/dependency state.
+> Perform UXR-A18 as a read-only synthesis of completed Bloom UX audit reports. Read the frontend contract, frontend roadmap, UX roadmap, and every included `docs/ux/audits/uxr-a*.md` report. Do not operate the app unless a cited fact needs narrow verification. Produce `docs/ux/audits/release-1-ux-synthesis.md` containing preserved strengths, repeated evidence-backed problems, journey handoff issues, P0/P1/P2 prioritization, an evidence index, owner decisions needed, and recommended domain design order. Link every conclusion to source scenarios and distinguish evidence from inference. Do not create designs, propose a global rewrite, change business rules, generate detailed implementation PRs, or modify application/dependency state.
 
 **Evidence-complete note (2026-09-26):** The synthesis in
 [`release-1-ux-synthesis.md`](../ux/audits/release-1-ux-synthesis.md) consolidates all 17 domain
 reports and 77 recorded findings. It distinguishes one unresolved transfer-recovery P0 from the
 resolved supplier-payment transport P0, preserves backend-authority and transaction-safety strengths,
 identifies repeated responsive/shell/focus/localization/traceability patterns, records journey
-handoffs and owner decisions, and recommends a Figma order without approving designs or changing
+handoffs and owner decisions, and recommends a design order without approving designs or changing
 application, dependency, product, or backend state.
 
 ## 8. Design queue
 
-UXR-D00 begins after its representative audits are `EVIDENCE_COMPLETE`. Each domain design item, UXR-D01 through UXR-D15, begins only after its required audit is `EVIDENCE_COMPLETE` and UXR-D00 is `APPROVED`. The cross-cutting UXR-D16 appearance-mode task begins after UXR-D00 is `APPROVED` and representative cashier and back-office domain frames exist. Use `gpt-5.6-sol` with high reasoning for visual-direction comparison, the initial low-fidelity flow, and the refined proposal. When Figma is available, the task must use the relevant Figma skills before calling Figma write tools. An interactive HTML review artifact may be used when Figma access is unavailable, provided the same evidence, state, responsive, accessibility, and backend-authority requirements are preserved.
+UXR-D00 begins after its representative audits are `EVIDENCE_COMPLETE`. Each domain design item,
+UXR-D01 through UXR-D15, begins only after its required audit is `EVIDENCE_COMPLETE` and UXR-D00 is
+`APPROVED`. The cross-cutting UXR-D16 appearance-mode task begins after UXR-D00 is `APPROVED` and
+representative cashier and back-office domain frames exist. Use interactive HTML review artifacts,
+exported screenshots, and decision records throughout. Every artifact must preserve the same
+evidence, state, responsive, accessibility, and backend-authority requirements.
 
 | Design item | Domain | Audit dependency | Required design coverage |
 | --- | --- | --- | --- |
@@ -684,9 +699,9 @@ UXR-D00 begins after its representative audits are `EVIDENCE_COMPLETE`. Each dom
 | UXR-D10 | Checkout and printing | UXR-A10 | CASH/QRIS, pending/conflict/recovery, sale-first print states |
 | UXR-D11 | Sales history | UXR-A11 | List/filter, detail hierarchy, status and reprint |
 | UXR-D12 | Suppliers | UXR-A12 | List/detail, create/edit, deactivate |
-| UXR-D13 | Goods receipts | UXR-A13 and UXR-A14 | List/detail and creation as separate Figma flows |
+| UXR-D13 | Goods receipts | UXR-A13 and UXR-A14 | List/detail and creation as separate design flows |
 | UXR-D14 | Payables/payment | UXR-A15 | Debt discovery, one-receipt payment, payment methods and states |
-| UXR-D15 | Expenses | UXR-A16 and UXR-A17 | History/create and void as separate Figma flows |
+| UXR-D15 | Expenses | UXR-A16 and UXR-A17 | History/create and void as separate design flows |
 | UXR-D16 | Appearance modes | UXR-D00 approval plus representative cashier and back-office frames | Approved palette mapped to light and dark modes, preference behavior, semantic-state parity, focus/contrast validation, and older-user legibility |
 
 ### Current design-review status
@@ -860,35 +875,45 @@ grid remain excluded pending evidence or a separate contract.
 
 - **Domain:** Product visual direction; no business-domain implementation.
 - **Status:** `APPROVED`.
-- **Execution class:** `FIGMA_DESIGN`.
+- **Execution class:** `DESIGN_ARTIFACT`.
 - **Dependencies:** UXR-A01, UXR-A09, UXR-A10, and UXR-A11 must be `EVIDENCE_COMPLETE`.
 - **User-visible goal:** Let the owner compare realistic alternatives before later screens inherit a visual direction.
 - **Exact scope:** Create exactly three candidates using identical representative content and states: compact operational, calm guided, and mode-aware hybrid. For each candidate, provide one cashier/cart or checkout frame, one back-office list/detail frame, and one narrow-desktop responsive frame.
 - **Out of scope:** Full domain flows, new product behavior, business-rule or API changes, a production-ready global design system, application code, or selecting a winner without the owner.
 - **Recommended model:** `gpt-5.6-sol`, high reasoning.
-- **Expected output:** Figma comparison frames, exported screenshots or one comparison board, concise trade-offs, reusable-pattern observations, and `docs/ux/design/visual-direction-decision.md` after the owner selects a direction.
+- **Expected output:** One interactive HTML comparison board, exported screenshots, concise
+  trade-offs, reusable-pattern observations, and `docs/ux/design/visual-direction-decision.md` after
+  the owner selects a direction.
 - **Validation:** Candidates use the same copy, data, state, viewport, and interaction facts; contrast, focus visibility, table/form legibility, density, and wide/narrow behavior are compared consistently.
-- **Block condition:** Representative audit evidence, the target Figma file/project, or owner availability for selection is missing.
+- **Block condition:** Representative audit evidence, a writable local review-artifact location, or
+  owner availability for selection is missing.
 - **Split trigger:** More than three candidates or full domain-state coverage is requested; keep those ideas for the relevant UXR-D01 through UXR-D15 item.
 
-**Design-review note (updated 2026-09-20):** The comparison board is in the supplied [Bloom — UXR-D00 Visual Direction](https://www.figma.com/design/DwiEHRGnvWb4aZW4iGZztS/Bloom-%E2%80%94-UXR-D00-Visual-Direction?node-id=6-2). It contains exactly three candidates with cashier/checkout, back-office list/detail, and 760×768 narrow-desktop frames using the same Indonesian content and backend-confirmed fixture. Figma MCP quota exhaustion blocked the final full-board screenshot export, so review used the Figma board and deterministic in-conversation comparisons. The owner approved the explicitly defined mode-aware hybrid after refining and accepting its Operational Blue cashier and navigation treatments. The selected traits and rationale are recorded in `docs/ux/design/visual-direction-decision.md`.
+**Design-review note (updated 2026-09-20):** The owner reviewed exactly three comparable candidates
+covering cashier/checkout, back-office list/detail, and 760×768 narrow-desktop frames with identical
+Indonesian content and a backend-confirmed fixture. The deterministic comparison artifacts and later
+domain HTML reviews refined the selected mode-aware hybrid into the accepted Operational Blue
+cashier and navigation treatments. The selected traits and rationale are recorded in
+`docs/ux/design/visual-direction-decision.md`.
 
 **Copy-ready visual-direction prompt**
 
-> Perform only UXR-D00, Bloom's visual-direction comparison. Read `AGENTS.md`, the frontend contract, the frontend and UX roadmaps, and the completed UXR-A01, UXR-A09, UXR-A10, and UXR-A11 reports with their referenced evidence. Inspect the current components and use the required Figma skills in `[FIGMA_FILE_OR_NODE]`. Create exactly three clearly differentiated candidates—compact operational, calm guided, and mode-aware hybrid—using identical Bahasa Indonesia copy, data, transaction state, and viewports. For each candidate, create one representative cashier/cart or checkout frame, one back-office list/detail frame, and one narrow-desktop responsive frame. Preserve backend authority, current transaction/recovery meaning, keyboard/focus behavior, and useful existing components. Provide Figma links, exported screenshots or a single comparison board, and a concise matrix covering density, speed, comprehension, accessibility, responsiveness, reuse cost, and trade-offs. Stop at `DESIGN_REVIEW`; do not choose or approve a winner, create full workflows, modify application code, invent APIs/business rules, or build a global design system. After the owner responds, record the selected candidate or explicitly named hybrid traits and rationale in `docs/ux/design/visual-direction-decision.md` and mark UXR-D00 `APPROVED`.
+> Perform only UXR-D00, Bloom's visual-direction comparison. Read `AGENTS.md`, the frontend contract, the frontend and UX roadmaps, and the completed UXR-A01, UXR-A09, UXR-A10, and UXR-A11 reports with their referenced evidence. Inspect the current components and create one deterministic interactive HTML comparison board in `[LOCAL_REVIEW_ARTIFACT_PATH]`. Create exactly three clearly differentiated candidates—compact operational, calm guided, and mode-aware hybrid—using identical Bahasa Indonesia copy, data, transaction state, and viewports. For each candidate, create one representative cashier/cart or checkout frame, one back-office list/detail frame, and one narrow-desktop responsive frame. Preserve backend authority, current transaction/recovery meaning, keyboard/focus behavior, and useful existing components. Provide the local artifact path, exported screenshots, and a concise matrix covering density, speed, comprehension, accessibility, responsiveness, reuse cost, and trade-offs. Stop at `DESIGN_REVIEW`; do not choose or approve a winner, create full workflows, modify application code, invent APIs/business rules, or build a global design system. After the owner responds, record the selected candidate or explicitly named hybrid traits and rationale in `docs/ux/design/visual-direction-decision.md` and mark UXR-D00 `APPROVED`.
 
 ### UXR-D16 — Light and dark appearance modes
 
 - **Domain:** Cross-cutting application appearance; no business-domain behavior change.
 - **Status:** `APPROVED`.
-- **Execution class:** `FIGMA_DESIGN`.
+- **Execution class:** `DESIGN_ARTIFACT`.
 - **Dependencies:** UXR-D00 is `APPROVED`, and at least one representative approved cashier frame and one representative approved back-office frame are available.
 - **User-visible goal:** Provide a legible light default and an optional dark appearance without changing features, transaction meaning, or navigation.
 - **Exact scope:** Map the owner-approved palette to light and dark semantic tokens; define the initial mode, an explicit appearance control, system-preference behavior, persistence, and no-flash loading behavior; compare the same cashier, back-office, narrow-desktop, focus, selected, disabled, success, warning, error, pending, and server-rejection states in both modes.
 - **Older-user baseline:** Treat light mode as the default candidate for the store unless owner testing decides otherwise. In production-scale frames, target at least 16 px for primary body and control text, 14 px for secondary text, 16–17 px medium/semibold for item names, 16–18 px semibold for important prices and values, and 24 px for page headings; reserve 11–12 px text for genuinely nonessential content only. Use at least 44 × 44 px interactive targets and 48–52 px height for the primary payment action. Keep unmistakable focus, explicit metadata labels, and labels/icons in addition to color; verify at 200% browser zoom and do not use hue alone to communicate status or selection.
 - **Out of scope:** Removing or changing features, theme-specific business behavior, inventing backend preferences, a global component-library replacement, unrelated visual redesign, or application implementation.
 - **Recommended model:** `gpt-5.6-sol`, high reasoning.
-- **Expected output:** Figma light/dark comparison frames, the final semantic color/token mapping, preference-behavior decision, contrast/focus checks, affected reusable-component inventory, and unresolved owner decisions.
+- **Expected output:** Interactive HTML light/dark comparison states, exported screenshots, the final
+  semantic color/token mapping, preference-behavior decision, contrast/focus checks, affected
+  reusable-component inventory, and unresolved owner decisions.
 - **Validation:** Light and dark modes preserve identical copy, data, actions, focus order, keyboard behavior, responsive behavior, and backend-authoritative states. Normal text targets at least 4.5:1 contrast; large text, focus indicators, and necessary control/state boundaries target at least 3:1. Status remains understandable without color.
 - **Block condition:** UXR-D00 has no owner-approved direction, representative domain frames are unavailable, or the owner has not decided the default/system/manual preference behavior.
 - **Split trigger:** Implement light mode first and defer dark mode if dark-theme work would delay a required domain workflow; do not partially theme transaction or recovery states.
@@ -909,31 +934,35 @@ gated.
 
 **Copy-ready appearance-mode prompt**
 
-> Design only UXR-D16 after UXR-D00 and the representative cashier/back-office frames are approved. Read `AGENTS.md`, the frontend contract, both frontend/UX roadmaps, `docs/ux/design/visual-direction-decision.md`, and the approved representative domain decisions. Use the required Figma skills. Apply the approved palette to identical light and dark cashier, back-office, narrow-desktop, focus, selected, disabled, success, warning, error, pending, and server-rejection states. Define light-default/system/manual/persistence behavior as explicit owner decisions; do not assume a backend preference endpoint. Preserve every feature, route, transaction/recovery meaning, keyboard/focus order, and backend-authoritative value. Validate readable type, 200% zoom, non-color status cues, focus visibility, and contrast targets. Return Figma links, semantic token mapping, component impact, preference behavior, validation notes, and unresolved decisions. Do not implement code, replace the component library, create theme-specific business behavior, invent APIs, or redesign unrelated workflows.
+> Design only UXR-D16 after UXR-D00 and the representative cashier/back-office frames are approved. Read `AGENTS.md`, the frontend contract, both frontend/UX roadmaps, `docs/ux/design/visual-direction-decision.md`, and the approved representative domain decisions. Extend the canonical interactive HTML review artifact with identical light and dark cashier, back-office, narrow-desktop, focus, selected, disabled, success, warning, error, pending, and server-rejection states. Define light-default/system/manual/persistence behavior as explicit owner decisions; do not assume a backend preference endpoint. Preserve every feature, route, transaction/recovery meaning, keyboard/focus order, and backend-authoritative value. Validate readable type, 200% zoom, non-color status cues, focus visibility, contrast targets, and absence of whole-page horizontal overflow. Return the local artifact path and reviewed states, exported screenshots, semantic token mapping, component impact, preference behavior, validation notes, and unresolved decisions. Do not implement code, replace the component library, create theme-specific business behavior, invent APIs, or redesign unrelated workflows.
 
-For each Figma item:
+For each design item:
 
 - **Status:** `PLANNED` until its audit is complete.
-- **Execution class:** `FIGMA_DESIGN`.
+- **Execution class:** `DESIGN_ARTIFACT`.
 - **User-visible goal:** Resolve approved P0/P1 findings first; address P2 polish without obscuring the workflow.
 - **Exact scope:** One domain, its relevant viewports, and all states needed to explain the proposed interaction.
 - **Out of scope:** Application code, new backend fields, unsupported actions, unrelated screens, global component replacement.
-- **Expected output:** Figma flow/frame links, a short decision log, state coverage, reused/new component list, and unresolved owner decisions.
+- **Expected output:** Interactive HTML artifact path and reviewed states, exported screenshots, a short
+  decision log, state coverage, reused/new component list, and unresolved owner decisions.
 - **Validation:** Trace every proposed change to audit evidence; verify keyboard/focus order, Indonesian copy, responsive behavior, and backend authority.
-- **Split trigger:** If a design item contains independently reviewable read and mutation workflows, present them as separate page sections or split the Figma item before approval.
+- **Split trigger:** If a design item contains independently reviewable read and mutation workflows,
+  present them as separate artifact sections or split the design item before approval.
 
-**Copy-ready domain Figma prompt template**
+**Copy-ready domain design-artifact prompt template**
 
-> Design only `[UXR-DXX — DOMAIN]` for Bloom after UXR-D00 is owner-approved. First read `AGENTS.md`, `docs/architecture/release-1-frontend-contract.md`, `docs/plans/release-1-frontend-roadmap.md`, `docs/plans/release-1-ux-rework-roadmap.md`, `docs/ux/design/visual-direction-decision.md`, and `[AUDIT_REPORT_PATH]`. Inspect the current domain components and referenced screenshots/recordings. Use the required Figma skills and work in `[FIGMA_FILE_OR_NODE]`. Begin with the task flow and low-fidelity state coverage, then create a refined desktop design for the documented wide and narrow viewports that follows the approved visual direction. Preserve backend-owned facts, transaction recovery, current URLs unless evidence requires a change, Indonesian language, keyboard/focus behavior, and useful existing components. Resolve approved P0/P1 findings and identify optional P2 improvements. Include loading, empty, validation, pending, conflict, ambiguous/recovery, success, confirmation, and hardware-related states only where the audit shows they apply. Return Figma links, a concise decision log, reused/new components, audit-scenario traceability, and owner decisions needed. Record any evidence-based deviation from the approved direction. Do not modify application code, invent APIs or business rules, create a whole-app design system, or redesign another domain.
+> Design only `[UXR-DXX — DOMAIN]` for Bloom after UXR-D00 is owner-approved. First read `AGENTS.md`, `docs/architecture/release-1-frontend-contract.md`, `docs/plans/release-1-frontend-roadmap.md`, `docs/plans/release-1-ux-rework-roadmap.md`, `docs/ux/design/visual-direction-decision.md`, and `[AUDIT_REPORT_PATH]`. Inspect the current domain components and referenced screenshots/recordings. Extend `[CANONICAL_HTML_REVIEW_ARTIFACT]` rather than creating an unrelated visual language. Begin with the task flow and low-fidelity state coverage, then create a refined desktop design for the documented wide and narrow viewports that follows the approved visual direction. Preserve backend-owned facts, transaction recovery, current URLs unless evidence requires a change, Indonesian language, keyboard/focus behavior, and useful existing components. Resolve approved P0/P1 findings and identify optional P2 improvements. Include loading, empty, validation, pending, conflict, ambiguous/recovery, success, confirmation, and hardware-related states only where the audit shows they apply. Return the local artifact path and reviewed states, exported screenshots, a concise decision log, reused/new components, audit-scenario traceability, and owner decisions needed. Record any evidence-based deviation from the approved direction. Do not modify application code, invent APIs or business rules, create a whole-app design system, or redesign another domain.
 
 ## 9. Implementation re-baseline
 
-Do not write copy-ready implementation prompts for a UX design that has not been approved. Without approved Figma frame/node links and acceptance decisions, such prompts would encourage generic redesign and scope creep.
+Do not write copy-ready implementation prompts for a UX design that has not been approved. Without
+an approved decision record, canonical interactive HTML artifact, identified reviewed states, and
+acceptance decisions, such prompts would encourage generic redesign and scope creep.
 
 After one domain reaches `APPROVED`, run one documentation-only `IMPLEMENTATION_REBASELINE` task for that domain. It must create small UX implementation PR entries with:
 
 - PR identifier and one domain/workflow;
-- approved Figma file and exact node links;
+- approved decision-record path, canonical HTML artifact path, and exact reviewed states;
 - audit scenarios and findings being resolved;
 - current components to preserve;
 - exact component/page/style/test scope;
@@ -949,7 +978,7 @@ Use `gpt-5.6-sol` high for narrow visual/read-flow implementation. Use `gpt-5.6-
 
 **Copy-ready implementation-rebaseline prompt**
 
-> Re-baseline implementation work for only `[DOMAIN]` after owner approval of `[FIGMA_FILE_AND_NODE_LINKS]`. Read all Bloom governing docs, the domain audit report, its approved Figma decision log, and the current implementation/tests. Do not implement code. Add or update only the UX roadmap's implementation section with the smallest reviewable frontend PR entries needed to deliver the approved design. Each PR must own one coherent workflow, preserve backend authority and durable recovery, name exact current components likely to change, include state/accessibility/keyboard/responsive/localization acceptance criteria, stay near the existing review-size limits, and contain one copy-ready implementation prompt. Do not include unrelated cleanup, global redesign, dependency migration, route restructuring, or unapproved Figma alternatives.
+> Re-baseline implementation work for only `[DOMAIN]` after owner approval recorded in `[APPROVED_DECISION_RECORD]` and represented by `[APPROVED_HTML_ARTIFACT_AND_REVIEWED_STATES]`. Read `AGENTS.md`, both frontend and UX roadmaps, the frontend contract, the domain audit report with its evidence, the approved decision record, the canonical interactive HTML artifact, its exported screenshots, and the current implementation/tests. Treat the decision record and audited backend contract as authoritative when a prototype detail is ambiguous. Do not implement code. Add or update only the UX roadmap's implementation section with the smallest reviewable frontend PR entries needed to deliver the approved design. Each PR must own one coherent workflow, preserve backend authority and durable recovery, name exact current components likely to change, include loading/error/empty/conflict/pending/success plus accessibility/keyboard/responsive/localization acceptance criteria where applicable, stay near the existing review-size limits, and contain one copy-ready implementation prompt. Include visual validation against the named HTML states and automated regression coverage. Do not include unrelated cleanup, global redesign, dependency migration, route restructuring, unsupported APIs/business rules, or unapproved design alternatives.
 
 ## 10. Optional E2E automation decision
 
@@ -972,6 +1001,6 @@ The E2E proposal must separately address deterministic seed/reset, transaction c
 These inputs should be recorded during UXR-00 or the first relevant audit:
 
 1. Actual store-laptop browser viewport and display scaling; use `1440x900` wide and `1024x768` narrow only as temporary audit viewports until the real device is recorded.
-2. Whether the owner-approved local screenshot sets should later be committed or uploaded to Figma/external storage; until then they remain untracked working-tree evidence.
+2. Whether the owner-approved local screenshot sets should later be committed or moved to an approved
+   external evidence store; until then they remain untracked working-tree evidence.
 3. Which disposable database reset/reseed procedure is approved for live transaction capture.
-4. The Figma file/project that will hold domain designs and who besides the owner will review them.
