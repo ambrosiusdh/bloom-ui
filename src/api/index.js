@@ -103,9 +103,13 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.response.use(response => response, error => {
     const location = window.location;
 
-    if (error.response?.status === 401 && location.pathname !== "/login") {
+    if (error.response?.status === 401
+        && location.pathname !== "/login"
+        && !error.config?.skipAuthRedirect) {
         const redirectTarget = `${location.pathname}${location.search}${location.hash}`;
-        window.location.assign(`/login?redirect=${encodeURIComponent(redirectTarget)}`);
+        window.location.assign(
+            `/login?redirect=${ encodeURIComponent(redirectTarget) }&reason=session-expired`
+        );
     }
 
     return Promise.reject(normalizeApiError(error))

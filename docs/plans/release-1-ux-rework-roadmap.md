@@ -1052,6 +1052,8 @@ Decision/audit: `docs/ux/design/uxr-d01-auth-navigation-decision.md`; `docs/ux/a
 
 #### UXI-03 — Authentication and protected entry
 
+Status: `IMPLEMENTED`
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D01 Akses & navigasi** and review **Masuk**, **Kolom kosong**, **Kredensial salah**, **Sedang masuk**, **Memeriksa sesi**, **Sesi berakhir**, **Kembali ke tujuan**, and **Halaman tidak ditemukan**.
 
 Decision/audit: `docs/ux/design/uxr-d01-auth-navigation-decision.md`; `docs/ux/audits/uxr-a01-auth-navigation.md`
@@ -1059,6 +1061,16 @@ Decision/audit: `docs/ux/design/uxr-d01-auth-navigation-decision.md`; `docs/ux/a
 > Implement only UXI-03, Bloom authentication and protected entry. Read `AGENTS.md`, the frontend contract, both roadmaps, `docs/ux/audits/uxr-a01-auth-navigation.md`, `docs/ux/design/uxr-d01-auth-navigation-decision.md`, and the D01 states in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `src/pages/login/Login.jsx`, `src/pages/NotFound.jsx`, `src/routes/index.jsx`, `src/stores/modules/auth.js`, `src/api/auth.js`, and their tests. Implement fully Indonesian login, required-field focus, generic retained credential failure, one locked pending submission, protected-session checking without protected-content flash, safe path/query/hash return, destination-heading focus, session-expiry explanation without transaction resubmission, and authenticated not-found recovery. Do not add auth fields, methods, or endpoints. Add focused tests and run the full validation commands. Update plan status; do not commit or push.
 
 #### UXI-04 — Item categories
+
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-28):** UXI-04 now delivers the approved grouped identity list,
+separate update provenance with explicit fallbacks, 44-pixel accessible icon actions, linked
+create/edit breadcrumb, preserved validation/conflict input, cascade-aware deactivation, explicit
+pagination context, and labelled narrow records without changing category endpoints or semantics.
+Five focused files passed 31 tests; the full 66-file suite passed 416 tests with one worker, followed
+by full lint and production build. The default parallel run hit the shared five-second timeout in 29
+tests; every affected file passed in the serialized verification.
 
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-item-categories-review.html`
 

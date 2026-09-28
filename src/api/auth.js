@@ -4,7 +4,8 @@ import { AUTH } from "@api/path/index.js";
 const getCurrentUser = async options => {
     return api({
         url: AUTH.currentUser,
-        method: 'GET'
+        method: 'GET',
+        skipAuthRedirect: true
     }, options);
 }
 

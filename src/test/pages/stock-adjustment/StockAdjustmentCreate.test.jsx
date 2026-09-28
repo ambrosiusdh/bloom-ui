@@ -97,7 +97,19 @@ const selectItem = async (user, label = '[KAIN-1] Kain katun') => {
     await user.click(screen.getByRole('option', { name: label }));
 };
 
+const waitForFormReady = async () => {
+    const reviewButton = await screen.findByRole('button', {
+        name: 'Tinjau penyesuaian'
+    });
+
+    await waitFor(
+        () => expect(reviewButton).toBeEnabled(),
+        { timeout: 3000 }
+    );
+};
+
 const reviewCorrection = async user => {
+    await waitForFormReady();
     await user.type(
         screen.getByRole('textbox', { name: /Alasan penyesuaian/ }),
         'Hitung fisik rak'
@@ -118,7 +130,7 @@ const reviewCorrection = async user => {
 
 describe('StockAdjustmentCreate FE-13 workflow', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
         sessionStorage.clear();
         useStockAdjustmentStore.setState(useStockAdjustmentStore.getInitialState());
         itemApi.getItemList.mockResolvedValue(itemListResponse());
@@ -149,7 +161,7 @@ describe('StockAdjustmentCreate FE-13 workflow', () => {
         const user = userEvent.setup();
 
         render(<StockAdjustmentCreate />, { route: '/stock-adjustments/new' });
-        await screen.findByRole('combobox', { name: 'Barang' });
+        await waitForFormReady();
 
         await user.click(screen.getByRole('button', { name: 'Tinjau penyesuaian' }));
         expect(screen.getByText('Alasan penyesuaian wajib diisi.')).toBeInTheDocument();
@@ -239,7 +251,8 @@ describe('StockAdjustmentCreate FE-13 workflow', () => {
         const user = userEvent.setup();
         render(<StockAdjustmentCreate />, { route: '/stock-adjustments/new' });
 
-        await user.click(await screen.findByRole('combobox', { name: 'Barang' }));
+        await waitForFormReady();
+        await user.click(screen.getByRole('combobox', { name: 'Barang' }));
 
         expect(screen.getByRole('option', { name: '[KAIN-1] Kain katun' })).toBeInTheDocument();
         expect(screen.getByRole('option', { name: '[BENANG-1] Benang gulung' })).toBeInTheDocument();
@@ -284,7 +297,7 @@ describe('StockAdjustmentCreate FE-13 workflow', () => {
             screen.getByRole('button', { name: 'Tinjau penyesuaian' })
         ).toBeEnabled());
         expect(screen.getByText(/Data barang terbaru sudah dimuat/)).toBeInTheDocument();
-    });
+    }, 10000);
 
     it('locks the next adjustment until a failed post-success item refresh is repaired', async () => {
         const user = userEvent.setup();
