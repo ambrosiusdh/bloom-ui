@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import useAppStore from '@stores/modules/app.js';
 import useAuthStore from '@stores/modules/auth.js';
+import useBreadcrumbStore from '@stores/modules/breadcrumb.js';
 import Header from '@/components/app/Header.jsx';
 import Sidebar from '@/components/app/Sidebar.jsx';
 import { render } from '@/test/render.jsx';
@@ -46,6 +47,7 @@ describe('back-office navigation', () => {
     beforeEach(() => {
         setNarrowViewport(false);
         useAppStore.setState({ isExpanded: true });
+        useBreadcrumbStore.setState({ breadcrumbs: [] });
         useAuthStore.setState({
             currentUser: { name: 'Budi', role: 'ADMIN' },
             authStatus: 'authenticated'
@@ -55,6 +57,7 @@ describe('back-office navigation', () => {
     afterEach(() => {
         window.matchMedia = originalMatchMedia;
         useAppStore.setState({ isExpanded: true });
+        useBreadcrumbStore.setState({ breadcrumbs: [] });
         useAuthStore.setState({ currentUser: null, authStatus: 'checking' });
         vi.clearAllMocks();
     });
@@ -62,7 +65,7 @@ describe('back-office navigation', () => {
     it('groups and labels only destinations backed by existing routes', () => {
         render(<Sidebar />, { route: '/dashboard' });
 
-        const navigation = screen.getByRole('navigation', { name: 'Destinasi back office' });
+        const navigation = screen.getByRole('navigation', { name: 'Destinasi utama' });
 
         expect(within(navigation).getByRole('heading', { name: 'Ringkasan' })).toBeInTheDocument();
         expect(within(navigation).getByRole('heading', { name: 'Persediaan' })).toBeInTheDocument();
@@ -76,7 +79,6 @@ describe('back-office navigation', () => {
             '/item-categories',
             '/goods-receipts',
             '/stock-adjustments',
-            '/stock-transfers/new',
             '/stock-movements',
             '/suppliers',
             '/payables',
@@ -84,12 +86,18 @@ describe('back-office navigation', () => {
             '/cash-sessions',
             '/expenses'
         ]);
-        expect(screen.getByRole('link', { name: 'Kasir' })).toHaveAttribute('href', '/cashier');
-        expect(screen.getByRole('button', { name: 'Keluar' })).toHaveClass('bg-transparent', 'hover:bg-maroon-700');
+        expect(within(navigation).getByRole('link', { name: 'Pergerakan stok' }))
+            .toHaveAttribute('href', '/stock-movements');
+        expect(within(navigation).queryByRole('link', { name: 'Buat transfer stok' }))
+            .not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Buka Kasir' })).toHaveAttribute('href', '/cashier');
+        expect(screen.getByRole('button', { name: 'Keluar akun' })).toBeInTheDocument();
         expect(within(navigation).getByRole('link', { name: 'Utang Pemasok' }))
             .toHaveAttribute('href', '/payables');
         expect(within(navigation).getByRole('link', { name: 'Pengeluaran' }))
             .toHaveAttribute('href', '/expenses');
+        expect(screen.getByRole('group', { name: 'Akun saat ini' })).toHaveTextContent('BudiAdministrator');
+        expect(screen.queryByText('Back office', { exact: false })).not.toBeInTheDocument();
     });
 
     it('marks a destination active throughout its existing child routes', () => {
@@ -97,6 +105,33 @@ describe('back-office navigation', () => {
 
         expect(screen.getByRole('link', { name: 'Data Barang' })).toHaveAttribute('aria-current', 'page');
         expect(screen.getByRole('link', { name: 'Dashboard' })).not.toHaveAttribute('aria-current');
+    });
+
+    it('selects the combined stock navigation destination from each existing route', () => {
+        const view = render(<Sidebar />, { route: '/stock-movements' });
+
+        expect(screen.getByRole('link', { name: 'Pergerakan stok' }))
+            .toHaveAttribute('aria-current', 'page');
+
+        view.unmount();
+        render(<Sidebar />, { route: '/stock-transfers/new' });
+
+        expect(screen.getByRole('link', { name: 'Pergerakan stok' }))
+            .toHaveAttribute('aria-current', 'page');
+    });
+
+    it('derives breadcrumbs from the current route instead of retained page state', () => {
+        useBreadcrumbStore.setState({ breadcrumbs: ['Cashier'] });
+
+        render(<Header />, { route: '/stock-transfers/new' });
+
+        const breadcrumbs = screen.getByRole('navigation', { name: 'Lokasi halaman' });
+
+        expect(within(breadcrumbs).getByText('Persediaan')).toBeInTheDocument();
+        expect(within(breadcrumbs).getByRole('link', { name: 'Pergerakan stok' }))
+            .toHaveAttribute('href', '/stock-movements');
+        expect(within(breadcrumbs).getByText('Buat transfer stok')).toBeInTheDocument();
+        expect(within(breadcrumbs).queryByText('Cashier')).not.toBeInTheDocument();
     });
 
     it('keeps collapsed destinations named and keyboard operable', async () => {
@@ -114,7 +149,7 @@ describe('back-office navigation', () => {
         const salesLink = screen.getByRole('link', { name: 'Riwayat Penjualan' });
 
         expect(salesLink).toHaveAttribute('title', 'Riwayat Penjualan');
-        expect(screen.getByRole('button', { name: 'Keluar' })).toHaveAttribute('title', 'Keluar');
+        expect(screen.getByRole('button', { name: 'Keluar akun' })).toHaveAttribute('title', 'Keluar akun');
 
         salesLink.focus();
         await user.keyboard('{Enter}');
@@ -134,21 +169,21 @@ describe('back-office navigation', () => {
         const sidebar = document.querySelector('#back-office-navigation');
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: 'Buka navigasi back office' })).toHaveAttribute('aria-expanded', 'false');
+            expect(screen.getByRole('button', { name: 'Buka navigasi utama' })).toHaveAttribute('aria-expanded', 'false');
         });
         expect(sidebar).toHaveAttribute('aria-hidden', 'true');
         expect(sidebar).toHaveAttribute('inert');
         expect(sidebar).toHaveClass('bloom__sidebar--collapsed');
 
-        await user.click(screen.getByRole('button', { name: 'Buka navigasi back office' }));
+        await user.click(screen.getByRole('button', { name: 'Buka navigasi utama' }));
 
         const dashboardLink = await screen.findByRole('link', { name: 'Dashboard' });
         await waitFor(() => expect(dashboardLink).toHaveFocus());
         expect(sidebar).not.toHaveClass('bloom__sidebar--collapsed');
-        expect(screen.getByRole('dialog', { name: 'Navigasi back office' })).toBeInTheDocument();
+        expect(screen.getByRole('dialog', { name: 'Navigasi utama' })).toBeInTheDocument();
 
-        const logoutButton = screen.getByRole('button', { name: 'Keluar' });
-        const drawerCloseButton = within(sidebar).getByRole('button', { name: 'Tutup navigasi back office' });
+        const logoutButton = screen.getByRole('button', { name: 'Keluar akun' });
+        const drawerCloseButton = within(sidebar).getByRole('button', { name: 'Tutup navigasi utama' });
 
         logoutButton.focus();
         await user.tab();
@@ -156,8 +191,23 @@ describe('back-office navigation', () => {
 
         await user.keyboard('{Escape}');
 
-        const openButton = screen.getByRole('button', { name: 'Buka navigasi back office' });
+        const openButton = screen.getByRole('button', { name: 'Buka navigasi utama' });
         expect(openButton).toHaveFocus();
         expect(sidebar).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('collapses the wide shell without hiding destination names', async () => {
+        const user = userEvent.setup();
+
+        render(<NavigationShell />, { route: '/dashboard' });
+
+        await user.click(screen.getByRole('button', { name: 'Ciutkan navigasi utama' }));
+
+        expect(document.querySelector('#back-office-navigation'))
+            .toHaveClass('bloom__sidebar--collapsed');
+        expect(screen.getByRole('button', { name: 'Bentangkan navigasi utama' }))
+            .toHaveAttribute('aria-expanded', 'false');
+        expect(screen.getByRole('link', { name: 'Riwayat Penjualan' }))
+            .toHaveAttribute('title', 'Riwayat Penjualan');
     });
 });

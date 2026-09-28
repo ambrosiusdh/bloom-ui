@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
     Alert,
     Button,
@@ -165,7 +165,7 @@ export default function StockMovementList() {
     };
 
     useEffect(() => {
-        setBreadcrumbs(['Riwayat Pergerakan Stok']);
+        setBreadcrumbs(['Pergerakan stok']);
     }, [setBreadcrumbs]);
 
     useEffect(() => {
@@ -238,9 +238,20 @@ export default function StockMovementList() {
 
     return (
         <div className="stock-movement-list">
-            <div className="mb-4">
-                <h2 className="font-bold text-2xl">Riwayat Pergerakan Stok</h2>
-                <p className="mt-1 text-gray-600">Catatan perubahan stok yang sudah dikonfirmasi oleh sistem.</p>
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <h2 className="font-bold text-2xl">Riwayat Pergerakan Stok</h2>
+                    <p className="mt-1 text-gray-600">Catatan perubahan stok yang sudah dikonfirmasi oleh sistem.</p>
+                </div>
+
+                <Button
+                    component={ Link }
+                    to="/stock-transfers/new"
+                    variant="contained"
+                    className="self-start"
+                >
+                    Buat transfer stok
+                </Button>
             </div>
 
             { error && (

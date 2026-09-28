@@ -1,6 +1,6 @@
 # Bloom Release 1 UX Rework Roadmap
 
-Last updated: 2026-09-26
+Last updated: 2026-09-28
 
 ## 1. Purpose
 
@@ -1041,6 +1041,8 @@ Decision: `docs/ux/design/uxr-d16-appearance-modes-decision.md`
 > Implement only UXI-01, Bloom's appearance foundation. Read `AGENTS.md`, the frontend contract, both roadmaps, `docs/ux/design/visual-direction-decision.md`, `docs/ux/design/uxr-d16-appearance-modes-decision.md`, and the prototype at `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-appearance-modes-final-review.html`. Inspect `src/themes/index.js`, `src/main.jsx`, `src/App.jsx`, `src/index.css`, and existing tests. Implement semantic Operational Blue tokens, light-first rendering, `Terang`/`Gelap`/`Ikuti sistem`, local-device persistence, system-preference updates, and pre-paint resolution without changing business behavior or page layouts. Cover cashier/back-office, wide/narrow, and normal/selected/focus/success/warning/error/rejected/pending/disabled parity. Keep MUI; do not add a backend preference. Add focused tests, then run `npm test`, `npm run lint`, and `npm run build`. Update the relevant plan status; do not commit or push.
 
 #### UXI-02 — Shared navigation shell
+
+Status: `IMPLEMENTED`
 
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-navigation-shell-review.html`
 
