@@ -214,7 +214,33 @@ describe('api', () => {
         await expect(rejectResponse(createHttpError(401))).rejects.toMatchObject({
             category: API_ERROR_CATEGORY.AUTHENTICATION
         });
-        expect(assign).toHaveBeenCalledWith('/login?redirect=%2Fitems%3Fpage%3D2%23stock');
+        expect(assign).toHaveBeenCalledWith(
+            '/login?redirect=%2Fitems%3Fpage%3D2%23stock&reason=session-expired'
+        );
+
+        vi.unstubAllGlobals();
+    });
+
+    it('lets the protected-entry gate handle an initial unauthenticated session check', async () => {
+        const [, rejectResponse] = axiosMocks.useResponseInterceptor.mock.calls[0];
+        const assign = vi.fn();
+        vi.stubGlobal('window', {
+            location: {
+                pathname: '/items',
+                search: '',
+                hash: '',
+                assign
+            }
+        });
+        const error = {
+            ...createHttpError(401),
+            config: { skipAuthRedirect: true }
+        };
+
+        await expect(rejectResponse(error)).rejects.toMatchObject({
+            category: API_ERROR_CATEGORY.AUTHENTICATION
+        });
+        expect(assign).not.toHaveBeenCalled();
 
         vi.unstubAllGlobals();
     });

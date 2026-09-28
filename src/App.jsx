@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react"
 import { Navigate, Outlet, useLocation, useMatches } from "react-router-dom";
+import { ShieldCheck } from "lucide-react";
 
 import Header from "@components/app/Header.jsx";
 import Loader from "@components/app/Loader.jsx";
@@ -18,19 +19,79 @@ function App() {
 
     const hideLayout = matches.some(match => match.handle?.hideLayout);
     const isCashierMode = matches.some(match => match.handle?.cashierMode);
+    const contentMainSpacing = hideLayout
+        ? 'bloom__content-main--standalone'
+        : isCashierMode
+            ? 'p-4 md:p-6'
+            : 'p-4';
 
     useEffect(() => {
         getCurrentUser()
     }, [getCurrentUser])
 
+    useEffect(() => {
+        if (location.state?.focusPageHeading !== true) {
+            return undefined;
+        }
+
+        let animationFrame;
+        let observer;
+
+        const focusPageHeading = () => {
+            const heading = document.querySelector(
+                '.bloom__content-main h1, .bloom__content-main h2'
+            );
+
+            if (!heading) {
+                return false;
+            }
+
+            if (!heading.hasAttribute('tabindex')) {
+                heading.setAttribute('tabindex', '-1');
+            }
+
+            heading.classList.add('bloom-route-focus-target');
+            heading.focus();
+            observer?.disconnect();
+            return true;
+        };
+
+        animationFrame = requestAnimationFrame(() => {
+            if (focusPageHeading()) {
+                return;
+            }
+
+            observer = new MutationObserver(focusPageHeading);
+            observer.observe(document.querySelector('.bloom__content-main') || document.body, {
+                childList: true,
+                subtree: true
+            });
+        });
+
+        return () => {
+            cancelAnimationFrame(animationFrame);
+            observer?.disconnect();
+        };
+    }, [
+        location.hash,
+        location.pathname,
+        location.search,
+        location.state?.focusPageHeading
+    ]);
+
     if (!hideLayout && authStatus === 'checking') {
         return (
             <main
-                className="flex min-h-screen items-center justify-center"
+                className="bloom bloom-auth-checking"
                 role="status"
                 aria-live="polite"
+                aria-labelledby="bloom-auth-checking-title"
             >
-                Memeriksa sesi...
+                <span className="bloom-auth-checking__icon" aria-hidden="true">
+                    <ShieldCheck />
+                </span>
+                <h1 id="bloom-auth-checking-title">Memeriksa sesi…</h1>
+                <p>Konten yang dilindungi belum ditampilkan.</p>
             </main>
         );
     }
@@ -60,7 +121,7 @@ function App() {
                     />
                 ) }
 
-                <div className={ `bloom__content-main ${isCashierMode ? 'p-4 md:p-6' : 'p-4'} flex-grow` }>
+                <div className={ `bloom__content-main ${ contentMainSpacing } flex-grow` }>
                     <Outlet />
                 </div>
             </div>

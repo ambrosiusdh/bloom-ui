@@ -1,5 +1,5 @@
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const authApi = vi.hoisted(() => ({
@@ -16,8 +16,13 @@ import App from '@/App.jsx';
 
 const LoginLocation = () => {
     const location = useLocation();
+    const from = location.state?.from;
 
-    return <div>{ `${location.pathname}:${location.state?.from?.pathname || ''}` }</div>;
+    return (
+        <div>
+            { `${ location.pathname }:${ from?.pathname || '' }${ from?.search || '' }${ from?.hash || '' }` }
+        </div>
+    );
 };
 
 const renderApp = initialEntry => {
@@ -26,7 +31,7 @@ const renderApp = initialEntry => {
             path: '/',
             element: <App />,
             children: [
-                { path: 'dashboard', element: <div>Dashboard</div> },
+                { path: 'dashboard', element: <h1>Dashboard</h1> },
                 { path: 'login', element: <LoginLocation />, handle: { hideLayout: true } }
             ]
         }
@@ -54,7 +59,8 @@ describe('protected route auth gating', () => {
 
         renderApp('/dashboard');
 
-        expect(screen.getByRole('status')).toHaveTextContent('Memeriksa sesi...');
+        expect(screen.getByRole('status')).toHaveTextContent('Memeriksa sesi…');
+        expect(screen.getByRole('status')).toHaveTextContent('Konten yang dilindungi belum ditampilkan.');
         expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
 
         await act(async () => {
@@ -75,8 +81,31 @@ describe('protected route auth gating', () => {
     it('redirects an expired session to login and preserves the protected destination', async () => {
         authApi.getCurrentUser.mockRejectedValue(new Error('expired'));
 
-        renderApp('/dashboard');
+        renderApp('/dashboard?page=2#stock');
 
-        expect(await screen.findByText('/login:/dashboard')).toBeInTheDocument();
+        expect(await screen.findByText('/login:/dashboard?page=2#stock')).toBeInTheDocument();
+    });
+
+    it('focuses the destination heading after a successful protected return', async () => {
+        authApi.getCurrentUser.mockResolvedValue({
+            status: 200,
+            data: {
+                data: {
+                    accountId: '101',
+                    username: 'kasir'
+                }
+            }
+        });
+
+        renderApp({
+            pathname: '/dashboard',
+            state: { focusPageHeading: true }
+        });
+
+        const heading = await screen.findByRole('heading', { name: 'Dashboard' });
+
+        await waitFor(() => {
+            expect(heading).toHaveFocus();
+        });
     });
 });

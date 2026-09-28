@@ -1052,6 +1052,8 @@ Decision/audit: `docs/ux/design/uxr-d01-auth-navigation-decision.md`; `docs/ux/a
 
 #### UXI-03 — Authentication and protected entry
 
+Status: `IMPLEMENTED`
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D01 Akses & navigasi** and review **Masuk**, **Kolom kosong**, **Kredensial salah**, **Sedang masuk**, **Memeriksa sesi**, **Sesi berakhir**, **Kembali ke tujuan**, and **Halaman tidak ditemukan**.
 
 Decision/audit: `docs/ux/design/uxr-d01-auth-navigation-decision.md`; `docs/ux/audits/uxr-a01-auth-navigation.md`
