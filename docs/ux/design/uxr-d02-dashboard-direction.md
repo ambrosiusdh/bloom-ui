@@ -1,19 +1,20 @@
 # UXR-D02 — Dashboard direction record
 
 Owner direction recorded: 2026-09-23  
-Formal UXR-D02 status: `PLANNED` pending post-audit design review and the weekly-series backend gate  
-Implementation status: not approved
+Formal UXR-D02 status: `APPROVED`; the weekly-series and STORE-stock backend gates remain open
+Implementation status: approved for planning, not started
 
 ## Owner-accepted direction
 
 The owner accepted the dashboard composition developed from the approved UXR-D00 visual direction:
 
 - retain the Operational Blue back-office shell and navigation behavior;
-- lead with three backend-owned operational summaries: sales today, current cash session, and supplier
-  payables;
+- lead with four compact backend-owned operational summaries: sales today, current cash session,
+  active-session expenses, and supplier payables;
 - add one secondary seven-day sales bar chart for owner-level trend awareness;
 - keep the current cash-session detail prominent because it determines whether cashier work can proceed;
-- provide labelled quick routes to Cashier, Goods Receipt, Stock Adjustment, and Expense Recording;
+- provide task routes from each summary and attention item without duplicating the reviewed
+  navigation as a permanent shortcut grid;
 - retain explicit freshness, refresh, loading, stale, refresh-failure, zero-sales, and no-open-session
   behavior;
 - support the same hierarchy in wide and narrow desktop layouts, with light as the default appearance
@@ -71,7 +72,8 @@ No endpoint name or response field is approved by this design record.
 - recent-transaction duplication on the dashboard;
 - client-side sales aggregation or comparison calculations;
 - new business rules, accounting interpretation, or a general reporting workspace; and
-- implementation approval before UXR-A02 and the backend chart contract gate are complete.
+- client-side stand-ins for the chart or stock-attention read models while their backend gates remain
+  open.
 
 ## UXR-A02 reconciliation
 
@@ -85,7 +87,30 @@ drill-downs. The audit adds four constraints to the direction:
 - replace internal `Release 1` wording with task-oriented Indonesian and strengthen freshness context.
 
 The evidence is recorded in
-[`docs/ux/audits/uxr-a02-dashboard.md`](../audits/uxr-a02-dashboard.md). UXR-D02 remains formally
-`PLANNED` until those constraints are reviewed in the design artifact and an approved backend
-aggregate exists for the seven-day series, or the owner explicitly removes that chart. Neither the
-audit nor this reconciliation authorizes frontend aggregation or application implementation.
+[`docs/ux/audits/uxr-a02-dashboard.md`](../audits/uxr-a02-dashboard.md) and is incorporated into
+[`uxr-d02-dashboard-review.md`](uxr-d02-dashboard-review.md). An approved backend aggregate is still
+required for the seven-day series unless the owner explicitly removes that chart. Neither the audit
+nor this reconciliation authorizes frontend aggregation.
+
+## Review refinement — 2026-09-27
+
+An external senior-UX review correctly identified opportunities to make the accepted operational
+direction more actionable for older users. The review candidate now uses simpler freshness copy,
+surfaces the already-contracted cash-session opener/time, compacts active-session expenses, and tests
+a single “Perlu perhatian” panel beside the seven-day chart. It keeps exact scale-four monetary
+display and does not introduce uncontracted payable due dates, inferred health status, or a recent
+cross-domain activity feed.
+
+The stock portion of “Perlu perhatian” is not owner-approved product data. It requires a new
+STORE-specific backend read model because the legacy total-stock Dashboard query conflicts with
+Release 1 location independence. The seven-day chart still requires its approved daily aggregate.
+Both requested backend additions and exclusions are specified in
+[`uxr-d02-dashboard-backend-request.md`](uxr-d02-dashboard-backend-request.md).
+
+## Final owner approval — 2026-09-27
+
+The owner accepted the refined Dashboard after sending the backend request to the backend agent.
+UXR-D02 is now `APPROVED` for implementation planning. The four-summary hierarchy, attention panel,
+seven-day chart placement, exact monetary display, state coverage, and exclusions are binding as
+recorded in [`uxr-d02-dashboard-decision.md`](uxr-d02-dashboard-decision.md). This approval does not
+clear the daily-sales or STORE-stock data gates, and application implementation has not begun.

@@ -121,7 +121,7 @@ Use these finding priorities:
 - `PLANNED`: ready to start in dependency order.
 - `IN_PROGRESS`: evidence or design work is underway.
 - `EVIDENCE_COMPLETE`: live audit and report are complete; no design is implied.
-- `DESIGN_REVIEW`: a Figma proposal is ready for owner review.
+- `DESIGN_REVIEW`: a design proposal is ready for owner review.
 - `APPROVED`: the owner approved the design direction.
 - `IMPLEMENTED`: approved UX was delivered and verified in application code.
 - `BLOCKED`: the required environment, data, hardware, decision, or contract is unavailable.
@@ -158,11 +158,19 @@ Use these finding priorities:
 | 17 | UXR-A17 | Expense void/reversal | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 18 | UXR-A02 | Operational dashboard | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
 | 19 | UXR-A18 | Cross-domain evidence synthesis | EVIDENCE_COMPLETE | LIVE_AUDIT | `gpt-5.6-sol`, high |
-| 20 | UXR-D16 | Light and dark appearance modes | PLANNED | FIGMA_DESIGN | `gpt-5.6-sol`, high |
+| 20 | UXR-D16 | Light and dark appearance modes | APPROVED | FIGMA_DESIGN | `gpt-5.6-sol`, high |
 
 Cashier work comes first because it is the highest-frequency, most time-sensitive working mode. UXR-D00 then compares visual directions using evidence from the shell, cashier, checkout, and sales-history workflows before broader domain design begins. Back-office audits follow the operational sequence from item setup through stock, purchasing, debt, and expense handling. Dashboard audit comes after its drill-down destinations so its navigation value can be judged in context.
 
-**Status audit (updated 2026-09-26):** UXR-A01 through UXR-A18 now have complete evidence and reports. UXR-A02 verified the server-owned dashboard summaries, all four drill-downs, natural stale warning and refresh recovery, keyboard order, and one/two/three-column responsive behavior; it also repeated the shared stale-breadcrumb defect. UXR-A18 consolidated 77 findings into one unresolved transfer-recovery P0, one resolved supplier-payment transport P0, 42 P1 findings, and 33 P2 findings, with cross-domain priorities, journey handoffs, an owner-decision register, and a recommended Figma order. The owner approved UXR-D00's explicitly defined mode-aware hybrid after iterative cashier and navigation review; the decision is recorded in `docs/ux/design/visual-direction-decision.md`. UXR-A14 posted disposable receipt `GR/IX-2026/0003`, adding an unpaid fixture with both STORE and WAREHOUSE lines. UXR-A15 found P0 `PAYMENT-01`, the encoded path-variable route for slash-containing receipt references; the frontend/backend transport was corrected to a query parameter and verified by live partial QRIS and full BANK_TRANSFER payments. UXR-A16 posted disposable expense `#2` against open cash session `#15`; UXR-A17 then reversed it with an owner-confirmed reason and retained the immutable original/reversal audit. Closed-session expense `#1` remains the ineligible fixture. All domain audit dependencies are complete. The next recommended design work is the UXR-D07 recovery-contract decision in parallel with UXR-D01 shell/navigation design, followed by the high-frequency cash-session/cashier/checkout/sales cluster. UXR-D02 still requires evidence reconciliation and an approved backend aggregate (or an explicit owner decision to remove the accepted seven-day chart). FE-19's store-laptop physical scanner gate remains outstanding and was not cleared by UXR-A09, UXR-A10, or UXR-A11.
+**Status audit (updated 2026-09-27):** UXR-A01 through UXR-A18 now have complete evidence and reports. UXR-A02 verified the server-owned dashboard summaries, all four drill-downs, natural stale warning and refresh recovery, keyboard order, and one/two/three-column responsive behavior; it also repeated the shared stale-breadcrumb defect. UXR-A18 consolidated 77 findings into two now-resolved P0s, 42 P1 findings, and 33 P2 findings, with cross-domain priorities, journey handoffs, an owner-decision register, and a recommended design order. `TRANSFER-01` was resolved after synthesis by persisting the account-bound exact request and idempotency key before posting and reconciling uncertain outcomes through the backend's existing same-key idempotent POST; no endpoint or stock rule changed. The owner approved UXR-D00's explicitly defined mode-aware hybrid after iterative cashier and navigation review; the decision is recorded in `docs/ux/design/visual-direction-decision.md`. UXR-A14 posted disposable receipt `GR/IX-2026/0003`, adding an unpaid fixture with both STORE and WAREHOUSE lines. UXR-A15 found P0 `PAYMENT-01`, the encoded path-variable route for slash-containing receipt references; the frontend/backend transport was corrected to a query parameter and verified by live partial QRIS and full BANK_TRANSFER payments. UXR-A16 posted disposable expense `#2` against open cash session `#15`; UXR-A17 then reversed it with an owner-confirmed reason and retained the immutable original/reversal audit. Closed-session expense `#1` remains the ineligible fixture. All domain audit dependencies are complete. UXR-D00, UXR-D02, UXR-D03, UXR-D04, UXR-D05, and UXR-D06 are owner-approved. Every other UXR-D01 through UXR-D16 domain now has a reviewable design and is recorded as `DESIGN_REVIEW` in `docs/ux/design/design-review-register.md`. UXR-D02's seven-day chart and STORE-stock attention remain implementation-gated on the requested backend read models. FE-19's store-laptop physical scanner gate remains outstanding and was not cleared by UXR-A09, UXR-A10, or UXR-A11.
+
+**Design status update (2026-09-28):** UXR-D00 through UXR-D16 are now owner-approved. The design
+review queue is complete; the next phase is documentation-only `IMPLEMENTATION_REBASELINE` work,
+followed by separately authorized one-domain frontend changes. No design approval by itself
+authorizes application implementation.
+
+**Design approval status correction (2026-09-28):** The current authoritative register supersedes the
+earlier status sentence above. UXR-D01 through UXR-D16 are owner-approved.
 
 Live audits may continue alongside eligible domain design work. Domain Figma work begins only after its own evidence is complete and UXR-D00 has an owner-approved direction; it does not need to wait for every audit. Application implementation must wait for owner approval of that domain's design.
 
@@ -657,9 +665,9 @@ identifies repeated responsive/shell/focus/localization/traceability patterns, r
 handoffs and owner decisions, and recommends a Figma order without approving designs or changing
 application, dependency, product, or backend state.
 
-## 8. Figma design queue
+## 8. Design queue
 
-UXR-D00 begins after its representative audits are `EVIDENCE_COMPLETE`. Each domain design item, UXR-D01 through UXR-D15, begins only after its required audit is `EVIDENCE_COMPLETE` and UXR-D00 is `APPROVED`. The cross-cutting UXR-D16 appearance-mode task begins after UXR-D00 is `APPROVED` and representative cashier and back-office domain frames exist. Use `gpt-5.6-sol` with high reasoning for visual-direction comparison, the initial low-fidelity flow, and the refined Figma proposal. The Figma task must use the relevant Figma skills before calling Figma write tools.
+UXR-D00 begins after its representative audits are `EVIDENCE_COMPLETE`. Each domain design item, UXR-D01 through UXR-D15, begins only after its required audit is `EVIDENCE_COMPLETE` and UXR-D00 is `APPROVED`. The cross-cutting UXR-D16 appearance-mode task begins after UXR-D00 is `APPROVED` and representative cashier and back-office domain frames exist. Use `gpt-5.6-sol` with high reasoning for visual-direction comparison, the initial low-fidelity flow, and the refined proposal. When Figma is available, the task must use the relevant Figma skills before calling Figma write tools. An interactive HTML review artifact may be used when Figma access is unavailable, provided the same evidence, state, responsive, accessibility, and backend-authority requirements are preserved.
 
 | Design item | Domain | Audit dependency | Required design coverage |
 | --- | --- | --- | --- |
@@ -681,6 +689,28 @@ UXR-D00 begins after its representative audits are `EVIDENCE_COMPLETE`. Each dom
 | UXR-D15 | Expenses | UXR-A16 and UXR-A17 | History/create and void as separate Figma flows |
 | UXR-D16 | Appearance modes | UXR-D00 approval plus representative cashier and back-office frames | Approved palette mapped to light and dark modes, preference behavior, semantic-state parity, focus/contrast validation, and older-user legibility |
 
+### Current design-review status
+
+The authoritative status register is
+[`docs/ux/design/design-review-register.md`](../ux/design/design-review-register.md). As of 2026-09-28,
+UXR-D00 through UXR-D16 are `APPROVED`. Approval records the design direction; it does not authorize
+implementation. The reviewed domains use one authoritative interactive review suite so the sidebar,
+header, Operational Blue tokens, appearance toggle, focus treatment, and narrow navigation do not
+drift between domains.
+
+**Sales-history design note (2026-09-28):** UXR-D11 was prepared for focused owner review. The refined
+direction retains only the exact backend-supported code, creator, start-date, and end-date filters;
+stable server paging; all server-returned lifecycle/payment/correction and monetary facts; persisted
+line UOM/location; and sale-reference-only reprinting. It replaces page-level narrow-table overflow
+with labelled grouped records, uses Indonesian application-owned inverted-range recovery, restores
+semantic detail headings, and distinguishes print-service acknowledgement from verified physical
+paper output. This review state preceded the owner approval recorded below.
+
+**Sales-history owner approval note (2026-09-28):** The owner approved the refined labelled list,
+grouped no-overflow narrow records, Indonesian date recovery, backend-authoritative detail hierarchy,
+and sale-safe latest print-service acknowledgement language. The binding direction is recorded in
+`docs/ux/design/uxr-d11-sales-history-decision.md`; implementation remains separately gated.
+
 **Item-category design note (2026-09-23):** The owner approved UXR-D03 after reviewing the refined
 active-list, create/edit, validation/conflict, deactivation, and narrow-desktop treatment. The
 decision retains Operational Blue, icon-only 44-pixel row actions with accessible names, separate
@@ -697,15 +727,134 @@ narrow widths without treating the pattern as a global design system. The decisi
 [`uxr-d04-item-master-decision.md`](../ux/design/uxr-d04-item-master-decision.md). UXR-D04 is
 `APPROVED` for design direction; application implementation has not begun.
 
+**Stock-adjustment design note (2026-09-27):** The owner approved UXR-D06 after reviewing normal
+history, filtered empty, searchable item selection, create, confirmation, definitive rejection,
+server-confirmed success, persisted detail, ambiguous recovery, and narrow-desktop treatments. The
+direction preserves backend-owned stock results, delta-versus-absolute action meaning, durable
+recovery, keyboard/focus behavior, and the existing MUI baseline. The decision record is
+[`uxr-d06-stock-adjustment-decision.md`](../ux/design/uxr-d06-stock-adjustment-decision.md). UXR-D06
+is `APPROVED` for design direction; application implementation has not begun.
+
+**Stock-movement design note (2026-09-27):** The owner approved UXR-D05 after refining the existing
+item/SKU, direction, location, and reset filters; a scan-oriented ledger with explicit headers; and an
+in-context detail modal. The accepted list keeps item/code/UOM, movement/source, location,
+before-to-after balance, and actor/time visible while moving the source reference and expanded audit
+facts into the modal. The decision record is
+[`uxr-d05-stock-movements-decision.md`](../ux/design/uxr-d05-stock-movements-decision.md). UXR-D05 is
+`APPROVED` for design direction; application implementation has not begun.
+
+**Inventory-navigation refinement (2026-09-27):** The owner combined `Riwayat stok` and
+`Transfer stok` into one `Pergerakan stok` sidebar destination. History is the default view and
+`Buat transfer stok` is its primary action. UXR-D05 and UXR-D07 are approved; the transfer command
+keeps its separate backend-authoritative transaction and recovery semantics.
+
+**Stock-transfer design approval (2026-09-27):** The owner approved the familiar transfer form order,
+searchable item combobox, explicit source/destination with labelled swap, numeric quantity plus UOM,
+optional description, refresh action, and self-contained confirmation. The binding decision is in
+`docs/ux/design/uxr-d07-stock-transfer-decision.md`. This design approval does not authorize frontend
+implementation; implementation must first be re-baselined into one-domain PR work.
+
+**Cash-session design approval (2026-09-27):** The owner approved one `Sesi kas` destination that
+shows the verified current session and paged server history without merging their API meanings. The
+accepted direction uses Indonesian money entry, requests expected cash only when closing, never
+predicts variance in the browser, retains the server-final reconciliation, verifies the resulting
+no-session state before offering a new session, and preserves full narrow-desktop facts. History
+pagination explicitly shows page size, visible range and total, current page, and labelled
+previous/next actions. The binding decision is in
+`docs/ux/design/uxr-d08-cash-sessions-decision.md`; implementation remains separately gated.
+
+**Cashier checkout design approval (2026-09-27):** The owner rejected separate D09 cart and D10
+checkout page compositions in favor of the previously reviewed whole-cashier workspace. D09 and D10
+remain separate evidence/implementation boundaries, but share one design: item discovery stays on the
+left, while cart, estimate, editable discount and explanation, CASH/QRIS, tender, compact in-place
+confirmation, known rejection, exact-key ambiguous recovery, backend-confirmed result, and sale-first
+print states occupy the right transaction panel. Confirmation is retained as a deliberate final safety
+step, not route navigation or a repeated screen. Both items are `APPROVED` for design direction; the
+binding decision is recorded in `docs/ux/design/uxr-d09-d10-cashier-decision.md`. No application
+implementation or new backend preview contract is authorized.
+
+**Supplier design approval (2026-09-28):** The owner approved the focused UXR-D12 direction with
+explicit list columns and pagination, backend-owned outstanding balance, audit-rich detail,
+pre-commit normalization guidance, immutable-code edit, retained duplicate conflict,
+history-preserving deactivation, cancel-first focus, and labelled narrow grouped rows. The binding
+decision is recorded in `docs/ux/design/uxr-d12-suppliers-decision.md`; implementation remains a
+separate one-domain change.
+
+**Goods-receipt design approval (2026-09-28):** The owner approved the focused UXR-D13 direction
+covering the three backend payment states in history, URL-backed filters and paging, receipt-first
+detail with received lines before the secondary payment action, compact per-location creation lines
+including repeated SKUs, Indonesian received date/time guidance, advisory input estimate, localized
+confirmation, pending lock, exact-request recovery, backend-confirmed result, and no-overflow narrow
+layouts. The binding decision is recorded in
+`docs/ux/design/uxr-d13-goods-receipts-decision.md`; implementation remains a separate one-domain
+change.
+
+**Payables and supplier-payment design approval (2026-09-28):** The owner approved the focused
+UXR-D14 direction covering supported receipt/supplier-name discovery, receipt-first detail, received
+lines and payment history before mutation, one-receipt amount/method/reference/note entry, explicit
+CASH and non-cash session meaning, cancel-first confirmation, pending lock, exact account-bound
+recovery, definitive rejection, backend-refreshed success, corrected query-parameter transport, and
+no-overflow narrow layouts. Existing backend APIs are sufficient for the approved receipt-level flow.
+Optional stable `supplierCode` filtering is assumed to be in progress as a future discovery
+refinement and is not an implementation blocker. The binding decision is recorded in
+`docs/ux/design/uxr-d14-payables-payment-decision.md`; implementation remains a separate one-domain
+change.
+
+**Expense design approval (2026-09-28):** The owner approved the focused UXR-D15 direction covering
+the paging-only labelled history, active and closed-session eligibility, exact open-session-bound
+creation, cancel-first confirmation, pending lock, exact account-bound recovery, definitive
+rejection, backend-confirmed creation, audit-rich detail, reasoned void confirmation, void
+pending/recovery/result, retained original and reversal facts, explicit server-owned session impact,
+and no-overflow narrow layouts. The binding decision is recorded in
+`docs/ux/design/uxr-d15-expenses-voids-decision.md`; implementation remains a separate one-domain
+change.
+
+**Authentication/navigation review note (2026-09-27):** The owner accepted UXR-D01's shared
+navigation and header shell, including grouped icon-and-label navigation, removal of the redundant
+“Back office” label, the fixed lower-left current-user area, explicit appearance action,
+wide-screen collapse/expand, and narrow-screen overlay navigation. UXR-D01 remains
+`DESIGN_REVIEW` because its login, failure, pending, session-expiry, protected-return, and not-found
+states still require an explicit owner decision. This partial review does not authorize application
+implementation.
+
+**Authentication owner approval (2026-09-28):** The owner approved UXR-D01's fully
+Indonesian normal, required-field validation, rejected-credential, pending, protected-session
+checking, session-expiry, protected-return, and authenticated not-found states. It uses only the
+existing username/password contract, preserves a safe internal destination, and moves focus to the
+destination page heading after successful login. Headless interaction checks passed,
+and the 760-pixel login layout keeps all fields and actions visible without horizontal overflow.
+The binding direction is recorded in `docs/ux/design/uxr-d01-auth-navigation-decision.md`;
+implementation remains separately gated.
+
+**Appearance-mode owner approval (2026-09-28):** The owner approved UXR-D16's light-default,
+Operational Blue appearance direction with optional `Gelap` and `Ikuti sistem` modes, local-device
+persistence, system-light/system-dark resolution, semantic-state parity, and wide/narrow behavior.
+Automated token checks show at least 4.89:1 for the reviewed text/status/focus pairs in light mode and
+6.79:1 in dark mode. The binding decision is recorded in
+`docs/ux/design/uxr-d16-appearance-modes-decision.md`; implementation remains separately gated.
+
 **Dashboard direction note (2026-09-23):** The owner accepted the operational dashboard hierarchy
 and the addition of one secondary seven-day sales bar chart. The decision, exclusions, accessibility
 coverage, and required backend aggregation gate are recorded in
 [`uxr-d02-dashboard-direction.md`](../ux/design/uxr-d02-dashboard-direction.md). UXR-A02 is now
 `EVIDENCE_COMPLETE` and supports the accepted operational hierarchy, while adding breadcrumb,
-keyboard-bypass, summary-density, and copy constraints. UXR-D02 remains formally `PLANNED` until
-that evidence is incorporated into design review and an approved backend aggregate exists (or the
-owner explicitly removes the accepted seven-day chart). This record does not authorize frontend
-aggregation or implementation.
+keyboard-bypass, summary-density, and copy constraints. That evidence is now incorporated in
+[`uxr-d02-dashboard-review.md`](../ux/design/uxr-d02-dashboard-review.md). On 2026-09-27, the owner
+approved the refined Dashboard direction after sending the backend request to the backend agent.
+UXR-D02 is now `APPROVED`; the decision is recorded in
+[`uxr-d02-dashboard-decision.md`](../ux/design/uxr-d02-dashboard-decision.md). The seven-day chart
+and STORE-stock attention remain implementation-gated until the requested backend read models exist.
+Approval does not authorize frontend aggregation, inferred stock rules, or implementation with
+placeholder business data.
+
+**Dashboard review refinement (2026-09-27):** An external UX review was reconciled against UXR-A02
+and the implemented backend contract. The candidate now uses simpler copy, exposes the already
+available cash-session opener/time, compacts active-session expenses, and tests one action-oriented
+“Perlu perhatian” panel. Exact scale-four money remains visible. STORE stock attention and the
+seven-day chart are both backend-gated; their required read models and exclusions are specified in
+[`uxr-d02-dashboard-backend-request.md`](../ux/design/uxr-d02-dashboard-backend-request.md).
+Recent cross-domain activity, payable due dates, inferred session health, and a permanent shortcut
+grid remain excluded pending evidence or a separate contract.
 
 ### UXR-D00 — Visual direction comparison and owner selection
 
@@ -731,7 +880,7 @@ aggregation or implementation.
 ### UXR-D16 — Light and dark appearance modes
 
 - **Domain:** Cross-cutting application appearance; no business-domain behavior change.
-- **Status:** `PLANNED`.
+- **Status:** `APPROVED`.
 - **Execution class:** `FIGMA_DESIGN`.
 - **Dependencies:** UXR-D00 is `APPROVED`, and at least one representative approved cashier frame and one representative approved back-office frame are available.
 - **User-visible goal:** Provide a legible light default and an optional dark appearance without changing features, transaction meaning, or navigation.
@@ -750,6 +899,13 @@ longer a candidate. Older-user feedback supports a larger, lower-density default
 context, and a simplified but still complete back-office list/detail composition; it does not justify
 removing information required by the more complex back-office task. UXR-D16 records light/dark work
 separately so appearance work does not silently expand UXR-D00 or imply implementation.
+
+**Owner approval note (2026-09-28):** The owner approved the refined light-default direction,
+`Terang`/`Gelap`/`Ikuti sistem` behavior, local browser/device persistence, system-preference
+following, pre-paint preference resolution, Operational Blue semantic-token parity, older-user
+legibility, and identical business content and behavior across appearances. The binding decision is
+recorded in `docs/ux/design/uxr-d16-appearance-modes-decision.md`; implementation remains separately
+gated.
 
 **Copy-ready appearance-mode prompt**
 
