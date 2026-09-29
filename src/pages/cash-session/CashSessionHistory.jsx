@@ -6,7 +6,6 @@ import {
     Chip,
     CircularProgress,
     MenuItem,
-    Pagination,
     Paper,
     Table,
     TableBody,
@@ -23,6 +22,7 @@ import {
     formatRupiah,
     getVariancePresentation
 } from '@components/cash-session/cash-session-money.js';
+import CurrentCashSession from '@components/cash-session/CurrentCashSession.jsx';
 import { GENERIC_ERR_MESSAGE } from '@constants/general.js';
 import { useBreadcrumbStore } from '@stores/index.js';
 import { formatDate } from '@utils/date-utils.js';
@@ -30,6 +30,7 @@ import { formatDate } from '@utils/date-utils.js';
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const STATUS_OPTIONS = { OPEN: 'Terbuka', CLOSED: 'Ditutup' };
 const money = value => value == null ? '-' : formatRupiah(value);
+const sessionDate = value => formatDate(value, 'dd MMMM yyyy, HH:mm');
 
 const getQueryState = params => {
     const next = new URLSearchParams(params);
@@ -94,16 +95,19 @@ function SessionCard({ session, returnTo }) {
             <div className="flex items-start justify-between gap-3">
                 <div>
                     <div className="font-semibold">Sesi #{ session.id }</div>
-                    <div className="text-sm text-gray-600">{ formatDate(session.openedAt) || '-' }</div>
                 </div>
                 <StatusChip status={ session.status } />
             </div>
-            <dl className="grid grid-cols-2 gap-3 text-sm">
+            <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <div>
+                    <dt className="text-gray-600">Dibuka oleh &amp; pada</dt>
+                    <dd>{ session.openedBy || '-' }</dd>
+                    <dd className="text-gray-600">{ sessionDate(session.openedAt) || '-' }</dd>
+                </div>
                 <div><dt className="text-gray-600">Kas awal</dt><dd>{ money(session.openingCash) }</dd></div>
-                <div><dt className="text-gray-600">Dibuka oleh</dt><dd>{ session.openedBy || '-' }</dd></div>
                 <div><dt className="text-gray-600">Kas diharapkan</dt><dd>{ session.status === 'CLOSED' ? money(session.expectedClosingCash) : 'Belum final' }</dd></div>
-                <div><dt className="text-gray-600">Kas aktual</dt><dd>{ session.status === 'CLOSED' ? money(session.actualClosingCash) : 'Belum dihitung' }</dd></div>
-                <div className="col-span-2"><dt className="text-gray-600">Selisih</dt><dd><ClosingResult session={ session } /></dd></div>
+                <div><dt className="text-gray-600">Kas aktual</dt><dd>{ session.status === 'CLOSED' ? money(session.actualClosingCash) : 'Belum final' }</dd></div>
+                <div><dt className="text-gray-600">Selisih</dt><dd><ClosingResult session={ session } /></dd></div>
             </dl>
             <Button component={ Link } to={ `/cash-sessions/${ session.id }` } state={ { from: returnTo } }>
                 Lihat detail
@@ -131,6 +135,14 @@ export default function CashSessionHistory() {
         needsSanitization
     } = getQueryState(searchParams);
     const returnTo = `${ location.pathname }${ location.search }`;
+    const totalElements = Number.isInteger(paging.totalElements)
+        ? paging.totalElements
+        : sessions.length;
+    const totalPages = Number.isInteger(paging.totalPages) ? paging.totalPages : 0;
+    const firstVisibleItem = sessions.length ? ((page - 1) * size) + 1 : 0;
+    const lastVisibleItem = sessions.length
+        ? Math.min(firstVisibleItem + sessions.length - 1, totalElements)
+        : 0;
 
     const updateQuery = updates => {
         const next = new URLSearchParams(searchParams);
@@ -139,7 +151,7 @@ export default function CashSessionHistory() {
         setSearchParams(next);
     };
 
-    useEffect(() => setBreadcrumbs(['Riwayat Sesi Kas']), [setBreadcrumbs]);
+    useEffect(() => setBreadcrumbs(['Sesi Kas']), [setBreadcrumbs]);
 
     useEffect(() => {
         if (needsSanitization) setSearchParams(canonicalSearch, { replace: true });
@@ -172,10 +184,21 @@ export default function CashSessionHistory() {
 
     return (
         <div className="space-y-4">
-            <header>
-                <h2 className="font-bold text-2xl">Riwayat Sesi Kas</h2>
-                <p className="mt-1 text-gray-600">Hasil pembukaan dan rekonsiliasi yang dikonfirmasi server.</p>
+            <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <h2 className="font-bold text-2xl">Sesi kas</h2>
+                    <p className="mt-1 text-gray-600">
+                        Pantau sesi aktif dan rekonsiliasi yang dikonfirmasi server.
+                    </p>
+                </div>
+                <Button component={ Link } to="/cashier" variant="outlined">
+                    Buka Kasir
+                </Button>
             </header>
+
+            <CurrentCashSession
+                onSessionOpened={ () => setRetryVersion(value => value + 1) }
+            />
 
             { error && (
                 <Alert severity="error" action={ <Button color="inherit" onClick={ () => setRetryVersion(value => value + 1) }>Coba lagi</Button> }>
@@ -201,9 +224,21 @@ export default function CashSessionHistory() {
 
             <section className="rounded-lg bg-white shadow-lg pb-2" aria-label="Daftar sesi kas">
                 <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
-                    <h3 className="text-xl font-bold">Sesi kas</h3>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm">Data per halaman:</span>
+                    <div>
+                        <h3 className="text-xl font-bold">Riwayat sesi kas</h3>
+                        { !isLoading && !error && (
+                            <p className="mt-1 text-sm text-gray-600" aria-live="polite">
+                                { sessions.length
+                                    ? `${ firstVisibleItem }–${ lastVisibleItem } dari ${ totalElements } sesi`
+                                    : '0 sesi' }
+                            </p>
+                        ) }
+                    </div>
+                    <div
+                        className="flex flex-wrap items-center gap-2"
+                        aria-label="Navigasi halaman riwayat sesi kas"
+                    >
+                        <span className="text-sm">Per halaman:</span>
                         <TextField
                             select
                             size="small"
@@ -214,13 +249,23 @@ export default function CashSessionHistory() {
                         >
                             { PAGE_SIZE_OPTIONS.map(value => <MenuItem key={ value } value={ value }>{ value }</MenuItem>) }
                         </TextField>
-                        <Pagination
-                            page={ page }
-                            count={ paging.totalPages || 1 }
-                            disabled={ isLoading || !paging.totalPages }
-                            onChange={ (_, value) => updateQuery({ page: value }) }
-                            aria-label="Halaman riwayat sesi kas"
-                        />
+                        <Button
+                            size="small"
+                            disabled={ isLoading || page <= 1 || !totalPages }
+                            onClick={ () => updateQuery({ page: page - 1 }) }
+                        >
+                            Sebelumnya
+                        </Button>
+                        <span className="min-w-24 text-center text-sm" aria-current="page">
+                            Halaman { totalPages ? Math.min(page, totalPages) : 1 } dari { totalPages || 1 }
+                        </span>
+                        <Button
+                            size="small"
+                            disabled={ isLoading || !totalPages || page >= totalPages }
+                            onClick={ () => updateQuery({ page: page + 1 }) }
+                        >
+                            Berikutnya
+                        </Button>
                     </div>
                 </div>
 
@@ -238,15 +283,20 @@ export default function CashSessionHistory() {
                         <TableContainer component={ Paper } elevation={ 0 } className="hidden md:block">
                             <Table sx={ { minWidth: 1050 } } aria-label="Riwayat sesi kas">
                                 <TableHead className="bg-gray-100"><TableRow>
-                                    <TableCell>Sesi</TableCell><TableCell>Status</TableCell><TableCell>Dibuka</TableCell>
+                                    <TableCell>Sesi</TableCell><TableCell>Status</TableCell><TableCell>Dibuka oleh &amp; pada</TableCell>
                                     <TableCell align="right">Kas awal</TableCell><TableCell align="right">Kas diharapkan</TableCell>
                                     <TableCell align="right">Kas aktual</TableCell><TableCell>Selisih</TableCell><TableCell />
                                 </TableRow></TableHead>
                                 <TableBody>{ sessions.map(session => (
                                     <TableRow key={ session.id } hover>
-                                        <TableCell><strong>#{ session.id }</strong><div className="text-sm text-gray-600">{ session.openedBy || '-' }</div></TableCell>
+                                        <TableCell><strong>#{ session.id }</strong></TableCell>
                                         <TableCell><StatusChip status={ session.status } /></TableCell>
-                                        <TableCell className="whitespace-nowrap">{ formatDate(session.openedAt) || '-' }</TableCell>
+                                        <TableCell className="whitespace-nowrap">
+                                            <span>{ session.openedBy || '-' }</span>
+                                            <div className="text-sm text-gray-600">
+                                                { sessionDate(session.openedAt) || '-' }
+                                            </div>
+                                        </TableCell>
                                         <TableCell align="right">{ money(session.openingCash) }</TableCell>
                                         <TableCell align="right">{ session.status === 'CLOSED' ? money(session.expectedClosingCash) : 'Belum final' }</TableCell>
                                         <TableCell align="right">{ session.status === 'CLOSED' ? money(session.actualClosingCash) : '-' }</TableCell>

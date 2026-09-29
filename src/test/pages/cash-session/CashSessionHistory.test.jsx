@@ -5,10 +5,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import cashSessionApi from '@api/cash-session.js';
 import CashSessionDetail from '@pages/cash-session/CashSessionDetail.jsx';
 import CashSessionHistory from '@pages/cash-session/CashSessionHistory.jsx';
-import { fireEvent, render, screen, waitFor } from '@/test/render.jsx';
+import useCashSessionStore from '@stores/modules/cash-session.js';
+import {
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+    within
+} from '@/test/render.jsx';
 
 vi.mock('@api/cash-session.js', () => ({
     default: {
+        getCurrentSession: vi.fn(),
+        openSession: vi.fn(),
+        getExpectedCash: vi.fn(),
+        closeSession: vi.fn(),
         getSessionHistory: vi.fn(),
         getSessionDetails: vi.fn()
     }
@@ -47,9 +58,20 @@ const overSession = {
     difference: '2000.0000'
 };
 
-const historyResponse = ({ content = [], totalPages = content.length ? 1 : 0 } = {}) => ({
-    data: { data: { content, totalPages } }
+const historyResponse = ({
+    content = [],
+    totalElements = content.length,
+    totalPages = content.length ? 1 : 0
+} = {}) => ({
+    data: {
+        data: {
+            content,
+            totalElements,
+            totalPages
+        }
+    }
 });
+const noSessionResponse = () => ({ data: { data: null } });
 const detailResponse = session => ({ data: { data: session } });
 const renderDetail = route => render(
     <Routes>
@@ -64,11 +86,27 @@ function LocationProbe() {
 }
 
 describe('CashSessionHistory', () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+        cashSessionApi.getCurrentSession.mockResolvedValue(noSessionResponse());
+        useCashSessionStore.setState({
+            currentSession: null,
+            currentStatus: 'idle',
+            currentError: null,
+            lastCheckedAt: null,
+            drawerActionsEnabled: false,
+            isOpening: false,
+            openingError: null,
+            isClosing: false,
+            closingError: null
+        });
+    });
 
     it('renders open and closed backend records directly with responsive summaries', async () => {
         cashSessionApi.getSessionHistory.mockResolvedValue(historyResponse({
-            content: [openSession, overSession, closedSession], totalPages: 2
+            content: [openSession, overSession, closedSession],
+            totalElements: 13,
+            totalPages: 2
         }));
         render(<CashSessionHistory />, { route: '/cash-sessions?page=2&size=10' });
 
@@ -83,12 +121,79 @@ describe('CashSessionHistory', () => {
         expect(screen.getAllByText('Lebih')[0]).toHaveClass('bg-amber-100', 'text-amber-900', 'font-bold');
         expect(screen.getAllByText('-Rp 2.000')[0]).toHaveClass('text-red-700');
         expect(screen.getAllByText('+Rp 2.000')[0]).toHaveClass('text-amber-700');
-        expect(screen.getAllByText(/25-08-2026/)).not.toHaveLength(0);
+        expect(screen.getAllByText(/25 Agustus 2026/)).not.toHaveLength(0);
+        const openRecord = screen.getAllByRole('article')
+            .find(record => within(record).queryByText('Sesi #18'));
+        expect(within(openRecord).getByText('Dibuka oleh & pada')).toBeInTheDocument();
+        expect(within(openRecord).getByText('Kas awal')).toBeInTheDocument();
+        expect(within(openRecord).getByText('Kas diharapkan')).toBeInTheDocument();
+        expect(within(openRecord).getByText('Kas aktual')).toBeInTheDocument();
+        expect(within(openRecord).getByText('Selisih')).toBeInTheDocument();
+        expect(within(openRecord).getAllByText('Belum final')).toHaveLength(2);
+        expect(within(openRecord).getByText('Belum ditutup')).toBeInTheDocument();
+        expect(within(openRecord).getByRole('link', { name: 'Lihat detail' }))
+            .toHaveAttribute('href', '/cash-sessions/18');
+        expect(screen.getByText('11–13 dari 13 sesi')).toBeInTheDocument();
+        expect(screen.getByText('Halaman 2 dari 2')).toHaveAttribute('aria-current', 'page');
+        expect(screen.getByRole('button', { name: 'Sebelumnya' })).toBeEnabled();
+        expect(screen.getByRole('button', { name: 'Berikutnya' })).toBeDisabled();
         expect(cashSessionApi.getSessionHistory).toHaveBeenCalledTimes(1);
         expect(cashSessionApi.getSessionHistory).toHaveBeenCalledWith(expect.objectContaining({
             params: { page: 2, size: 10 }
         }));
         expect(cashSessionApi.getSessionDetails).not.toHaveBeenCalled();
+        expect(cashSessionApi.getCurrentSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('refreshes only the server history after a session is opened', async () => {
+        const user = userEvent.setup();
+        cashSessionApi.getSessionHistory.mockResolvedValue(historyResponse());
+        cashSessionApi.openSession.mockResolvedValue({
+            data: { data: openSession }
+        });
+        render(<CashSessionHistory />);
+
+        await user.click(await screen.findByRole('button', { name: 'Buka sesi kas' }));
+        await user.type(screen.getByLabelText(/Modal awal/), '250000,50');
+        await user.click(screen.getByRole('button', { name: 'Buka sesi' }));
+
+        expect(await screen.findByText('Sesi kas #18 berhasil dibuka.')).toBeInTheDocument();
+        expect(cashSessionApi.openSession).toHaveBeenCalledWith({
+            data: { openingCash: '250000.50' }
+        }, undefined);
+        await waitFor(() => expect(cashSessionApi.getSessionHistory).toHaveBeenCalledTimes(2));
+        expect(cashSessionApi.getCurrentSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('navigates the server pages with labelled previous and next actions', async () => {
+        const user = userEvent.setup();
+        cashSessionApi.getSessionHistory.mockResolvedValue(historyResponse({
+            content: [closedSession],
+            totalElements: 25,
+            totalPages: 3
+        }));
+        render(<CashSessionHistory />, { route: '/cash-sessions?page=2&size=10' });
+
+        await screen.findByText('11–11 dari 25 sesi');
+        await user.click(screen.getByRole('button', { name: 'Sebelumnya' }));
+        await waitFor(() => expect(cashSessionApi.getSessionHistory).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                params: {
+                    page: 1,
+                    size: 10
+                }
+            })
+        ));
+
+        await user.click(screen.getByRole('button', { name: 'Berikutnya' }));
+        await waitFor(() => expect(cashSessionApi.getSessionHistory).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                params: {
+                    page: 2,
+                    size: 10
+                }
+            })
+        ));
     });
 
     it('announces loading, exposes retry, and explains a filtered empty result', async () => {
@@ -99,7 +204,7 @@ describe('CashSessionHistory', () => {
             .mockResolvedValueOnce(historyResponse());
         render(<CashSessionHistory />, { route: '/cash-sessions?status=CLOSED' });
 
-        expect(screen.getByRole('status')).toHaveTextContent('Memuat sesi kas');
+        expect(screen.getByText('Memuat sesi kas...')).toBeInTheDocument();
         rejectRequest(new Error('Riwayat sesi gagal dimuat.'));
         expect(await screen.findByRole('alert')).toHaveTextContent('Riwayat sesi gagal dimuat.');
         await user.click(screen.getByRole('button', { name: 'Coba lagi' }));

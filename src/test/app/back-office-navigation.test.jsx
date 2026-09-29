@@ -88,6 +88,8 @@ describe('back-office navigation', () => {
         ]);
         expect(within(navigation).getByRole('link', { name: 'Pergerakan stok' }))
             .toHaveAttribute('href', '/stock-movements');
+        expect(within(navigation).getByRole('link', { name: 'Sesi kas' }))
+            .toHaveAttribute('href', '/cash-sessions');
         expect(within(navigation).queryByRole('link', { name: 'Buat transfer stok' }))
             .not.toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Buka Kasir' })).toHaveAttribute('href', '/cashier');

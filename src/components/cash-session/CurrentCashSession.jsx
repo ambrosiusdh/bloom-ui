@@ -15,6 +15,7 @@ import {
     Paper
 } from '@mui/material';
 import { BanknoteIcon } from 'lucide-react';
+import PropTypes from 'prop-types';
 
 import { API_ERROR_CATEGORY } from '@api/index.js';
 import BloomMoneyField from '@components/_ui/BloomMoneyField.jsx';
@@ -33,7 +34,7 @@ const validateOpeningCash = value => validateCashAmount(value, 'Modal awal');
 const getOpeningFieldError = error => error?.validationErrors
     ?.find(detail => detail.field === 'openingCash')?.message || '';
 
-export default function CurrentCashSession() {
+export default function CurrentCashSession({ onSessionOpened }) {
     const currentSession = useCashSessionStore(state => state.currentSession);
     const currentStatus = useCashSessionStore(state => state.currentStatus);
     const currentError = useCashSessionStore(state => state.currentError);
@@ -132,6 +133,7 @@ export default function CurrentCashSession() {
 
             setDialogOpen(false);
             setOpeningCash('');
+            onSessionOpened?.(session);
             setNotice({
                 severity: 'success',
                 message: `Sesi kas #${ session.id } berhasil dibuka.`
@@ -245,10 +247,17 @@ export default function CurrentCashSession() {
                                 { hasStaleSession && (
                                     <Chip size="small" color="warning" label="Belum terverifikasi" />
                                 ) }
+                                { currentStatus === 'ready' && !currentSession && (
+                                    <Chip size="small" label="Tidak ada sesi terbuka" />
+                                ) }
                             </div>
 
                             { currentSession ? (
-                                <dl className="mt-2 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
+                                <dl className="mt-2 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                                    <div>
+                                        <dt className="text-gray-500">Sesi</dt>
+                                        <dd className="font-semibold">#{ currentSession.id }</dd>
+                                    </div>
                                     <div>
                                         <dt className="text-gray-500">Modal awal</dt>
                                         <dd className="font-semibold">
@@ -302,8 +311,12 @@ export default function CurrentCashSession() {
                                     ) }
                                 </dl>
                             ) : (
-                                <p className="mt-1 text-sm text-gray-600">
-                                    Belum ada sesi kas yang terbuka. Masukkan modal awal untuk mulai.
+                                <p
+                                    className="mt-1 text-sm text-gray-600"
+                                    role="status"
+                                    aria-live="polite"
+                                >
+                                    Status telah diverifikasi. Masukkan modal awal untuk membuka sesi kas.
                                 </p>
                             ) }
                         </div>
@@ -380,9 +393,9 @@ export default function CurrentCashSession() {
                             onBlur={ () => setFieldError(validateOpeningCash(openingCash)) }
                             error={ Boolean(fieldError) }
                             helperText={ fieldError
-                                || 'Pemisah ribuan ditambahkan otomatis. Contoh: 500,000 atau 500,000.50.' }
-                            groupSeparator=","
-                            decimalSeparator="."
+                                || 'Gunakan format Indonesia, misalnya 500.000 atau 500.000,50.' }
+                            groupSeparator="."
+                            decimalSeparator=","
                             currencySymbol="Rp"
                             slotProps={ {
                                 htmlInput: {
@@ -417,3 +430,7 @@ export default function CurrentCashSession() {
         </section>
     );
 }
+
+CurrentCashSession.propTypes = {
+    onSessionOpened: PropTypes.func
+};

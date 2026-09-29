@@ -1082,6 +1082,18 @@ Decision/audit: `docs/ux/design/uxr-d03-item-categories-decision.md`; `docs/ux/a
 
 #### UXI-05 — Cash-session current state, history, and opening
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-29):** `/cash-sessions` is now the single `Sesi kas` destination and
+places the independently verified current-session state above independently requested server-paged
+history. Verified `data: null`, open identity/facts, Indonesian opening entry, canonical
+`openingCash`, conflict/status recovery, explicit page size/range/total/current-page/previous-next
+controls, consistent Indonesian timestamps, and complete labelled narrow records are covered without
+requesting expected cash or deriving reconciliation. Opening refreshes history through a new history
+request instead of merging the current and list responses. Seven focused files passed 53 tests; the
+full 67-file suite passed 423 tests, followed by full lint and production build. The build retained
+the pre-existing Browserslist-age and large-chunk advisory warnings.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D08 Sesi kas** and review no-session, open-session, opening, history, pagination, and narrow states.
 
 Decision/audit: `docs/ux/design/uxr-d08-cash-sessions-decision.md`; `docs/ux/audits/uxr-a08-cash-sessions.md`
