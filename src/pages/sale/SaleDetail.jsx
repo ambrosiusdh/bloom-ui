@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useParams, Link } from 'react-router-dom';
-import { Button, Alert, CircularProgress } from '@mui/material';
+import { Alert, Button, CircularProgress, Typography } from '@mui/material';
 import { Printer, ArrowLeft } from 'lucide-react';
 
 import { API_DOMAIN_ERROR_CODE } from '@api/error-contract.js';
@@ -69,6 +69,11 @@ const SaleDetail = () => {
 
     const isPrinting = printState.status === RECEIPT_PRINT_STATUS.PENDING;
     const isSaleReady = saleDetails?.code === saleReference;
+    const printStatusTitle = printState.status === RECEIPT_PRINT_STATUS.PENDING
+        ? 'Mengirim permintaan cetak terakhir'
+        : printState.status === RECEIPT_PRINT_STATUS.SUCCESS
+            ? 'Permintaan cetak terakhir diterima'
+            : 'Permintaan cetak terakhir gagal';
 
     if (detailStatus === 'loading' || detailStatus === 'idle') {
         return (
@@ -81,6 +86,7 @@ const SaleDetail = () => {
     if (detailStatus === 'error') {
         return (
             <div className="space-y-4">
+                <h1 className="text-2xl font-bold">Detail penjualan</h1>
                 <Alert severity="error"
                     action={ (
                     <Button color="inherit" onClick={ () => setRetryVersion(value => value + 1) }>Coba lagi</Button>
@@ -92,7 +98,13 @@ const SaleDetail = () => {
 
     return (
         <div className="sale-detail space-y-6 pb-8">
-            <div className="flex justify-between items-center print:hidden">
+            <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between print:hidden">
+                <div>
+                    <Typography component="h1" variant="h4" className="font-bold">
+                        Detail penjualan
+                    </Typography>
+                    <p className="mt-1 text-gray-600 break-all">{ saleReference }</p>
+                </div>
                 <Button
                     component={ Link }
                     to={ backTo }
@@ -100,43 +112,70 @@ const SaleDetail = () => {
                     variant="text"
                     color="inherit"
                 >
-                    Kembali
+                    Kembali ke daftar
                 </Button>
+            </header>
+
+            <SaleInfoCard sale={ saleDetails } />
+
+            <SaleItemsTable items={ saleDetails?.saleItems } />
+
+            <section className="card space-y-4 print:hidden" aria-labelledby="sale-reprint-heading">
+                <div>
+                    <Typography
+                        id="sale-reprint-heading"
+                        component="h2"
+                        variant="h5"
+                        className="font-bold"
+                    >
+                        Pencetakan ulang
+                    </Typography>
+                    <p className="mt-1 text-gray-600">
+                        Pencetakan hanya mengirim referensi penjualan ini ke layanan cetak.
+                        Penjualan tidak dibuat atau dikirim ulang.
+                    </p>
+                </div>
+
+                { printState.status !== RECEIPT_PRINT_STATUS.IDLE && (
+                    <Alert
+                        id="receipt-print-status"
+                        ref={ printFeedbackRef }
+                        severity={ printState.status === RECEIPT_PRINT_STATUS.ERROR
+                            ? 'error'
+                            : printState.status === RECEIPT_PRINT_STATUS.SUCCESS
+                                ? 'success'
+                                : 'info' }
+                        role={ printState.status === RECEIPT_PRINT_STATUS.ERROR
+                            ? 'alert'
+                            : 'status' }
+                        tabIndex={ -1 }
+                        action={ printState.status === RECEIPT_PRINT_STATUS.ERROR ? (
+                            <Button color="inherit" size="small" onClick={ handlePrint }>
+                                Coba lagi
+                            </Button>
+                        ) : undefined }
+                    >
+                        <strong>{ printStatusTitle }.</strong>{ ' ' }
+                        Penjualan { saleReference } tetap tercatat. { printMessage }
+                        { printState.error?.domainCode === API_DOMAIN_ERROR_CODE.SALE_NOT_FOUND && (
+                            <> Muat ulang halaman sebelum mencoba lagi.</>
+                        ) }
+                    </Alert>
+                ) }
+
                 <Button
                     variant="contained"
                     startIcon={ <Printer /> }
                     onClick={ handlePrint }
                     disabled={ isPrinting || !isSaleReady }
                     aria-busy={ isPrinting }
-                    aria-describedby={ printState.status === RECEIPT_PRINT_STATUS.IDLE ? undefined : 'receipt-print-status' }
+                    aria-describedby={ printState.status === RECEIPT_PRINT_STATUS.IDLE
+                        ? undefined
+                        : 'receipt-print-status' }
                 >
-                    { isPrinting ? 'Mengirim...' : 'Cetak ulang struk' }
+                    { isPrinting ? 'Mengirim ke layanan cetak...' : 'Cetak ulang struk' }
                 </Button>
-            </div>
-
-            { printState.status !== RECEIPT_PRINT_STATUS.IDLE && (
-                <Alert
-                    id="receipt-print-status"
-                    ref={ printFeedbackRef }
-                    severity={ printState.status === RECEIPT_PRINT_STATUS.ERROR ? 'error' : printState.status === RECEIPT_PRINT_STATUS.SUCCESS ? 'success' : 'info' }
-                    role={ printState.status === RECEIPT_PRINT_STATUS.ERROR ? 'alert' : 'status' }
-                    tabIndex={ -1 }
-                    action={ printState.status === RECEIPT_PRINT_STATUS.ERROR ? (
-                        <Button color="inherit" size="small" onClick={ handlePrint }>
-                            Coba lagi
-                        </Button>
-                    ) : undefined }
-                >
-                    <strong>Penjualan { saleReference }.</strong> { printMessage }
-                    { printState.error?.domainCode === API_DOMAIN_ERROR_CODE.SALE_NOT_FOUND && (
-                        <> Muat ulang halaman sebelum mencoba lagi.</>
-                    ) }
-                </Alert>
-            ) }
-
-            <SaleInfoCard sale={ saleDetails } />
-
-            <SaleItemsTable items={ saleDetails?.saleItems } />
+            </section>
         </div>
     );
 };

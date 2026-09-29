@@ -1,3 +1,4 @@
+import { within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -18,6 +19,7 @@ vi.mock('@api/sale.js', () => ({
 
 const sale = {
     code: 'SALE/IX-2026/0002',
+    sessionId: 13,
     saleStatus: 'COMPLETED',
     paymentStatus: 'PAID',
     correctionStatus: 'NONE',
@@ -27,11 +29,15 @@ const sale = {
     createdBy: 'admin'
 };
 
-const response = (content = [], totalPages = content.length ? 1 : 0) => ({ data: { data: {
+const response = (
+    content = [],
+    totalPages = content.length ? 1 : 0,
+    totalElements = content.length
+) => ({ data: { data: {
     content,
     number: 0,
     totalPages,
-    totalElements: content.length
+    totalElements
 } } });
 
 const deferred = () => {
@@ -52,19 +58,35 @@ describe('SaleList FE-22 read workflow', () => {
     });
 
     it('renders backend status, method, total, paging, and supported date/actor filters', async () => {
-        saleApi.getSaleList.mockResolvedValue(response([sale], 3));
+        saleApi.getSaleList.mockResolvedValue(response([sale], 3, 11));
         render(<SaleList />, {
             route: '/sales?key=createdBy&q=admin&startDate=2026-09-01&endDate=2026-09-03&page=2&size=5'
         });
 
-        expect(await screen.findByText(sale.code)).toBeInTheDocument();
-        expect(screen.getByLabelText('Status penjualan: Selesai')).toBeInTheDocument();
-        expect(screen.getByLabelText('Status pembayaran: Lunas')).toBeInTheDocument();
-        expect(screen.getByText('Tunai')).toBeInTheDocument();
-        expect(screen.getByText('Rp 12.500')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Detail' })).toHaveAttribute(
-            'href', `/sales/${ encodeURIComponent(sale.code) }`
-        );
+        expect(await screen.findAllByText(sale.code)).not.toHaveLength(0);
+        expect(screen.getAllByLabelText('Status penjualan: Selesai')).not.toHaveLength(0);
+        expect(screen.getAllByLabelText('Status pembayaran: Lunas')).not.toHaveLength(0);
+        expect(screen.getAllByLabelText('Status koreksi: Tanpa pembatalan/retur'))
+            .not.toHaveLength(0);
+        expect(screen.getAllByText('Tunai')).not.toHaveLength(0);
+        expect(screen.getAllByText('Rp 12.500')).not.toHaveLength(0);
+        expect(screen.getAllByText('Sesi kas #13')).not.toHaveLength(0);
+        expect(screen.getByText('6–6 dari 11 penjualan · Terbaru lebih dulu'))
+            .toBeInTheDocument();
+        const narrowRecord = screen.getByRole('article');
+        expect(within(narrowRecord).getByText('Status')).toBeInTheDocument();
+        expect(within(narrowRecord).getByText('Pembayaran')).toBeInTheDocument();
+        expect(within(narrowRecord).getByText('Total server')).toBeInTheDocument();
+        expect(within(narrowRecord).getByText('Dibuat oleh & pada')).toBeInTheDocument();
+        screen.getAllByRole('link', { name: `Buka detail ${ sale.code }` })
+            .forEach(link => expect(link).toHaveAttribute(
+                'href',
+                `/sales/${ encodeURIComponent(sale.code) }`
+            ));
+        expect(screen.getByRole('heading', { level: 1, name: 'Riwayat penjualan' }))
+            .toBeInTheDocument();
+        expect(screen.getByLabelText('Tanggal mulai')).toHaveValue('01-09-2026');
+        expect(screen.getByLabelText('Tanggal akhir')).toHaveValue('03-09-2026');
 
         const [params, config, options] = saleApi.getSaleList.mock.calls[0];
         expect(params).toMatchObject({ page: 2, size: 5, createdBy: 'admin' });
@@ -73,6 +95,42 @@ describe('SaleList FE-22 read workflow', () => {
         expect(params.endDate).toEqual(expect.any(String));
         expect(config.signal).toBeInstanceOf(AbortSignal);
         expect(options).toEqual({ useLoader: false });
+    });
+
+    it('blocks an inverted Indonesian date range before sending another request', async () => {
+        const user = userEvent.setup();
+        saleApi.getSaleList.mockResolvedValue(response());
+        render(<SaleList />, { route: '/sales' });
+
+        await waitFor(() => expect(saleApi.getSaleList).toHaveBeenCalledTimes(1));
+        saleApi.getSaleList.mockClear();
+
+        await user.type(screen.getByLabelText('Tanggal mulai'), '28-09-2026');
+        await user.type(screen.getByLabelText('Tanggal akhir'), '27-09-2026');
+        await user.click(screen.getByRole('button', { name: 'Terapkan filter' }));
+
+        const alert = screen.getByRole('alert');
+        expect(alert).toHaveTextContent('Rentang tanggal belum benar.');
+        expect(alert).toHaveTextContent('Tanggal mulai tidak boleh setelah tanggal akhir.');
+        expect(saleApi.getSaleList).not.toHaveBeenCalled();
+    });
+
+    it('keeps server paging stable and requests the next page with the same filters', async () => {
+        const user = userEvent.setup();
+        saleApi.getSaleList.mockResolvedValue(response([sale], 3, 11));
+        render(<SaleList />, {
+            route: '/sales?key=code&q=SALE%2FIX&page=2&size=5'
+        });
+
+        expect(await screen.findByText('Halaman 2 dari 3')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Berikutnya' }));
+
+        await waitFor(() => expect(saleApi.getSaleList).toHaveBeenCalledTimes(2));
+        expect(saleApi.getSaleList.mock.calls[1][0]).toMatchObject({
+            page: 3,
+            size: 5,
+            code: 'SALE/IX'
+        });
     });
 
     it('shows loading, then a useful empty state', async () => {

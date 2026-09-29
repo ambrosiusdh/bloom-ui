@@ -341,7 +341,9 @@ describe('CashierCheckout', () => {
         await screen.findByRole('status', { name: 'Status pencetakan struk' });
         await user.click(screen.getByRole('link', { name: 'Buka detail penjualan' }));
 
-        const pendingPrintButton = await screen.findByRole('button', { name: 'Mengirim...' });
+        const pendingPrintButton = await screen.findByRole('button', {
+            name: 'Mengirim ke layanan cetak...'
+        });
         expect(pendingPrintButton).toBeDisabled();
         expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(1);
 

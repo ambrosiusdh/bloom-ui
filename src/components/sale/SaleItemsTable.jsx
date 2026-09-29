@@ -33,8 +33,17 @@ LineDetails.propTypes = { line: PropTypes.object.isRequired };
 const SaleItemsTable = ({ items = [] }) => (
     <section className="overflow-hidden rounded-lg bg-white shadow-lg" aria-labelledby="sale-lines-heading">
         <div className="border-b bg-gray-50 p-4">
-            <Typography id="sale-lines-heading" variant="h6" className="font-bold text-gray-800">Daftar Barang</Typography>
-            <p className="text-sm text-gray-600">Jumlah, harga, dan subtotal berikut adalah nilai baris yang disimpan server.</p>
+            <Typography
+                id="sale-lines-heading"
+                component="h2"
+                variant="h5"
+                className="font-bold text-gray-800"
+            >
+                Barang terjual
+            </Typography>
+            <p className="text-sm text-gray-600">
+                Jumlah, UOM, lokasi, harga, dan subtotal adalah nilai baris yang disimpan server.
+            </p>
         </div>
 
         { items.length ? (

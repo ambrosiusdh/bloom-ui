@@ -48,6 +48,13 @@ Bloom UI is currently a JavaScript React application:
   failure leaves the confirmed sale intact and retryable; success reports only print-service
   acknowledgement and directs the operator to check the printer. The result preserves encoded sale
   detail access and requires an explicit new-sale reset before cashier entry resumes.
+- UXI-10 approved sales-history/detail/reprint UX is implemented: the history keeps only the
+  backend-supported code, creator, start-date, and end-date filters; owns `DD-MM-YYYY` validation in
+  Indonesian; exposes stable server page/range context; and switches from labelled wide rows to
+  grouped narrow records without page-level horizontal panning. Detail has one page heading and
+  separate transaction/status, server-value, persisted-line, and reprint sections. Statuses, money,
+  UOM, and location remain backend-returned facts, while reprint stays a duplicate-locked,
+  sale-reference-only operation whose failure never changes the recorded sale.
 - FE-07 backend receipt reprint is implemented: sale detail calls the backend print endpoint for the existing sale reference with pending, duplicate-click prevention, success, failure, and same-reference retry behavior.
 - FE-08 current dashboard reliability is implemented: the existing backend overview metrics have explicit accessible loading, error/retry, zero/empty, refresh, and last-successful-data behavior without frontend aggregation.
 - FE-10 item creation is implemented: `/items/new` sends item metadata, the Release 1 UOM/fractional policy, and optional decimal STORE/WAREHOUSE openings through the backend's single atomic create operation, with explicit category, validation, pending, conflict, failure-recovery, success, and focus behavior.

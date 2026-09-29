@@ -1206,6 +1206,22 @@ Decision/audit: `docs/ux/design/uxr-d09-d10-cashier-decision.md`; `docs/ux/audit
 
 #### UXI-10 — Sales history, detail, and reprint
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-30):** Sales history now exposes only code, creator, start-date, and
+end-date filters with application-owned `DD-MM-YYYY` parsing and Indonesian invalid/inverted-range
+feedback before a request is sent. URL-backed server paging shows page, visible range, total, and
+previous/next boundaries; out-of-range pages recover to the final server page. Wide rows and grouped
+narrow records retain reference/session, lifecycle and correction status, payment method/status,
+server total, creator/time, and a named detail action without whole-page horizontal panning. Detail
+now has one page heading plus separate transaction/status, server-value, persisted-line, and
+sale-reference-only reprint sections; no amount or status is inferred or recalculated. Reprint
+pending blocks duplicate requests, and latest-attempt success/failure feedback keeps the sale visibly
+recorded. Three focused sales/cashier files passed 31 tests. The full 68-file suite passed 438 tests
+with one worker after the default parallel run hit three unrelated stock-adjustment five-second
+interaction-test timeouts; full lint and production build passed. The build retained the pre-existing
+stale-Browserslist and large-chunk advisory warnings. Physical printer output was not verified.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D11 Riwayat penjualan** and review list, invalid range, empty/error, detail, reprint states, and narrow list/detail.
 
 Decision/audit: `docs/ux/design/uxr-d11-sales-history-decision.md`; `docs/ux/audits/uxr-a11-sales.md`
