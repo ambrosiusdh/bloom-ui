@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
     createSaleRequest,
+    getAdvisoryCashChange,
+    getAdvisoryCashShortcuts,
     getAdvisorySaleEstimate
 } from '@components/cashier/sale-checkout.js';
 
@@ -48,5 +50,26 @@ describe('cashier sale preparation', () => {
                 }
             ]
         });
+    });
+
+    it('calculates only non-negative advisory cash change with exact decimal scaling', () => {
+        expect(getAdvisoryCashChange('20000', '18750')).toBe('1250');
+        expect(getAdvisoryCashChange('18750.1250', '18750.125')).toBe('0');
+        expect(getAdvisoryCashChange('18000', '18750')).toBeNull();
+        expect(getAdvisoryCashChange('not-money', '18750')).toBeNull();
+    });
+
+    it('suggests exact and useful rounded CASH amounts without changing the official total', () => {
+        expect(getAdvisoryCashShortcuts('18750')).toEqual([
+            '18750',
+            '20000',
+            '30000'
+        ]);
+        expect(getAdvisoryCashShortcuts('3999996')).toEqual([
+            '3999996',
+            '4000000',
+            '4100000'
+        ]);
+        expect(getAdvisoryCashShortcuts('not-money')).toEqual([]);
     });
 });

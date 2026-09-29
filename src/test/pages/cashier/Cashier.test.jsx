@@ -29,6 +29,13 @@ vi.mock('@components/cash-session/CurrentCashSession.jsx', () => ({
     default: () => <div data-testid="current-cash-session">Sesi kas</div>
 }));
 vi.mock('@stores/index.js', () => ({
+    useAuthStore: selector => selector({
+        authStatus: 'authenticated',
+        currentUser: {
+            accountId: '101',
+            username: 'admin'
+        }
+    }),
     useBreadcrumbStore: selector => selector({ setBreadcrumbs: cashierMocks.setBreadcrumbs }),
     useCashSessionStore: selector => selector(cashierMocks.session),
     useItemCategoryStore: selector => selector({
@@ -42,6 +49,7 @@ vi.mock('@stores/index.js', () => ({
     })
 }));
 
+import { API_DOMAIN_ERROR_CODE } from '@api/error-contract.js';
 import Cashier from '@/pages/cashier/Cashier.jsx';
 import { fireEvent, render, screen, waitFor } from '@/test/render.jsx';
 
@@ -129,6 +137,7 @@ const setupHumanUser = () => userEvent.setup({ delay: 35 });
 describe('Cashier search and cart', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        sessionStorage.clear();
         cashierMocks.getItemDetails.mockReset();
         cashierMocks.getItemList.mockReset();
         cashierMocks.getItemCategoryList.mockReset();
@@ -213,7 +222,7 @@ describe('Cashier search and cart', () => {
         }));
         expect(await screen.findByRole('listitem')).toHaveTextContent('Kain katun');
         expect(screen.getByRole('listitem')).toHaveTextContent('SKU KAIN-00001');
-        expect(screen.getByRole('listitem')).toHaveTextContent('0,5 meter di STORE');
+        expect(screen.getByRole('listitem')).toHaveTextContent('0,5 meter tersedia di STORE');
         expect(screen.getByRole('listitem')).toHaveTextContent('Rp 15.000 per meter');
     });
 
@@ -254,6 +263,12 @@ describe('Cashier search and cart', () => {
         expect(screen.queryByRole('textbox', { name: 'Jumlah Kain katun' })).not.toBeInTheDocument();
         expect(screen.getByText('Cari barang lalu tambahkan ke keranjang')).toBeInTheDocument();
         expect(search).toHaveFocus();
+
+        await user.click(screen.getByRole('button', { name: 'Urungkan' }));
+        expect(screen.getByRole('textbox', { name: 'Jumlah Kain katun' })).toHaveValue('2');
+        expect(screen.getByText('Kain katun dikembalikan ke keranjang.')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Hapus Kain katun dari keranjang' }));
         expect(screen.queryByRole('button', { name: /bayar/i })).not.toBeInTheDocument();
         expect(screen.queryByText(/subtotal/i)).not.toBeInTheDocument();
     });
@@ -356,6 +371,31 @@ describe('Cashier search and cart', () => {
         expect(cashierMocks.createSale).toHaveBeenCalledTimes(1);
         expect(screen.queryByRole('textbox', { name: 'Jumlah Kain katun' })).not.toBeInTheDocument();
         expect(screen.getByText('Cari barang lalu tambahkan ke keranjang')).toBeInTheDocument();
+    });
+
+    it('keeps a definitive checkout rejection focused instead of returning to search', async () => {
+        const user = setupHumanUser();
+        cashierMocks.getItemList.mockResolvedValue(listResponse([item()]));
+        cashierMocks.createSale.mockRejectedValue(Object.assign(new Error('Stok berubah.'), {
+            category: 'conflict',
+            status: 409,
+            domainCode: API_DOMAIN_ERROR_CODE.SALE_INSUFFICIENT_STOCK,
+            validationErrors: []
+        }));
+        render(<Cashier />);
+
+        const search = screen.getByRole('textbox', { name: 'SKU atau nama barang' });
+        await user.type(search, 'kain{Enter}');
+        await user.click(await screen.findByRole('button', { name: 'Tambah Kain katun ke keranjang' }));
+        await user.type(screen.getByRole('textbox', { name: 'Uang tunai diterima' }), '20000');
+        await user.click(screen.getByRole('button', { name: 'Tinjau pembayaran' }));
+        await user.click(await screen.findByRole('button', { name: 'Konfirmasi jual' }));
+
+        const failureMessage = await screen.findByText(/Stok berubah saat checkout/);
+        const failureAlert = failureMessage.closest('[role="alert"]');
+        await waitFor(() => expect(failureAlert).toHaveFocus());
+        expect(search).not.toHaveFocus();
+        expect(screen.getByRole('textbox', { name: 'Jumlah Kain katun' })).toHaveValue('1');
     });
 
     it('marks edited-query results stale and ignores a superseded request', async () => {

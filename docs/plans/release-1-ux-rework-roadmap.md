@@ -1140,6 +1140,18 @@ The checkout submission/recovery contract and backend fields were not expanded. 
 passed 30 tests; the full 68-file suite passed 430 tests, followed by full lint and production build.
 The build retained the pre-existing Browserslist-age and large-chunk advisories.
 
+**Visual-alignment correction (2026-09-29):** The implementation now follows the approved cashier
+reference as a continuous catalog/transaction workspace rather than a stack of generic cards. The
+cashier header carries a left-aligned menu escape beside Bloom identity, edge-aligned date/time, a
+compact session control that opens the complete existing session workflow, and appearance control.
+Category chips lead
+into search; product and cart rows are denser without removing SKU/UOM/STORE facts; cart quantity
+editing is compact; line removal offers `Urungkan`; and the payment area emphasizes `Perkiraan
+bayar`, practical cash shortcuts, exact advisory change, discount, and the 50px review action.
+Prototype-only state controls were not copied into the application. UXI-08 account-bound durable
+recovery, exact request replay, server authority, keyboard behavior, and narrow stock visibility
+remain intact.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-cashier-workspace-rework.html`; review workspace empty/populated/search/scanner/stock-check/discount/cancel and narrow states.
 
 Decision/audit: `docs/ux/design/uxr-d09-d10-cashier-decision.md`; `docs/ux/audits/uxr-a09-cashier-cart.md`
@@ -1147,6 +1159,21 @@ Decision/audit: `docs/ux/design/uxr-d09-d10-cashier-decision.md`; `docs/ux/audit
 > Implement only UXI-07, Bloom cashier discovery and cart. Read the governing documents, `docs/ux/audits/uxr-a09-cashier-cart.md`, `docs/ux/design/uxr-d09-d10-cashier-decision.md`, and `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-cashier-workspace-rework.html`. Inspect `Cashier.jsx`, `CashierCart.jsx`, scanner/quantity utilities, constants, stores, and cashier tests. Implement the approved two-panel workspace: search/scanner and category filters on the left; simple item rows with name/category/SKU/UOM/stock/price; persistent cart on the right with compact quantity controls, line price, subtotal/estimated total, editable discount and conditional reason, CASH/QRIS/tender preparation, cancel confirmation, and narrow transaction access. Preserve fractional rules, focus recovery, stock/session gating, and advisory pre-checkout totals. Do not call checkout or add backend fields in this step. Add tests and run the full validation commands. Update plan status; do not commit or push.
 
 #### UXI-08 — Checkout and durable recovery
+
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-29):** Checkout review now replaces only the right transaction
+panel with a compact frozen summary of STORE lines, payment meaning, requested discount, and the
+explicit server-owned total/change boundary. CASH persists tendered cash; QRIS persists the
+externally confirmed exact settlement. Before every POST, the exact request, idempotency key,
+presentation snapshot, and immutable backend `accountId` owner are synchronously verified in tab
+storage; unavailable storage prevents submission. Ambiguous results remain locked across
+navigation/reload and expose only same-key status lookup or exact replay, while foreign-account and
+legacy/malformed recovery is quarantined without exposing its facts. Definitive server rejection
+clears durable recovery, preserves editable cart/tender intent, and focuses the specific recovery
+target without route navigation. Four focused files passed 34 tests; the full 68-file suite passed
+434 tests, followed by full lint and production build. The build retained the pre-existing
+Browserslist-age and large-chunk advisory warnings.
 
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-cashier-workspace-rework.html`; review confirm/review, submitting, checking, known rejection, unknown outcome, and same-request recovery states.
 

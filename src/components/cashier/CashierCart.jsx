@@ -11,7 +11,6 @@ import PropTypes from 'prop-types';
 
 import BloomQuantityField from '@components/_ui/BloomQuantityField.jsx';
 import { formatRupiah } from '@components/cash-session/cash-session-money.js';
-import { getAdvisorySaleEstimate } from '@components/cashier/sale-checkout.js';
 import {
     canDecrementQuantityByOne,
     formatQuantity,
@@ -65,20 +64,20 @@ function QuantityField({
     };
 
     return (
+        <div className="cashier-cart__quantity-control">
             <BloomQuantityField
                 unitOfMeasure={ item.baseUnitOfMeasure }
                 decrementDisabled={ !!validateQuantity(draft, item.fractionalQuantityAllowed)
                     || !canDecrementQuantityByOne(draft) }
                 onStep={ adjustByOne }
                 label={ `Jumlah ${ item.name }` }
+                hideVisibleLabel
                 size="small"
                 value={ draft }
                 inputRef={ inputRef }
                 disabled={ disabled }
                 error={ Boolean(error) }
-                helperText={ error || (item.fractionalQuantityAllowed
-                    ? 'Boleh pecahan, maksimal 4 desimal.'
-                    : 'Hanya jumlah utuh.') }
+                helperText={ error || undefined }
                 onChange={ value => {
                     setDraft(value);
                     setError('');
@@ -112,6 +111,7 @@ function QuantityField({
                     }
                 } }
             />
+        </div>
     );
 }
 
@@ -132,8 +132,6 @@ export default function CashierCart({
     onEditComplete,
     onCancel
 }) {
-    const estimate = getAdvisorySaleEstimate(itemList);
-
     return (
         <section className="cashier-cart w-full" aria-labelledby="cashier-cart-title">
             <div className="flex items-start justify-between gap-3 border-b pb-4">
@@ -155,26 +153,26 @@ export default function CashierCart({
             </div>
 
             { itemList.length ? (
-                <div className="divide-y">
-                    { itemList.map((item, index) => {
+                <div className="cashier-cart__items divide-y">
+                    { itemList.map(item => {
                         const aboveAvailability = isQuantityAboveAvailability(item.quantity, item.stockStore);
-                        const lineAmount = estimate.lineAmounts[item.sku];
 
                         return (
-                            <article className="py-4" key={ item.sku }>
-                                <div className="flex items-start gap-3">
-                                    <span className="mt-0.5 text-sm text-gray-500">{ index + 1 }</span>
-                                    <div className="min-w-0 flex-grow">
-                                        <div className="font-semibold break-words">{ item.name }</div>
-                                        <div className="text-sm text-gray-600">
-                                            { item.sku } · { formatRupiah(item.price) }/{ formatUnitOfMeasure(item.baseUnitOfMeasure) }
-                                        </div>
-                                        <div className="mt-1 text-sm font-semibold tabular-nums">
-                                            { lineAmount
-                                                ? `Perkiraan baris ${ formatRupiah(lineAmount) }`
-                                                : 'Perkiraan baris belum tersedia' }
-                                        </div>
+                            <article className="cashier-cart__item" key={ item.sku }>
+                                <div className="cashier-cart__item-main">
+                                    <div className="cashier-cart__item-identity">
+                                        <strong>{ item.name }</strong>
+                                        <small>
+                                            { formatRupiah(item.price) }/{ formatUnitOfMeasure(item.baseUnitOfMeasure) }
+                                        </small>
                                     </div>
+                                    <QuantityField
+                                        item={ item }
+                                        disabled={ disabled }
+                                        onQuantityUpdate={ onQuantityUpdate }
+                                        onValidityChange={ onQuantityValidityChange }
+                                        onEditComplete={ onEditComplete }
+                                    />
                                     <IconButton
                                         aria-label={ `Hapus ${ item.name } dari keranjang` }
                                         size="small"
@@ -186,21 +184,10 @@ export default function CashierCart({
                                     </IconButton>
                                 </div>
 
-                                <div className="mt-3">
-                                    <QuantityField
-                                        item={ item }
-                                        disabled={ disabled }
-                                        onQuantityUpdate={ onQuantityUpdate }
-                                        onValidityChange={ onQuantityValidityChange }
-                                        onEditComplete={ onEditComplete }
-                                    />
-                                </div>
-
-                                <div className={ `mt-2 text-sm ${ aboveAvailability ? 'rounded border border-amber-300 bg-amber-50 p-2 text-amber-900' : 'text-gray-600' }` }>
+                                <div className={ `cashier-cart__stock text-sm ${ aboveAvailability ? 'rounded border border-amber-300 bg-amber-50 p-2 text-amber-900' : 'text-gray-600' }` }>
                                     <span>
                                         Tersedia di STORE: { formatQuantity(item.stockStore, item.baseUnitOfMeasure) }
                                         { aboveAvailability && ' — jumlah keranjang melebihi informasi stok saat ini.' }
-                                        { ' ' }Server memeriksa kembali saat checkout.
                                     </span>
                                     { aboveAvailability && Number(item.stockStore) > 0 && (
                                         <Button

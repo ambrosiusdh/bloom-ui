@@ -3,11 +3,12 @@ import {
     Alert,
     Button,
     CircularProgress,
+    InputAdornment,
     TextField
 } from '@mui/material';
 import {
     PackageSearchIcon,
-    ScanBarcodeIcon,
+    SearchIcon,
     ShoppingCartIcon
 } from 'lucide-react';
 
@@ -15,7 +16,6 @@ import { API_ERROR_CATEGORY } from '@api/index.js';
 import itemApi from '@api/item.js';
 import BloomConfirmationModal from '@components/_ui/BloomConfirmationModal.jsx';
 import { formatRupiah } from '@components/cash-session/cash-session-money.js';
-import CurrentCashSession from '@components/cash-session/CurrentCashSession.jsx';
 import CashierCart from '@components/cashier/CashierCart.jsx';
 import CashierCheckout from '@components/cashier/CashierCheckout.jsx';
 import {
@@ -49,6 +49,7 @@ export default function Cashier() {
     const [searchResults, setSearchResults] = useState([]);
     const [cartItems, setCartItems] = useState([]);
     const [cartNotice, setCartNotice] = useState('');
+    const [removedCartItem, setRemovedCartItem] = useState(null);
     const [scannerFeedback, setScannerFeedback] = useState(null);
     const [checkoutLocked, setCheckoutLocked] = useState(false);
     const [invalidQuantitySkus, setInvalidQuantitySkus] = useState(() => new Set());
@@ -60,6 +61,7 @@ export default function Cashier() {
     const requestRef = useRef(null);
     const interactionWasEnabledRef = useRef(false);
     const preserveCheckoutFeedbackFocusRef = useRef(false);
+    const checkoutWasLockedRef = useRef(false);
     const cartItemsRef = useRef([]);
     const cashierInteractionEnabledRef = useRef(false);
     const mountedRef = useRef(true);
@@ -192,6 +194,7 @@ export default function Cashier() {
 
     const addItemToCart = item => {
         if (!cashierInteractionEnabledRef.current) return;
+        setRemovedCartItem(null);
         const duplicate = cartItemsRef.current.some(cartItem => cartItem.sku === item.sku);
         const nextItems = duplicate
             ? cartItemsRef.current.map(cartItem => cartItem.sku === item.sku
@@ -218,6 +221,7 @@ export default function Cashier() {
     const removeItem = sku => {
         if (!cashierInteractionEnabledRef.current) return;
         const item = cartItemsRef.current.find(cartItem => cartItem.sku === sku);
+        const itemIndex = cartItemsRef.current.findIndex(cartItem => cartItem.sku === sku);
         const nextItems = cartItemsRef.current.filter(cartItem => cartItem.sku !== sku);
         cartItemsRef.current = nextItems;
         setCartItems(nextItems);
@@ -226,8 +230,26 @@ export default function Cashier() {
             next.delete(sku);
             return next;
         });
+        setRemovedCartItem(item ? { item, index: itemIndex } : null);
         setCartNotice(`${ item?.name || 'Barang' } dihapus dari keranjang.`);
         focusSearch();
+    };
+
+    const undoRemoveItem = () => {
+        if (!removedCartItem || checkoutLocked) return;
+
+        if (cartItemsRef.current.some(item => item.sku === removedCartItem.item.sku)) {
+            setRemovedCartItem(null);
+            setCartNotice(`${ removedCartItem.item.name } sudah ada di keranjang.`);
+            return;
+        }
+
+        const nextItems = [...cartItemsRef.current];
+        nextItems.splice(removedCartItem.index, 0, removedCartItem.item);
+        cartItemsRef.current = nextItems;
+        setCartItems(nextItems);
+        setRemovedCartItem(null);
+        setCartNotice(`${ removedCartItem.item.name } dikembalikan ke keranjang.`);
     };
 
     const lookupScannedItem = async sku => {
@@ -302,20 +324,33 @@ export default function Cashier() {
         });
     }, []);
 
+    const updateCheckoutLock = useCallback(locked => {
+        if (!locked && checkoutWasLockedRef.current) {
+            preserveCheckoutFeedbackFocusRef.current = true;
+        }
+
+        checkoutWasLockedRef.current = locked;
+        setCheckoutLocked(locked);
+    }, []);
+
     const completeSale = useCallback(sale => {
         if (sale) {
             preserveCheckoutFeedbackFocusRef.current = true;
             cartItemsRef.current = [];
             setCartItems([]);
+            setRemovedCartItem(null);
             setInvalidQuantitySkus(new Set());
             setCartNotice(`Penjualan ${ sale.code } dikonfirmasi server.`);
+            return;
         }
+
         focusSearch();
     }, [focusSearch]);
 
     const confirmCancelTransaction = () => {
         cartItemsRef.current = [];
         setCartItems([]);
+        setRemovedCartItem(null);
         setInvalidQuantitySkus(new Set());
         setCancelConfirmationOpen(false);
         setCheckoutDraftKey(previous => previous + 1);
@@ -333,76 +368,23 @@ export default function Cashier() {
 
     return (
         <>
-            <div className="mb-4">
-                <CurrentCashSession />
-            </div>
-
             { sessionGateMessage && (
-                <Alert className="mb-4" severity="info">
+                <Alert className="cashier-session-gate" severity="info">
                     { sessionGateMessage }
                 </Alert>
             ) }
 
-            <div className="cashier grid items-start gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)]">
-                <div className="cashier__content min-w-0">
-                    <section className="cashier__content-filter card mb-4" aria-labelledby="cashier-search-title">
-                        <div className="flex items-start justify-between gap-3">
-                            <div>
-                                <h1 id="cashier-search-title" className="text-xl font-bold">Temukan barang</h1>
-                                <p className="mt-1 text-sm text-gray-600">
-                                    Cari dengan nama atau SKU, atau gunakan pemindai barcode keyboard.
-                                </p>
-                            </div>
-                            <ScanBarcodeIcon className="mt-1 text-blue-700" aria-hidden="true" />
-                        </div>
+            <div className="cashier cashier-workspace">
+                <div className="cashier__content cashier-catalog min-w-0">
+                    <section className="cashier__content-filter" aria-labelledby="cashier-search-title">
+                        <h1 id="cashier-search-title" className="sr-only">Pilih barang</h1>
 
-                        <p className="mt-3 text-sm text-gray-600">
-                            Sistem mendukung input E81W saat sesi kas terbuka, tetapi tidak dapat memastikan
-                            perangkat sedang tersambung. Pencarian manual selalu tersedia.
-                        </p>
-
-                        { scannerFeedback && (
-                            <Alert
-                                className="mt-4"
-                                severity={ scannerFeedback.severity }
-                                role={ scannerFeedback.severity === 'error' ? 'alert' : 'status' }
-                                aria-live={ scannerFeedback.severity === 'error' ? 'assertive' : 'polite' }
-                            >
-                                { scannerFeedback.message }
-                            </Alert>
-                        ) }
-
-                        <form className="mt-4 flex flex-col gap-2 sm:flex-row" onSubmit={ searchItems }>
-                            <TextField
-                                className="cashier__content-filter-value flex-grow"
-                                label="SKU atau nama barang"
-                                placeholder="Contoh: Triplek atau BB-00001"
-                                size="small"
-                                value={ searchValue }
-                                inputRef={ searchInputRef }
-                                autoFocus
-                                disabled={ !cashierInteractionEnabled }
-                                onChange={ event => setSearchValue(event.target.value) }
-                            />
-                            <Button
-                                type="submit"
-                                variant="contained"
-                                disabled={ !cashierInteractionEnabled
-                                    || (!normalizedSearch && !selectedCategory)
-                                    || (searchStatus === 'loading'
-                                        && normalizedSearch === submittedQuery
-                                        && selectedCategory === submittedCategory) }
-                            >
-                                Cari
-                            </Button>
-                        </form>
-
-                        <div className="mt-4" aria-labelledby="cashier-category-filter-label">
-                            <div id="cashier-category-filter-label" className="text-sm font-medium">
-                                Filter kategori
+                        <div className="cashier-catalog__categories" aria-labelledby="cashier-category-filter-label">
+                            <div id="cashier-category-filter-label" className="sr-only">
+                                Kategori barang
                             </div>
                             { categoryStatus === 'loading' ? (
-                                <div className="mt-2 text-sm text-gray-500" role="status">
+                                <div className="text-sm text-gray-500" role="status">
                                     Memuat kategori...
                                 </div>
                             ) : categoryStatus === 'error' ? (
@@ -418,10 +400,11 @@ export default function Cashier() {
                                     { categoryError }
                                 </Alert>
                             ) : (
-                                <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Filter kategori barang">
+                                <div className="flex flex-wrap gap-2" role="group" aria-label="Filter kategori barang">
                                     <Button
                                         type="button"
                                         size="small"
+                                        className="cashier-category-chip"
                                         variant={ selectedCategory ? 'outlined' : 'contained' }
                                         aria-pressed={ !selectedCategory }
                                         disabled={ !cashierInteractionEnabled }
@@ -433,6 +416,7 @@ export default function Cashier() {
                                         <Button
                                             type="button"
                                             size="small"
+                                            className="cashier-category-chip"
                                             key={ category.code }
                                             variant={ selectedCategory === category.code ? 'contained' : 'outlined' }
                                             aria-pressed={ selectedCategory === category.code }
@@ -446,8 +430,60 @@ export default function Cashier() {
                             ) }
                         </div>
 
+                        <form className="cashier-catalog__search" onSubmit={ searchItems }>
+                            <TextField
+                                className="cashier__content-filter-value"
+                                placeholder="Cari Triplek, BB-00001, atau pindai barcode..."
+                                size="small"
+                                value={ searchValue }
+                                inputRef={ searchInputRef }
+                                autoFocus
+                                disabled={ !cashierInteractionEnabled }
+                                slotProps={ {
+                                    input: {
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <SearchIcon size={ 18 } aria-hidden="true" />
+                                            </InputAdornment>
+                                        )
+                                    },
+                                    htmlInput: {
+                                        'aria-label': 'SKU atau nama barang',
+                                        'aria-describedby': 'cashier-scanner-guidance'
+                                    }
+                                } }
+                                onChange={ event => setSearchValue(event.target.value) }
+                            />
+                            <Button
+                                type="submit"
+                                variant="outlined"
+                                aria-label="Cari"
+                                disabled={ !cashierInteractionEnabled
+                                    || (!normalizedSearch && !selectedCategory)
+                                    || (searchStatus === 'loading'
+                                        && normalizedSearch === submittedQuery
+                                        && selectedCategory === submittedCategory) }
+                            >
+                                Enter
+                            </Button>
+                        </form>
+
+                        <p id="cashier-scanner-guidance" className="sr-only">
+                            Pemindai barcode keyboard dapat langsung digunakan saat sesi kas terbuka.
+                        </p>
+
+                        { scannerFeedback && (
+                            <Alert
+                                severity={ scannerFeedback.severity }
+                                role={ scannerFeedback.severity === 'error' ? 'alert' : 'status' }
+                                aria-live={ scannerFeedback.severity === 'error' ? 'assertive' : 'polite' }
+                            >
+                                { scannerFeedback.message }
+                            </Alert>
+                        ) }
+
                         <a
-                            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded border border-blue-700 px-3 text-sm font-semibold text-blue-700 xl:hidden"
+                            className="cashier-catalog__transaction-link mt-4 inline-flex min-h-11 items-center gap-2 rounded border border-blue-700 px-3 text-sm font-semibold text-blue-700 xl:hidden"
                             href="#cashier-transaction"
                         >
                             <ShoppingCartIcon size={ 18 } aria-hidden="true" />
@@ -455,7 +491,7 @@ export default function Cashier() {
                         </a>
                     </section>
 
-                    <section className="cashier-products card" aria-labelledby="cashier-results-title">
+                    <section className="cashier-products" aria-labelledby="cashier-results-title">
                         <div className="mb-3 flex items-center justify-between gap-3">
                             <h2 id="cashier-results-title" className="text-lg font-bold">Barang tersedia</h2>
                             { searchStatus === 'ready' && (
@@ -499,34 +535,32 @@ export default function Cashier() {
                                     : 'Tidak ada barang aktif dalam kategori ini.' }
                             </div>
                         ) : searchResults.length ? (
-                            <div className="divide-y" role="list" aria-label="Hasil pencarian barang">
+                            <div className="cashier-products__list" role="list" aria-label="Hasil pencarian barang">
                                 { searchResults.map(item => {
                                     const stockRequiresCheck = Number(item.stockStore) <= 0;
 
                                     return (
                                         <article
-                                            className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                                            className="cashier-products__row"
                                             key={ item.sku }
                                             role="listitem"
                                         >
-                                            <div className="min-w-0">
-                                                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-blue-700">
+                                            <div className="cashier-products__identity">
+                                                <span className="cashier-products__category">
                                                     { item.category?.name || 'Tanpa kategori' }
-                                                </div>
-                                                <div className="font-semibold break-words">{ item.name }</div>
-                                                <div className="mt-1 text-sm text-gray-600">
+                                                </span>
+                                                <strong>{ item.name }</strong>
+                                                <small>
                                                     SKU { item.sku } · { formatUnitOfMeasure(item.baseUnitOfMeasure) }
-                                                </div>
-                                                <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
-                                                    <span>
-                                                        <strong>{ formatQuantity(item.stockStore, item.baseUnitOfMeasure) }</strong>
-                                                        { ' ' }di STORE
-                                                    </span>
-                                                    <span>
-                                                        <strong>{ formatRupiah(item.price) }</strong>
-                                                        { ' ' }per { formatUnitOfMeasure(item.baseUnitOfMeasure) }
-                                                    </span>
-                                                </div>
+                                                </small>
+                                            </div>
+                                            <div className={ `cashier-products__stock ${ stockRequiresCheck ? 'cashier-products__stock--warning' : '' }` }>
+                                                <strong>{ formatQuantity(item.stockStore, item.baseUnitOfMeasure) }</strong>
+                                                <small>{ ' tersedia di STORE' }</small>
+                                            </div>
+                                            <div className="cashier-products__price">
+                                                <strong>{ formatRupiah(item.price) }</strong>
+                                                <small>{ ` per ${ formatUnitOfMeasure(item.baseUnitOfMeasure) }` }</small>
                                             </div>
                                             <Button
                                                 size="small"
@@ -537,7 +571,9 @@ export default function Cashier() {
                                                 onClick={ () => addItemToCart(item) }
                                                 aria-label={ `Tambah ${ item.name } ke keranjang` }
                                             >
-                                                { stockRequiresCheck ? 'Tambah & periksa' : 'Tambah' }
+                                                <span className="cashier-products__action-label">
+                                                    { stockRequiresCheck ? 'Tambah & periksa' : 'Tambah' }
+                                                </span>
                                             </Button>
                                         </article>
                                     );
@@ -553,7 +589,7 @@ export default function Cashier() {
 
                 <aside
                     id="cashier-transaction"
-                    className="cashier__cart card min-w-0 scroll-mt-4 xl:sticky xl:top-4"
+                    className="cashier__cart cashier-transaction min-w-0 scroll-mt-4"
                     aria-label="Transaksi saat ini"
                 >
                     { cartNotice && (
@@ -562,6 +598,11 @@ export default function Cashier() {
                             severity={ cartItems.length ? 'success' : 'info' }
                             role="status"
                             aria-live="polite"
+                            action={ removedCartItem ? (
+                                <Button color="inherit" size="small" onClick={ undoRemoveItem }>
+                                    Urungkan
+                                </Button>
+                            ) : undefined }
                         >
                             { cartNotice }
                         </Alert>
@@ -582,7 +623,7 @@ export default function Cashier() {
                         disabledMessage={ invalidQuantitySkus.size > 0
                             ? 'Perbaiki jumlah barang yang belum valid sebelum checkout.'
                             : '' }
-                        onLockChange={ setCheckoutLocked }
+                        onLockChange={ updateCheckoutLock }
                         onSaleCompleted={ completeSale }
                     />
                 </aside>

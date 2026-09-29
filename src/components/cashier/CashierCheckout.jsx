@@ -14,13 +14,16 @@ import PropTypes from 'prop-types';
 
 import { API_DOMAIN_ERROR_CODE } from '@api/error-contract.js';
 import { API_ERROR_CATEGORY } from '@api/index.js';
-import BloomConfirmationModal from '@components/_ui/BloomConfirmationModal.jsx';
 import BloomMoneyField from '@components/_ui/BloomMoneyField.jsx';
 import {
     formatRupiah,
     getMoneySign
 } from '@components/cash-session/cash-session-money.js';
-import { useCashSessionStore, useSaleStore } from '@stores/index.js';
+import {
+    useAuthStore,
+    useCashSessionStore,
+    useSaleStore
+} from '@stores/index.js';
 import { formatQuantity } from '@utils/quantity-utils.js';
 import {
     EMPTY_RECEIPT_PRINT_STATE,
@@ -28,17 +31,29 @@ import {
     RECEIPT_PRINT_STATUS
 } from '@utils/receipt-print.js';
 
+import CashierPurchaseConfirmationModal from './CashierPurchaseConfirmationModal.jsx';
 import {
+    clearSaleCheckoutRecovery,
     createSaleIdempotencyKey,
     createSaleRequest,
+    getAdvisoryCashChange,
+    getAdvisoryCashShortcuts,
     getAdvisorySaleEstimate,
     getSaleRequestSignature,
     PAYMENT_TYPES,
+    persistSaleCheckoutAttempt,
+    readSaleCheckoutRecovery,
     validateDiscountAmount,
     validatePaidAmount
 } from './sale-checkout.js';
 
-const LOCKED_PHASES = new Set(['confirmation', 'submitting', 'checking', 'unknown']);
+const LOCKED_PHASES = new Set([
+    'confirmation',
+    'submitting',
+    'checking',
+    'unknown',
+    'quarantined'
+]);
 const PAYMENT_LABELS = {
     CASH: 'Tunai (CASH)',
     QRIS: 'QRIS'
@@ -64,29 +79,57 @@ export default function CashierCheckout({
     const printReceipt = useSaleStore(state => state.printReceipt);
     const receiptPrintStateBySale = useSaleStore(state => state.receiptPrintStateBySale);
     const getCurrentSession = useCashSessionStore(state => state.getCurrentSession);
+    const ownerAccountId = useAuthStore(state => state.authStatus === 'authenticated'
+        ? state.currentUser?.accountId || null
+        : null);
 
-    const [paymentType, setPaymentType] = useState(PAYMENT_TYPES.CASH);
-    const [paidAmount, setPaidAmount] = useState('');
+    const initialRecoveryRef = useRef(null);
+    if (initialRecoveryRef.current === null) {
+        initialRecoveryRef.current = readSaleCheckoutRecovery(ownerAccountId);
+    }
+    const initialRecovery = initialRecoveryRef.current;
+    const recoveredAttempt = initialRecovery.status === 'available'
+        ? initialRecovery.attempt
+        : null;
+    const recoveredRequest = recoveredAttempt?.request;
+
+    const [paymentType, setPaymentType] = useState(
+        recoveredRequest?.paymentType || PAYMENT_TYPES.CASH
+    );
+    const [paidAmount, setPaidAmount] = useState(recoveredRequest?.paidAmount || '');
     const [paidAmountError, setPaidAmountError] = useState('');
-    const [discountAmount, setDiscountAmount] = useState('0');
+    const [discountAmount, setDiscountAmount] = useState(
+        recoveredRequest?.discountAmount || '0'
+    );
     const [discountAmountError, setDiscountAmountError] = useState('');
-    const [discountDescription, setDiscountDescription] = useState('');
-    const [phase, setPhase] = useState('idle');
+    const [discountDescription, setDiscountDescription] = useState(
+        recoveredRequest?.description || ''
+    );
+    const [phase, setPhase] = useState(() => {
+        if (initialRecovery.status === 'available') return 'unknown';
+        if (['foreign', 'quarantined'].includes(initialRecovery.status)) return 'quarantined';
+        return 'idle';
+    });
     const [confirmationRequest, setConfirmationRequest] = useState(null);
-    const [attempt, setAttempt] = useState(null);
+    const [attempt, setAttempt] = useState(recoveredAttempt);
     const [failureMessage, setFailureMessage] = useState('');
-    const [unknownMessage, setUnknownMessage] = useState('');
+    const [unknownMessage, setUnknownMessage] = useState(recoveredAttempt
+        ? 'Permintaan tersimpan dari percobaan sebelumnya. Periksa hasilnya sebelum mengirim ulang.'
+        : '');
     const [cartError, setCartError] = useState('');
     const [result, setResult] = useState(null);
 
-    const attemptRef = useRef(null);
+    const attemptRef = useRef(recoveredAttempt);
     const inFlightRef = useRef(false);
     const mountedRef = useRef(true);
+    const ownerAccountIdRef = useRef(ownerAccountId);
     const paidAmountRef = useRef(null);
     const discountAmountRef = useRef(null);
     const feedbackRef = useRef(null);
     const successRef = useRef(null);
     const printFeedbackRef = useRef(null);
+    const reviewButtonRef = useRef(null);
+    const focusReviewButtonRef = useRef(false);
 
     const checkoutLocked = LOCKED_PHASES.has(phase);
     const currentRequest = createSaleRequest(
@@ -99,7 +142,17 @@ export default function CashierCheckout({
     const currentSignature = getSaleRequestSignature(currentRequest);
     const estimate = getAdvisorySaleEstimate(itemList, discountAmount);
     const hasDiscount = getMoneySign(discountAmount) > 0;
-    const canRetrySameRequest = attempt?.signature === currentSignature && !disabled;
+    const advisoryCashChange = getAdvisoryCashChange(paidAmount, estimate.totalAmount);
+    const cashShortcuts = estimate.hasInvalidLine
+        ? []
+        : getAdvisoryCashShortcuts(estimate.totalAmount).map((value, index) => ({
+            label: index === 0 ? 'Uang pas' : formatRupiah(value),
+            value
+        }));
+    const isPreparationPhase = ['idle', 'failed'].includes(phase);
+    const ownsAttempt = !!ownerAccountId && attempt?.ownerAccountId === ownerAccountId;
+    const canRetrySameRequest = ownsAttempt && (phase === 'unknown'
+        || (attempt?.signature === currentSignature && !disabled));
     const printState = result?.code
         ? receiptPrintStateBySale[result.code] || EMPTY_RECEIPT_PRINT_STATE
         : EMPTY_RECEIPT_PRINT_STATE;
@@ -114,6 +167,40 @@ export default function CashierCheckout({
     }, [onLockChange]);
 
     useEffect(() => {
+        const previousOwnerAccountId = ownerAccountIdRef.current;
+        ownerAccountIdRef.current = ownerAccountId;
+        if (previousOwnerAccountId === ownerAccountId) return;
+
+        const recovery = readSaleCheckoutRecovery(ownerAccountId);
+        setConfirmationRequest(null);
+        setResult(null);
+        setFailureMessage('');
+        setCartError('');
+
+        if (recovery.status === 'available') {
+            const nextAttempt = recovery.attempt;
+            attemptRef.current = nextAttempt;
+            setAttempt(nextAttempt);
+            setPaymentType(nextAttempt.request.paymentType);
+            setPaidAmount(nextAttempt.request.paidAmount);
+            setDiscountAmount(nextAttempt.request.discountAmount);
+            setDiscountDescription(nextAttempt.request.description);
+            setUnknownMessage(
+                'Permintaan tersimpan dari percobaan sebelumnya. Periksa hasilnya sebelum mengirim ulang.'
+            );
+            setPhase('unknown');
+            return;
+        }
+
+        attemptRef.current = null;
+        setAttempt(null);
+        setUnknownMessage('');
+        setPhase(['foreign', 'quarantined'].includes(recovery.status)
+            ? 'quarantined'
+            : 'idle');
+    }, [ownerAccountId]);
+
+    useEffect(() => {
         onLockChange(checkoutLocked);
     }, [checkoutLocked, onLockChange]);
 
@@ -122,12 +209,19 @@ export default function CashierCheckout({
             discountAmountRef.current?.focus();
         } else if (paidAmountError) {
             paidAmountRef.current?.focus();
-        } else if (phase === 'failed' || phase === 'unknown') {
+        } else if (phase === 'failed' || phase === 'unknown' || phase === 'quarantined') {
             feedbackRef.current?.focus();
         } else if (phase === 'success') {
             successRef.current?.focus();
         }
     }, [discountAmountError, paidAmountError, phase]);
+
+    useEffect(() => {
+        if (phase === 'idle' && focusReviewButtonRef.current) {
+            focusReviewButtonRef.current = false;
+            reviewButtonRef.current?.focus();
+        }
+    }, [phase]);
 
     useEffect(() => {
         if (printState.status === RECEIPT_PRINT_STATUS.SUCCESS
@@ -216,8 +310,13 @@ export default function CashierCheckout({
         ));
     };
 
-    const completeSale = sale => {
-        if (!mountedRef.current) return;
+    const completeSale = (sale, completedAttempt) => {
+        if (!mountedRef.current
+            || completedAttempt?.ownerAccountId !== ownerAccountIdRef.current) {
+            return;
+        }
+
+        clearSaleCheckoutRecovery(completedAttempt.ownerAccountId, completedAttempt.key);
         attemptRef.current = null;
         setAttempt(null);
         setConfirmationRequest(null);
@@ -234,38 +333,55 @@ export default function CashierCheckout({
         onSaleCompleted(sale);
     };
 
-    const markUnknown = message => {
-        if (!mountedRef.current) return;
+    const markUnknown = (message, currentAttempt) => {
+        if (!mountedRef.current
+            || currentAttempt?.ownerAccountId !== ownerAccountIdRef.current) {
+            return;
+        }
+
         setConfirmationRequest(null);
         setUnknownMessage(message);
         setPhase('unknown');
     };
 
     const lookupOutcome = async currentAttempt => {
-        if (!mountedRef.current) return;
+        if (!mountedRef.current
+            || currentAttempt?.ownerAccountId !== ownerAccountIdRef.current) {
+            return;
+        }
+
         setPhase('checking');
         setUnknownMessage('');
 
         try {
             const response = await getCheckoutStatus(currentAttempt.key);
+            if (currentAttempt.ownerAccountId !== ownerAccountIdRef.current) return;
+
             const checkoutStatus = response?.data;
             if (checkoutStatus?.status === 'COMPLETED' && checkoutStatus.sale?.code) {
-                completeSale(checkoutStatus.sale);
+                completeSale(checkoutStatus.sale, currentAttempt);
                 return;
             }
 
             markUnknown(
-                'Server belum menemukan hasil transaksi ini. Ini bukan bukti gagal; jangan membuat pembayaran baru.'
+                'Server belum menemukan hasil transaksi ini. Ini bukan bukti gagal; jangan membuat pembayaran baru.',
+                currentAttempt
             );
         } catch {
             markUnknown(
-                'Status transaksi belum dapat diperiksa. Simpan transaksi ini dan periksa lagi dengan kunci yang sama.'
+                'Status transaksi belum dapat diperiksa. Periksa lagi dengan permintaan dan kunci yang sama.',
+                currentAttempt
             );
         }
     };
 
-    const handleKnownFailure = async error => {
-        if (!mountedRef.current) return;
+    const handleKnownFailure = async (error, currentAttempt) => {
+        if (!mountedRef.current
+            || currentAttempt?.ownerAccountId !== ownerAccountIdRef.current) {
+            return;
+        }
+
+        clearSaleCheckoutRecovery(currentAttempt.ownerAccountId, currentAttempt.key);
         setConfirmationRequest(null);
         setUnknownMessage('');
         setPaidAmountError('');
@@ -332,7 +448,24 @@ export default function CashierCheckout({
     };
 
     const submitAttempt = async currentAttempt => {
-        if (inFlightRef.current) return;
+        if (inFlightRef.current
+            || currentAttempt?.ownerAccountId !== ownerAccountIdRef.current) {
+            return;
+        }
+
+        try {
+            persistSaleCheckoutAttempt(currentAttempt.ownerAccountId, currentAttempt);
+        } catch {
+            attemptRef.current = null;
+            setAttempt(null);
+            setConfirmationRequest(null);
+            setFailureMessage(
+                'Pemulihan transaksi tidak dapat disimpan di tab ini. Penjualan belum dikirim; coba lagi setelah penyimpanan browser tersedia.'
+            );
+            setPhase('failed');
+            return;
+        }
+
         inFlightRef.current = true;
         setPhase('submitting');
         setFailureMessage('');
@@ -341,7 +474,7 @@ export default function CashierCheckout({
         try {
             const response = await createSale(currentAttempt.request, currentAttempt.key);
             if (response?.data?.code) {
-                completeSale(response.data);
+                completeSale(response.data, currentAttempt);
             } else {
                 await lookupOutcome(currentAttempt);
             }
@@ -349,7 +482,7 @@ export default function CashierCheckout({
             if (isAmbiguousFailure(error)) {
                 await lookupOutcome(currentAttempt);
             } else {
-                await handleKnownFailure(error);
+                await handleKnownFailure(error, currentAttempt);
             }
         } finally {
             inFlightRef.current = false;
@@ -359,6 +492,14 @@ export default function CashierCheckout({
     const reviewCheckout = event => {
         event.preventDefault();
         if (checkoutLocked || disabled || !itemList.length) return;
+
+        if (!ownerAccountId) {
+            setFailureMessage(
+                'Identitas akun belum terverifikasi. Muat ulang sesi akun sebelum meninjau pembayaran.'
+            );
+            setPhase('failed');
+            return;
+        }
 
         const nextPaidAmountError = validatePaidAmount(paidAmount);
         const nextDiscountAmountError = validateDiscountAmount(discountAmount);
@@ -374,14 +515,21 @@ export default function CashierCheckout({
     };
 
     const confirmCheckout = () => {
-        if (!confirmationRequest || inFlightRef.current) return;
+        if (!confirmationRequest || inFlightRef.current || !ownerAccountId) return;
         const signature = getSaleRequestSignature(confirmationRequest);
         let currentAttempt = attemptRef.current;
         if (!currentAttempt || currentAttempt.signature !== signature) {
             currentAttempt = {
+                ownerAccountId,
                 key: createSaleIdempotencyKey(),
                 request: confirmationRequest,
-                signature
+                signature,
+                displayLines: itemList.map(item => ({
+                    sku: item.sku,
+                    name: item.name,
+                    quantity: item.quantity,
+                    baseUnitOfMeasure: item.baseUnitOfMeasure
+                }))
             };
             attemptRef.current = currentAttempt;
             setAttempt(currentAttempt);
@@ -390,6 +538,7 @@ export default function CashierCheckout({
     };
 
     const cancelConfirmation = () => {
+        focusReviewButtonRef.current = true;
         setConfirmationRequest(null);
         setPhase('idle');
     };
@@ -416,121 +565,114 @@ export default function CashierCheckout({
         onSaleCompleted(null);
     };
 
-    if (!itemList.length && phase !== 'success') return null;
+    if (!itemList.length && !['success', 'unknown', 'quarantined'].includes(phase)) return null;
 
     return (
         <Paper
             component="section"
             elevation={ 0 }
-            className="mt-2 border-t p-0 pt-4"
+            className="cashier-checkout mt-2 border-t p-0 pt-4"
             aria-labelledby="cashier-checkout-title"
         >
-            { confirmationRequest && (
-                <BloomConfirmationModal
-                    title="Konfirmasi pembayaran"
-                    confirmButtonText={ phase === 'checking'
-                        ? 'Memeriksa hasil...'
-                        : phase === 'submitting'
-                            ? 'Memproses...'
-                            : 'Konfirmasi jual' }
+            <h2
+                id="cashier-checkout-title"
+                className={ isPreparationPhase ? 'sr-only' : 'text-base font-bold' }
+            >
+                { confirmationRequest
+                    ? 'Tinjau pembayaran'
+                    : ['unknown', 'quarantined'].includes(phase)
+                        || (['submitting', 'checking'].includes(phase) && !confirmationRequest)
+                        ? 'Pemulihan transaksi'
+                        : 'Siapkan pembayaran' }
+            </h2>
+            { !isPreparationPhase && (
+                <p className="mt-1 text-sm text-gray-600">
+                    { confirmationRequest
+                        ? 'Permintaan belum menjadi penjualan sampai server mengembalikan hasil.'
+                        : 'Keranjang dan permintaan dipertahankan sampai server memberikan hasil pasti.' }
+                </p>
+            ) }
+
+            { confirmationRequest && ['confirmation', 'submitting', 'checking'].includes(phase) && (
+                <CashierPurchaseConfirmationModal
+                    estimate={ estimate }
+                    itemList={ itemList }
                     onCancel={ cancelConfirmation }
                     onConfirm={ confirmCheckout }
-                    isPending={ phase === 'submitting' || phase === 'checking' }
-                    focusCancel
+                    phase={ phase }
+                    request={ confirmationRequest }
+                />
+            ) }
+
+            { isPreparationPhase && (
+                <div
+                    className="cashier-checkout__total-hero"
+                    aria-label="Perkiraan bayar dari harga yang tampil"
                 >
-                    <div className="space-y-3">
-                        <p>
-                            Kirim <strong>{ confirmationRequest.saleItemList.length } baris barang</strong>
-                            { ' ' }dengan pembayaran <strong>{ PAYMENT_LABELS[confirmationRequest.paymentType] }</strong>
-                            { ' ' }sebesar <strong>{ formatRupiah(confirmationRequest.paidAmount) }</strong>?
-                        </p>
-                        <p className="text-sm text-slate-600">
-                            Server akan memeriksa sesi dan stok, lalu menghitung total serta kembalian.
-                        </p>
-                        <dl className="rounded border bg-slate-50 p-3 text-sm">
-                            <div className="flex justify-between gap-3">
-                                <dt>Perkiraan subtotal</dt>
-                                <dd className="font-semibold tabular-nums">
-                                    { formatRupiah(estimate.subtotalAmount) }
-                                </dd>
-                            </div>
-                            <div className="mt-1 flex justify-between gap-3">
-                                <dt>Diskon diminta</dt>
-                                <dd className="font-semibold tabular-nums">
-                                    { formatRupiah(confirmationRequest.discountAmount) }
-                                </dd>
-                            </div>
-                            { confirmationRequest.description && (
-                                <div className="mt-1 flex justify-between gap-3">
-                                    <dt>Alasan diskon</dt>
-                                    <dd className="font-semibold text-right">
-                                        { confirmationRequest.description }
-                                    </dd>
-                                </div>
-                            ) }
-                            <div className="mt-2 flex justify-between gap-3 border-t pt-2">
-                                <dt>Perkiraan bayar</dt>
-                                <dd className="font-bold tabular-nums">
-                                    { formatRupiah(estimate.totalAmount) }
-                                </dd>
-                            </div>
-                        </dl>
-                    </div>
-                </BloomConfirmationModal>
-            ) }
-
-            <h2 id="cashier-checkout-title" className="text-base font-bold">Siapkan pembayaran</h2>
-            <p className="mt-1 text-sm text-gray-600">
-                Nilai di bawah adalah perkiraan dari harga yang tampil. Total dan kembalian resmi ditentukan server.
-            </p>
-
-            <dl className="mt-4 rounded-lg bg-blue-50 p-4 text-sm text-blue-950">
-                <div className="flex justify-between gap-3">
-                    <dt>Perkiraan subtotal</dt>
-                    <dd className="font-semibold tabular-nums">
-                        { formatRupiah(estimate.subtotalAmount) }
-                    </dd>
-                </div>
-                <div className="mt-1 flex justify-between gap-3">
-                    <dt>Diskon diminta</dt>
-                    <dd className="font-semibold tabular-nums">
-                        { formatRupiah(discountAmount || '0') }
-                    </dd>
-                </div>
-                <div className="mt-3 flex justify-between gap-3 border-t border-blue-200 pt-3 text-base">
-                    <dt className="font-semibold">Perkiraan bayar</dt>
-                    <dd className="font-bold tabular-nums">
+                    <span>Perkiraan bayar</span>
+                    <strong className="tabular-nums">
                         { estimate.hasInvalidLine ? 'Belum tersedia' : formatRupiah(estimate.totalAmount) }
-                    </dd>
+                    </strong>
+                    <small>Dari harga yang tampil. Total akhir ditetapkan server.</small>
                 </div>
-                <p className="mt-1 text-xs text-blue-800">Server menghitung ulang saat checkout.</p>
-            </dl>
-
-            { phase === 'submitting' && (
-                <Alert severity="info" className="mt-4" role="status">
-                    <span className="inline-flex items-center gap-2">
-                        <CircularProgress size={ 18 } /> Mengirim transaksi satu kali...
-                    </span>
-                </Alert>
             ) }
 
-            { phase === 'checking' && (
-                <Alert severity="info" className="mt-4" role="status">
-                    <span className="inline-flex items-center gap-2">
-                        <CircularProgress size={ 18 } /> Memeriksa hasil transaksi dengan kunci yang sama...
-                    </span>
-                </Alert>
-            ) }
-
-            { phase === 'unknown' && (
+            { (phase === 'unknown'
+                || (!confirmationRequest && ['submitting', 'checking'].includes(phase))) && (
                 <Alert
-                    severity="warning"
+                    severity={ phase === 'unknown' ? 'warning' : 'info' }
                     className="mt-4"
+                    role={ phase === 'unknown' ? 'alert' : 'status' }
+                    aria-label={ phase === 'unknown'
+                        ? 'Pemulihan checkout'
+                        : 'Status pemulihan checkout' }
+                    aria-busy={ phase !== 'unknown' }
                     tabIndex={ -1 }
                     ref={ feedbackRef }
                 >
-                    <div className="font-semibold">Hasil transaksi belum diketahui.</div>
-                    <div>{ unknownMessage }</div>
+                    <div className="font-semibold">
+                        { phase === 'unknown'
+                            ? 'Hasil transaksi belum diketahui.'
+                            : phase === 'checking'
+                                ? 'Memeriksa hasil di server.'
+                                : 'Mengirim ulang permintaan yang sama.' }
+                    </div>
+                    <div>
+                        { phase === 'unknown'
+                            ? unknownMessage
+                            : (
+                                <span className="inline-flex items-center gap-2">
+                                    <CircularProgress size={ 18 } />
+                                    Keranjang tetap dikunci. Jangan membuat transaksi baru.
+                                </span>
+                            ) }
+                    </div>
+                    <div className="mt-3 rounded border border-amber-300 bg-white p-3 text-sm text-slate-800">
+                        <div className="font-semibold">
+                            Permintaan tersimpan · { PAYMENT_LABELS[attempt?.request?.paymentType] }
+                        </div>
+                        <div className="mt-1">
+                            { attempt?.request?.paymentType === PAYMENT_TYPES.CASH
+                                ? 'Uang tunai diterima'
+                                : 'Nominal QRIS terkonfirmasi' }:{ ' ' }
+                            <strong>{ formatRupiah(attempt?.request?.paidAmount) }</strong>
+                        </div>
+                        <div className="mt-2 space-y-1" aria-label="Barang dalam permintaan tersimpan">
+                            { (attempt?.displayLines || []).map(line => (
+                                <div key={ line.sku }>
+                                    { line.name }: { formatQuantity(
+                                        line.quantity,
+                                        line.baseUnitOfMeasure
+                                    ) } dari STORE
+                                </div>
+                            )) }
+                        </div>
+                    </div>
+                    <div className="mt-2 font-semibold">
+                        Jangan buat transaksi pengganti. Pemeriksaan dan pengiriman ulang memakai
+                        permintaan serta kunci idempotensi yang sama.
+                    </div>
+                    { phase === 'unknown' && (
                     <div className="mt-3 flex flex-wrap gap-2">
                         <Button color="inherit" size="small" onClick={ recheckOutcome }>
                             Periksa status lagi
@@ -543,6 +685,25 @@ export default function CashierCheckout({
                         >
                             Kirim ulang permintaan yang sama
                         </Button>
+                    </div>
+                    ) }
+                </Alert>
+            ) }
+
+            { phase === 'quarantined' && (
+                <Alert
+                    severity="warning"
+                    className="mt-4"
+                    role="alert"
+                    aria-label="Pemulihan checkout akun lain"
+                    tabIndex={ -1 }
+                    ref={ feedbackRef }
+                >
+                    <div className="font-semibold">Pemulihan checkout dikunci untuk akun ini.</div>
+                    <div>
+                        Tab ini menyimpan percobaan milik akun lain atau data pemulihan lama yang
+                        tidak memiliki identitas akun yang dapat dibuktikan. Rincian tidak ditampilkan
+                        dan permintaan tidak dapat diperiksa, dikirim ulang, atau dihapus oleh akun ini.
                     </div>
                 </Alert>
             ) }
@@ -635,8 +796,8 @@ export default function CashierCheckout({
             { cartError && <Alert severity="warning" className="mt-4">{ cartError }</Alert> }
             { disabledMessage && <Alert severity="info" className="mt-4">{ disabledMessage }</Alert> }
 
-            { phase !== 'success' && (
-            <form className="mt-4 space-y-4" onSubmit={ reviewCheckout } noValidate>
+            { ['idle', 'failed'].includes(phase) && (
+            <form className="cashier-checkout__form mt-4 space-y-4" onSubmit={ reviewCheckout } noValidate>
                 <div>
                     <div id="cashier-payment-type-label" className="mb-2 text-sm font-medium">
                         Metode pembayaran
@@ -653,6 +814,11 @@ export default function CashierCheckout({
                         <ToggleButton value={ PAYMENT_TYPES.CASH }>Tunai</ToggleButton>
                         <ToggleButton value={ PAYMENT_TYPES.QRIS }>QRIS</ToggleButton>
                     </ToggleButtonGroup>
+                    <p className="mt-2 text-xs text-slate-600">
+                        { paymentType === PAYMENT_TYPES.CASH
+                            ? 'Masukkan uang yang benar-benar diterima.'
+                            : 'Masukkan nominal yang sudah terkonfirmasi di perangkat QRIS.' }
+                    </p>
                 </div>
 
                 <BloomMoneyField
@@ -676,16 +842,39 @@ export default function CashierCheckout({
                     disabled={ disabled || checkoutLocked }
                 />
 
-                { paymentType === PAYMENT_TYPES.CASH && !estimate.hasInvalidLine && (
-                    <Button
-                        type="button"
-                        size="small"
-                        variant="outlined"
-                        disabled={ disabled || checkoutLocked }
-                        onClick={ () => changePaidAmount(estimate.totalAmount) }
+                { paymentType === PAYMENT_TYPES.CASH && cashShortcuts.length > 0 && (
+                    <div
+                        className="cashier-checkout__shortcuts"
+                        role="group"
+                        aria-label="Pilihan cepat uang tunai"
                     >
-                        Gunakan uang pas (perkiraan)
-                    </Button>
+                        { cashShortcuts.map(shortcut => (
+                            <Button
+                                key={ shortcut.value }
+                                type="button"
+                                size="small"
+                                variant="outlined"
+                                disabled={ disabled || checkoutLocked }
+                                onClick={ () => changePaidAmount(shortcut.value) }
+                            >
+                                { shortcut.label }
+                            </Button>
+                        )) }
+                    </div>
+                ) }
+
+                { paymentType === PAYMENT_TYPES.CASH && advisoryCashChange !== null && (
+                    <div
+                        className="cashier-checkout__change"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        <span>Perkiraan kembalian</span>
+                        <strong className="tabular-nums">
+                            { formatRupiah(advisoryCashChange) }
+                        </strong>
+                        <small>Server menetapkan kembalian resmi.</small>
+                    </div>
                 ) }
 
                 <BloomMoneyField
@@ -718,20 +907,24 @@ export default function CashierCheckout({
                     />
                 ) }
 
-                <div className="rounded border bg-slate-50 p-3 text-sm text-slate-700">
-                    <div className="font-semibold">Intent keranjang</div>
-                    { itemList.map(item => (
-                        <div key={ item.sku }>
-                            { item.name }: { formatQuantity(item.quantity, item.baseUnitOfMeasure) } dari STORE
-                        </div>
-                    )) }
-                </div>
+                { phase === 'failed' && (
+                    <div className="rounded border bg-slate-50 p-3 text-sm text-slate-700">
+                        <div className="font-semibold">Keranjang tetap tersimpan</div>
+                        { itemList.map(item => (
+                            <div key={ item.sku }>
+                                { item.name }: { formatQuantity(item.quantity, item.baseUnitOfMeasure) } dari STORE
+                            </div>
+                        )) }
+                    </div>
+                ) }
 
                 <Button
                     type="submit"
                     variant="contained"
                     fullWidth
+                    className="cashier-primary-action"
                     disabled={ disabled || checkoutLocked || !itemList.length }
+                    ref={ reviewButtonRef }
                 >
                     Tinjau pembayaran
                 </Button>

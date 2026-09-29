@@ -22,7 +22,7 @@ function App() {
     const contentMainSpacing = hideLayout
         ? 'bloom__content-main--standalone'
         : isCashierMode
-            ? 'p-4 md:p-6'
+            ? 'bloom__content-main--cashier'
             : 'p-4';
 
     useEffect(() => {
