@@ -86,12 +86,21 @@ describe('SaleDetail receipt reprint', () => {
 
         renderSaleDetail();
 
-        expect(await screen.findByLabelText('Lunas')).toBeInTheDocument();
-        expect(screen.getByLabelText('Tanpa pembatalan/retur')).toBeInTheDocument();
+        expect(await screen.findByLabelText('Status pembayaran: Lunas')).toBeInTheDocument();
+        expect(screen.getByLabelText('Status koreksi: Tanpa pembatalan/retur'))
+            .toBeInTheDocument();
         expect(screen.getByText('#7')).toBeInTheDocument();
         expect(screen.getByText('Kembalian').nextSibling).toHaveTextContent('Rp 7.500');
         expect(screen.getAllByText('1,25 meter')).not.toHaveLength(0);
         expect(screen.getAllByText('Toko')).not.toHaveLength(0);
+        expect(screen.getByRole('heading', { level: 1, name: 'Detail penjualan' }))
+            .toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 2, name: 'Nilai dari server' }))
+            .toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 2, name: 'Barang terjual' }))
+            .toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 2, name: 'Pencetakan ulang' }))
+            .toBeInTheDocument();
     });
 
     it('prevents duplicate clicks and preserves the sale reference through pending and success', async () => {
@@ -106,12 +115,18 @@ describe('SaleDetail receipt reprint', () => {
 
         expect(saleApi.printReceipt).toHaveBeenCalledTimes(1);
         expect(saleApi.printReceipt).toHaveBeenCalledWith(sale.code, undefined);
-        expect(screen.getByRole('button', { name: 'Mencetak...' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Mengirim ke layanan cetak...' }))
+            .toBeDisabled();
         expect(screen.getByRole('status')).toHaveTextContent(`Penjualan ${ sale.code }`);
+        expect(screen.getByRole('status'))
+            .toHaveTextContent('Mengirim permintaan cetak terakhir');
 
         await act(async () => printRequest.resolve({ data: { data: true } }));
 
-        expect(await screen.findByRole('status')).toHaveTextContent('Struk berhasil dicetak.');
+        expect(await screen.findByRole('status'))
+            .toHaveTextContent('Permintaan cetak diterima oleh layanan.');
+        expect(screen.getByRole('status'))
+            .toHaveTextContent('Permintaan cetak terakhir diterima');
         expect(screen.getByRole('status')).toHaveTextContent(`Penjualan ${ sale.code }`);
         expect(screen.getByRole('status')).toHaveFocus();
         expect(screen.getByRole('button', { name: 'Cetak ulang struk' })).toBeEnabled();
@@ -133,7 +148,8 @@ describe('SaleDetail receipt reprint', () => {
 
         const alert = await screen.findByRole('alert');
         expect(alert).toHaveTextContent(`Penjualan ${ sale.code }`);
-        expect(alert).toHaveTextContent('Printer yang dikonfigurasi pada server tidak ditemukan.');
+        expect(alert).toHaveTextContent('Layanan cetak tidak menemukan printer yang dikonfigurasi.');
+        expect(alert).toHaveTextContent('Permintaan cetak terakhir gagal');
         expect(alert).toHaveFocus();
 
         await user.click(screen.getByRole('button', { name: 'Coba lagi' }));
@@ -141,7 +157,8 @@ describe('SaleDetail receipt reprint', () => {
         await waitFor(() => expect(saleApi.printReceipt).toHaveBeenCalledTimes(2));
         expect(saleApi.printReceipt).toHaveBeenNthCalledWith(1, sale.code, undefined);
         expect(saleApi.printReceipt).toHaveBeenNthCalledWith(2, sale.code, undefined);
-        expect(await screen.findByRole('status')).toHaveTextContent('Struk berhasil dicetak.');
+        expect(await screen.findByRole('status'))
+            .toHaveTextContent('Permintaan cetak diterima oleh layanan.');
         expect(saleApi.createSale).not.toHaveBeenCalled();
     });
 
@@ -171,11 +188,11 @@ describe('SaleDetail receipt reprint', () => {
         expect(saleApi.getSaleDetails.mock.calls[0][1].signal.aborted).toBe(true);
 
         await act(async () => secondDetails.resolve({ data: { data: secondSale } }));
-        expect(await screen.findByText(secondSale.code)).toBeInTheDocument();
+        expect(await screen.findAllByText(secondSale.code)).not.toHaveLength(0);
 
         await act(async () => firstDetails.resolve({ data: { data: firstSale } }));
-        expect(screen.getByText(secondSale.code)).toBeInTheDocument();
-        expect(screen.queryByText(firstSale.code)).not.toBeInTheDocument();
+        expect(screen.getAllByText(secondSale.code)).not.toHaveLength(0);
+        expect(screen.queryAllByText(firstSale.code)).toHaveLength(0);
 
         await user.click(await getReadyPrintButton());
         expect(saleApi.printReceipt).toHaveBeenCalledWith(secondSale.code, undefined);
@@ -201,7 +218,7 @@ describe('SaleDetail receipt reprint', () => {
         expect(await screen.findByRole('alert')).toHaveTextContent('Detail penjualan gagal dimuat.');
         await user.click(screen.getByRole('link', { name: 'Buka penjualan valid' }));
 
-        expect(await screen.findByText(nextSale.code)).toBeInTheDocument();
+        expect(await screen.findAllByText(nextSale.code)).not.toHaveLength(0);
         expect(screen.queryByText('Detail penjualan gagal dimuat.')).not.toBeInTheDocument();
         consoleError.mockRestore();
     });
@@ -227,11 +244,12 @@ describe('SaleDetail receipt reprint', () => {
         await user.click(await getReadyPrintButton());
         expect(screen.getByRole('status')).toHaveTextContent(`Penjualan ${ sale.code }`);
         await user.click(screen.getByRole('link', { name: 'Pindah penjualan' }));
-        expect(await screen.findByText(nextSale.code)).toBeInTheDocument();
+        expect(await screen.findAllByText(nextSale.code)).not.toHaveLength(0);
 
         await act(async () => printRequest.resolve({ data: { data: true } }));
 
-        expect(screen.queryByText('Struk berhasil dicetak.')).not.toBeInTheDocument();
+        expect(screen.queryByText(/Permintaan cetak diterima oleh layanan\./))
+            .not.toBeInTheDocument();
         expect(screen.queryByText(`Penjualan ${ sale.code }.`)).not.toBeInTheDocument();
     });
 
@@ -242,7 +260,7 @@ describe('SaleDetail receipt reprint', () => {
 
         renderSaleDetail(malformedSale);
 
-        expect(await screen.findByText(malformedSale.code)).toBeInTheDocument();
+        expect(await screen.findAllByText(malformedSale.code)).not.toHaveLength(0);
         expect(await getReadyPrintButton()).toBeEnabled();
         consoleWarning.mockRestore();
     });
@@ -257,7 +275,7 @@ describe('SaleDetail receipt reprint', () => {
         await user.click(await getReadyPrintButton());
 
         expect(await screen.findByRole('alert')).toHaveTextContent(
-            'Status pencetakan tidak dapat dipastikan'
+            'Status permintaan cetak tidak dapat dipastikan'
         );
         expect(screen.getByRole('alert')).toHaveTextContent(
             'Periksa printer sebelum mencoba lagi.'
@@ -276,7 +294,7 @@ describe('SaleDetail receipt reprint', () => {
 
         const alert = await screen.findByRole('alert');
         expect(alert).toHaveTextContent(
-            'Penjualan tidak ditemukan oleh server sehingga struk belum dapat dicetak.'
+            'Layanan cetak tidak menemukan penjualan ini sehingga permintaan belum dapat diproses.'
         );
         expect(alert).toHaveTextContent('Muat ulang halaman sebelum mencoba lagi.');
     });
@@ -289,7 +307,7 @@ describe('SaleDetail receipt reprint', () => {
         await user.click(await getReadyPrintButton());
 
         expect(await screen.findByRole('alert')).toHaveTextContent(
-            'Struk gagal dicetak. Penjualan tidak diubah.'
+            'Layanan cetak tidak mengonfirmasi permintaan. Penjualan tidak diubah'
         );
     });
 });

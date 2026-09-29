@@ -32,7 +32,8 @@ export default function CloseCashSessionDialog({
     open,
     session,
     onClose,
-    onNotice
+    onNotice,
+    onClosed
 }) {
     const isClosing = useCashSessionStore(state => state.isClosing);
     const closeSession = useCashSessionStore(state => state.closeSession);
@@ -43,12 +44,17 @@ export default function CloseCashSessionDialog({
     const [preview, setPreview] = useState(null);
     const [previewError, setPreviewError] = useState('');
     const [actualCash, setActualCash] = useState('');
+    const [reviewedActualCash, setReviewedActualCash] = useState('');
+    const [step, setStep] = useState('entry');
     const [fieldError, setFieldError] = useState('');
     const [submitError, setSubmitError] = useState('');
+    const [recoveryMessage, setRecoveryMessage] = useState('');
+    const [isRecovering, setRecovering] = useState(false);
 
     const previewRequestIdRef = useRef(0);
     const previewAbortControllerRef = useRef(null);
     const inputRef = useRef(null);
+    const reviewBackRef = useRef(null);
     const submitErrorRef = useRef(null);
     const submitInProgressRef = useRef(false);
     const mountedRef = useRef(false);
@@ -101,8 +107,12 @@ export default function CloseCashSessionDialog({
         }
 
         setActualCash('');
+        setReviewedActualCash('');
+        setStep('entry');
         setFieldError('');
         setSubmitError('');
+        setRecoveryMessage('');
+        setRecovering(false);
         clearClosingError();
         loadPreview();
 
@@ -114,10 +124,16 @@ export default function CloseCashSessionDialog({
     }, [clearClosingError, loadPreview, open]);
 
     useEffect(() => {
-        if (open && previewStatus === 'ready') {
+        if (open && step === 'entry' && previewStatus === 'ready') {
             inputRef.current?.focus();
         }
-    }, [open, previewStatus]);
+    }, [open, previewStatus, step]);
+
+    useEffect(() => {
+        if (open && step === 'review') {
+            reviewBackRef.current?.focus();
+        }
+    }, [open, step]);
 
     useEffect(() => {
         if (submitError) {
@@ -126,7 +142,7 @@ export default function CloseCashSessionDialog({
     }, [submitError]);
 
     const closeDialog = () => {
-        if (isClosing) return;
+        if (isClosing || isRecovering) return;
         onClose();
     };
 
@@ -134,16 +150,20 @@ export default function CloseCashSessionDialog({
         setActualCash(value);
         setFieldError('');
         setSubmitError('');
+        setRecoveryMessage('');
     };
 
     const recoverSessionStatus = async () => {
         setSubmitError('');
+        setRecoveryMessage('');
+        setRecovering(true);
         try {
             const latestSession = await getSessionDetails(session.id);
             if (!mountedRef.current) return;
 
             if (latestSession?.status === 'CLOSED') {
                 onClose();
+                onClosed?.(latestSession);
                 onNotice({
                     severity: 'warning',
                     message: 'Sesi sudah ditutup. Hasil server terbaru ditampilkan.'
@@ -151,34 +171,69 @@ export default function CloseCashSessionDialog({
                 return;
             }
 
-            setSubmitError('Sesi masih terbuka. Nilai kas yang diharapkan sudah dimuat ulang.');
+            setStep('entry');
+            setReviewedActualCash('');
+            setRecoveryMessage(
+                'Sesi masih terbuka. Periksa kembali kas aktual dan pratinjau server terbaru.'
+            );
             loadPreview();
         } catch (error) {
             if (!mountedRef.current) return;
-            setSubmitError(error?.message || 'Status sesi kas gagal diperiksa.');
+            setSubmitError(
+                `${ error?.message || 'Status sesi kas gagal diperiksa.'
+                } Coba periksa status lagi sebelum mengirim penutupan.`
+            );
+        } finally {
+            if (mountedRef.current) {
+                setRecovering(false);
+            }
         }
     };
 
-    const submitClose = async event => {
+    const reviewClose = event => {
         event.preventDefault();
-        if (submitInProgressRef.current || isClosing || previewStatus !== 'ready') return;
+        if (previewStatus !== 'ready') return;
 
-        const nextFieldError = validateCashAmount(actualCash, 'Uang aktual');
+        const nextFieldError = validateCashAmount(actualCash, 'Kas aktual');
         setFieldError(nextFieldError);
         if (nextFieldError) {
             inputRef.current?.focus();
             return;
         }
 
+        setReviewedActualCash(normalizeMoney(actualCash));
+        setSubmitError('');
+        setRecoveryMessage('');
+        setStep('review');
+    };
+
+    const returnToEntry = () => {
+        if (isClosing || isRecovering) return;
+
+        setStep('entry');
+        setReviewedActualCash('');
+        setSubmitError('');
+    };
+
+    const submitClose = async event => {
+        event.preventDefault();
+        if (step !== 'review'
+                || submitInProgressRef.current
+                || isClosing
+                || isRecovering
+                || submitError
+                || previewStatus !== 'ready') return;
+
         submitInProgressRef.current = true;
         setSubmitError('');
         try {
             const closedSession = await closeSession(session.id, {
-                data: { actualClosingCash: normalizeMoney(actualCash) }
+                data: { actualClosingCash: reviewedActualCash }
             });
             if (!closedSession || !mountedRef.current) return;
 
             onClose();
+            onClosed?.(closedSession);
             onNotice({
                 severity: 'success',
                 message: `Sesi kas #${ closedSession.id } berhasil ditutup.`
@@ -188,8 +243,9 @@ export default function CloseCashSessionDialog({
 
             const backendFieldError = getActualCashFieldError(error);
             if (backendFieldError) {
+                setStep('entry');
+                setReviewedActualCash('');
                 setFieldError(backendFieldError);
-                inputRef.current?.focus();
             } else if (error?.category === API_ERROR_CATEGORY.CONFLICT) {
                 onClose();
                 onNotice({
@@ -199,6 +255,7 @@ export default function CloseCashSessionDialog({
                 try {
                     const latestSession = await getSessionDetails(session.id);
                     if (mountedRef.current && latestSession?.status === 'CLOSED') {
+                        onClosed?.(latestSession);
                         onNotice({
                             severity: 'warning',
                             message: 'Sesi sudah ditutup di tempat lain. Hasil server terbaru ditampilkan.'
@@ -209,7 +266,7 @@ export default function CloseCashSessionDialog({
                 }
             } else {
                 setSubmitError(
-                    `${ error?.message || 'Sesi kas gagal ditutup.'
+                    `${ error?.message || 'Hasil penutupan belum dapat dipastikan.'
                     } Periksa status sebelum mencoba lagi.`
                 );
             }
@@ -221,20 +278,23 @@ export default function CloseCashSessionDialog({
     return (
         <Dialog
             open={ open }
-            onClose={ isClosing ? undefined : closeDialog }
-            disableEscapeKeyDown={ isClosing }
+            onClose={ isClosing || isRecovering ? undefined : closeDialog }
+            disableEscapeKeyDown={ isClosing || isRecovering }
             aria-labelledby="close-cash-session-title"
             maxWidth="xs"
             fullWidth
         >
-            <form onSubmit={ submitClose } noValidate>
+            <form onSubmit={ step === 'entry' ? reviewClose : submitClose } noValidate>
                 <DialogTitle id="close-cash-session-title">
-                    Tutup dan rekonsiliasi sesi
+                    { step === 'entry'
+                        ? `Tutup sesi kas #${ session?.id }`
+                        : `Konfirmasi tutup sesi #${ session?.id }` }
                 </DialogTitle>
                 <DialogContent className="space-y-4">
                     <p id="actual-cash-description" className="text-sm text-gray-600">
-                        Hitung uang fisik di laci. Penutupan tidak dapat dibatalkan atau dikoreksi
-                        setelah sesi ditutup.
+                        { step === 'entry'
+                            ? 'Hitung uang fisik di laci. Selisih resmi ditentukan server saat sesi ditutup.'
+                            : 'Periksa kas aktual sekali lagi sebelum mengirim penutupan.' }
                     </p>
 
                     { previewStatus === 'loading' && (
@@ -257,7 +317,7 @@ export default function CloseCashSessionDialog({
                         </Alert>
                     ) }
 
-                    { previewStatus === 'ready' && (
+                    { previewStatus === 'ready' && step === 'entry' && (
                         <div className="rounded-lg bg-gray-50 p-3">
                             <p className="text-sm text-gray-600">Uang kas yang diharapkan (server)</p>
                             <p className="text-xl font-bold">
@@ -276,8 +336,9 @@ export default function CloseCashSessionDialog({
                                     color="inherit"
                                     size="small"
                                     onClick={ recoverSessionStatus }
+                                    disabled={ isRecovering }
                                 >
-                                    Periksa status
+                                    { isRecovering ? 'Memeriksa...' : 'Periksa status' }
                                 </Button>
                             ) }
                         >
@@ -285,42 +346,101 @@ export default function CloseCashSessionDialog({
                         </Alert>
                     ) }
 
-                    <BloomMoneyField
-                        id="actual-closing-cash"
-                        inputRef={ inputRef }
-                        fullWidth
-                        required
-                        label="Uang aktual di laci"
-                        value={ actualCash }
-                        onValueChange={ changeActualCash }
-                        onBlur={ () => setFieldError(validateCashAmount(actualCash, 'Uang aktual')) }
-                        error={ Boolean(fieldError) }
-                        helperText={ fieldError
-                            || 'Masukkan hasil hitung fisik; selisih dihitung oleh server.' }
-                        groupSeparator=","
-                        decimalSeparator="."
-                        currencySymbol="Rp"
-                        slotProps={ {
-                            htmlInput: {
-                                'aria-describedby': 'actual-cash-description actual-closing-cash-helper-text'
-                            }
-                        } }
-                        disabled={ isClosing || previewStatus !== 'ready' }
-                    />
+                    { recoveryMessage && (
+                        <Alert severity="info" role="status">
+                            { recoveryMessage }
+                        </Alert>
+                    ) }
+
+                    { step === 'entry' ? (
+                        <BloomMoneyField
+                            id="actual-closing-cash"
+                            inputRef={ inputRef }
+                            fullWidth
+                            required
+                            label="Kas aktual di laci"
+                            value={ actualCash }
+                            onValueChange={ changeActualCash }
+                            onBlur={ () => setFieldError(
+                                validateCashAmount(actualCash, 'Kas aktual')
+                            ) }
+                            error={ Boolean(fieldError) }
+                            helperText={ fieldError
+                                || 'Gunakan format Indonesia, misalnya 2.847.000 atau 2.847.000,50.' }
+                            groupSeparator="."
+                            decimalSeparator=","
+                            currencySymbol="Rp"
+                            slotProps={ {
+                                htmlInput: {
+                                    'aria-describedby': 'actual-cash-description actual-closing-cash-helper-text'
+                                }
+                            } }
+                            disabled={ isClosing || previewStatus !== 'ready' }
+                        />
+                    ) : (
+                        <div
+                            className="rounded-lg border border-gray-200 p-4"
+                            aria-label="Ringkasan penutupan"
+                        >
+                            <dl className="grid gap-3 text-sm">
+                                <div>
+                                    <dt className="text-gray-600">Kas diharapkan (pratinjau server)</dt>
+                                    <dd className="text-lg font-bold">
+                                        { formatRupiah(preview?.expectedClosingCash) }
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt className="text-gray-600">Kas aktual</dt>
+                                    <dd className="text-lg font-bold">
+                                        { formatRupiah(reviewedActualCash) }
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt className="text-gray-600">Selisih resmi</dt>
+                                    <dd>Ditentukan server setelah penutupan</dd>
+                                </div>
+                            </dl>
+                            <Alert severity="warning" className="mt-4">
+                                Penutupan tidak dapat dibatalkan. Hasil rekonsiliasi akan tersimpan
+                                sebagai catatan server.
+                            </Alert>
+                        </div>
+                    ) }
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={ closeDialog } disabled={ isClosing }>
-                        Batal
-                    </Button>
-                    <Button
-                        type="submit"
-                        color="error"
-                        variant="contained"
-                        disabled={ isClosing || previewStatus !== 'ready' }
-                        aria-busy={ isClosing }
-                    >
-                        { isClosing ? 'Menutup...' : 'Konfirmasi tutup sesi' }
-                    </Button>
+                    { step === 'entry' ? (
+                        <>
+                            <Button onClick={ closeDialog } disabled={ isClosing }>
+                                Batal
+                            </Button>
+                            <Button
+                                type="submit"
+                                variant="contained"
+                                disabled={ isClosing || previewStatus !== 'ready' }
+                            >
+                                Tinjau penutupan
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button
+                                ref={ reviewBackRef }
+                                onClick={ returnToEntry }
+                                disabled={ isClosing || isRecovering }
+                            >
+                                Kembali periksa
+                            </Button>
+                            <Button
+                                type="submit"
+                                color="error"
+                                variant="contained"
+                                disabled={ isClosing || isRecovering || Boolean(submitError) }
+                                aria-busy={ isClosing }
+                            >
+                                { isClosing ? 'Menutup...' : 'Tutup sesi kas' }
+                            </Button>
+                        </>
+                    ) }
                 </DialogActions>
             </form>
         </Dialog>
@@ -333,5 +453,6 @@ CloseCashSessionDialog.propTypes = {
         id: PropTypes.number.isRequired
     }),
     onClose: PropTypes.func.isRequired,
-    onNotice: PropTypes.func.isRequired
+    onNotice: PropTypes.func.isRequired,
+    onClosed: PropTypes.func
 };

@@ -31,13 +31,16 @@ vi.mock('@stores/index.js', async importOriginal => ({
 
 import { API_DOMAIN_ERROR_CODE } from '@api/error-contract.js';
 import CashierCheckout from '@components/cashier/CashierCheckout.jsx';
+import { SALE_CHECKOUT_RECOVERY_STORAGE_KEY } from '@components/cashier/sale-checkout.js';
 import SaleDetail from '@pages/sale/SaleDetail.jsx';
+import useAuthStore from '@stores/modules/auth.js';
 import useSaleStore from '@stores/modules/sale.js';
 import { render, screen, waitFor } from '@/test/render.jsx';
 
 const cartItems = [{
     sku: 'KAIN-00001',
     name: 'Kain katun',
+    price: '15000.0000',
     quantity: '1.25',
     baseUnitOfMeasure: 'METER'
 }];
@@ -68,7 +71,7 @@ const deferred = () => {
 const renderCheckout = props => {
     const onLockChange = vi.fn();
     const onSaleCompleted = vi.fn();
-    render(
+    const view = render(
         <CashierCheckout
             itemList={ cartItems }
             onLockChange={ onLockChange }
@@ -76,18 +79,36 @@ const renderCheckout = props => {
             { ...props }
         />
     );
-    return { onLockChange, onSaleCompleted };
+    return {
+        ...view,
+        onLockChange,
+        onSaleCompleted
+    };
 };
 
 const reviewCashPayment = async (user, amount = '20000') => {
     await user.type(screen.getByRole('textbox', { name: 'Uang tunai diterima' }), amount);
     await user.click(screen.getByRole('button', { name: 'Tinjau pembayaran' }));
-    return screen.findByRole('dialog', { name: 'Konfirmasi pembayaran' });
+    return screen.findByRole('region', { name: 'Pastikan barang dan pembayaran' });
 };
 
 describe('CashierCheckout', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        sessionStorage.clear();
+        checkoutMocks.createSale.mockReset();
+        checkoutMocks.getCheckoutStatus.mockReset();
+        checkoutMocks.getCurrentSession.mockReset();
+        checkoutMocks.getSaleDetails.mockReset();
+        checkoutMocks.getSaleList.mockReset();
+        checkoutMocks.printReceipt.mockReset();
+        useAuthStore.setState({
+            authStatus: 'authenticated',
+            currentUser: {
+                accountId: '101',
+                username: 'admin'
+            }
+        });
         useSaleStore.setState({
             receiptPrintStateBySale: {},
             saleDetails: {}
@@ -111,10 +132,11 @@ describe('CashierCheckout', () => {
             .mockResolvedValueOnce({ data: { data: true } });
         const { onLockChange, onSaleCompleted } = renderCheckout();
 
-        const dialog = await reviewCashPayment(user);
-        expect(dialog).toHaveTextContent('1 baris barang');
-        expect(dialog).toHaveTextContent('Server akan memeriksa sesi dan stok');
-        expect(screen.queryByText(/subtotal/i)).not.toBeInTheDocument();
+        const review = await reviewCashPayment(user);
+        expect(review).toHaveTextContent('Kain katun');
+        expect(review).toHaveTextContent('Total resmi & kembalianDitetapkan server');
+        expect(review).toHaveTextContent('Perkiraan bayar');
+        expect(review).toHaveTextContent('Rp 18.750');
 
         await user.dblClick(screen.getByRole('button', { name: 'Konfirmasi jual' }));
 
@@ -130,6 +152,12 @@ describe('CashierCheckout', () => {
                 stockLocation: 'STORE'
             }]
         }, expect.stringMatching(/^sale-/), undefined);
+        const durableAttempt = JSON.parse(
+            sessionStorage.getItem(SALE_CHECKOUT_RECOVERY_STORAGE_KEY)
+        );
+        expect(durableAttempt.ownerAccountId).toBe('101');
+        expect(durableAttempt.attempt.request).toEqual(checkoutMocks.createSale.mock.calls[0][0]);
+        expect(durableAttempt.attempt.key).toBe(checkoutMocks.createSale.mock.calls[0][1]);
         expect(screen.getByRole('button', { name: 'Memproses...' })).toBeDisabled();
         expect(onLockChange).toHaveBeenCalledWith(true);
 
@@ -137,29 +165,69 @@ describe('CashierCheckout', () => {
         await act(async () => request.resolve({ data: { data: completedSale } }));
 
         const success = await screen.findByRole('status', { name: 'Status penjualan' });
-        expect(success).toHaveTextContent('Penjualan SALE/VIII-2026/0042 berhasil.');
-        expect(success).toHaveTextContent('Total server: Rp 18.750');
-        expect(success).toHaveTextContent('Kembalian server: Rp 1.250');
+        expect(success).toHaveTextContent('Penjualan tersimpan');
+        expect(success).toHaveTextContent('Kode SALE/VIII-2026/0042');
         expect(success).toHaveFocus();
+        expect(screen.getByLabelText('Nilai resmi penjualan dari server'))
+            .toHaveTextContent('SubtotalRp 18.750');
+        expect(screen.getByLabelText('Nilai resmi penjualan dari server'))
+            .toHaveTextContent('DiskonRp 0');
+        expect(screen.getByLabelText('Nilai resmi penjualan dari server'))
+            .toHaveTextContent('TotalRp 18.750');
+        expect(screen.getByLabelText('Nilai resmi penjualan dari server'))
+            .toHaveTextContent('Dibayar · Tunai (CASH)Rp 20.000');
+        expect(screen.getByLabelText('Nilai resmi penjualan dari server'))
+            .toHaveTextContent('KembalianRp 1.250');
+        expect(sessionStorage.getItem(SALE_CHECKOUT_RECOVERY_STORAGE_KEY)).toBeNull();
         expect(onSaleCompleted).toHaveBeenCalledWith(completedSale);
         expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(1);
         expect(checkoutMocks.printReceipt).toHaveBeenCalledWith(completedSale.code, undefined);
 
         const printStatus = screen.getByRole('status', { name: 'Status pencetakan struk' });
-        expect(printStatus).toHaveTextContent(`Pencetakan struk ${ completedSale.code }`);
-        expect(printStatus).toHaveTextContent('Permintaan cetak sedang diproses oleh server.');
-        expect(screen.getByRole('button', { name: 'Mencetak...' })).toBeDisabled();
+        expect(printStatus).toHaveTextContent('Mengirim permintaan cetak');
+        expect(printStatus).toHaveTextContent('Struk sedang dikirim ke layanan cetak.');
+        expect(screen.getByRole('button', { name: 'Mengirim...' })).toBeDisabled();
         expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
 
         await act(async () => printRequest.resolve({ data: { data: true } }));
 
-        expect(printStatus).toHaveTextContent('Struk berhasil dicetak.');
+        expect(printStatus).toHaveTextContent('Permintaan cetak diterima oleh layanan.');
+        expect(printStatus).toHaveTextContent('Periksa hasil pada printer.');
         expect(printStatus).toHaveFocus();
         await user.click(screen.getByRole('button', { name: 'Cetak ulang struk' }));
         await waitFor(() => expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(2));
         expect(checkoutMocks.printReceipt).toHaveBeenNthCalledWith(2, completedSale.code, undefined);
         expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
         expect(browserPrint).not.toHaveBeenCalled();
+    });
+
+    it('prepares discount, conditional reason, CASH tender, and advisory totals before checkout', async () => {
+        const user = userEvent.setup();
+        renderCheckout();
+
+        expect(screen.getByLabelText('Perkiraan bayar dari harga yang tampil'))
+            .toHaveTextContent('Rp 18.750');
+        expect(screen.queryByRole('textbox', { name: 'Alasan diskon' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Uang pas' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Rp 20.000' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Rp 30.000' })).toBeInTheDocument();
+
+        await user.clear(screen.getByRole('textbox', { name: 'Diskon penjualan' }));
+        await user.type(screen.getByRole('textbox', { name: 'Diskon penjualan' }), '5000');
+        await user.type(screen.getByRole('textbox', { name: 'Alasan diskon' }), 'Harga langganan');
+        await user.type(screen.getByRole('textbox', { name: 'Uang tunai diterima' }), '20000');
+
+        expect(screen.getByLabelText('Perkiraan bayar dari harga yang tampil'))
+            .toHaveTextContent('Rp 13.750');
+        expect(screen.getByText('Perkiraan kembalian').parentElement).toHaveTextContent('Rp 6.250');
+        expect(screen.getByText('Perkiraan kembalian').parentElement)
+            .toHaveTextContent('Server menetapkan kembalian resmi.');
+        await user.click(screen.getByRole('button', { name: 'Tinjau pembayaran' }));
+
+        const review = await screen.findByRole('region', { name: 'Pastikan barang dan pembayaran' });
+        expect(review).toHaveTextContent('Diskon dimintaRp 5.000');
+        expect(review).toHaveTextContent('Alasan diskonHarga langganan');
+        expect(checkoutMocks.createSale).not.toHaveBeenCalled();
     });
 
     it('keeps sale success visible when printing fails and retries only that sale reference', async () => {
@@ -179,9 +247,9 @@ describe('CashierCheckout', () => {
 
         const saleSuccess = await screen.findByRole('status', { name: 'Status penjualan' });
         const printFailure = await screen.findByRole('alert');
-        expect(saleSuccess).toHaveTextContent(`Penjualan ${ completedSale.code } berhasil.`);
-        expect(printFailure).toHaveTextContent('Printer yang dikonfigurasi pada server tidak ditemukan.');
-        expect(printFailure).toHaveTextContent('Penjualan tetap berhasil dan tidak dikirim ulang.');
+        expect(saleSuccess).toHaveTextContent(`Kode ${ completedSale.code }`);
+        expect(printFailure).toHaveTextContent('Layanan cetak tidak menemukan printer yang dikonfigurasi.');
+        expect(printFailure).toHaveTextContent('Penjualan sudah tersimpan dan tidak akan dikirim ulang.');
         expect(printFailure).toHaveFocus();
 
         await user.click(screen.getByRole('button', { name: 'Coba cetak lagi' }));
@@ -189,7 +257,8 @@ describe('CashierCheckout', () => {
         await waitFor(() => expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(2));
         expect(checkoutMocks.printReceipt).toHaveBeenNthCalledWith(1, completedSale.code, undefined);
         expect(checkoutMocks.printReceipt).toHaveBeenNthCalledWith(2, completedSale.code, undefined);
-        expect(await screen.findByText(/Struk berhasil dicetak\./)).toBeInTheDocument();
+        expect(await screen.findByText(/Permintaan cetak diterima oleh layanan\./))
+            .toBeInTheDocument();
         expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
     });
 
@@ -210,8 +279,8 @@ describe('CashierCheckout', () => {
 
         const printFailure = await screen.findByRole('alert');
         expect(screen.getByRole('status', { name: 'Status penjualan' }))
-            .toHaveTextContent(`Penjualan ${ completedSale.code } berhasil.`);
-        expect(printFailure).toHaveTextContent('Status pencetakan tidak dapat dipastikan');
+            .toHaveTextContent(`Kode ${ completedSale.code }`);
+        expect(printFailure).toHaveTextContent('Status permintaan cetak tidak dapat dipastikan');
         expect(printFailure).toHaveTextContent('Periksa printer sebelum mencoba lagi.');
 
         await user.click(screen.getByRole('button', { name: 'Coba cetak lagi' }));
@@ -235,7 +304,7 @@ describe('CashierCheckout', () => {
 
         const printFailure = await screen.findByRole('alert');
         expect(printFailure).toHaveTextContent(
-            'Penjualan tidak ditemukan oleh server sehingga struk belum dapat dicetak.'
+            'Layanan cetak tidak menemukan penjualan ini sehingga permintaan belum dapat diproses.'
         );
         expect(printFailure).toHaveTextContent('Buka detail penjualan untuk memeriksa transaksi.');
         expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
@@ -270,14 +339,17 @@ describe('CashierCheckout', () => {
         await reviewCashPayment(user);
         await user.click(screen.getByRole('button', { name: 'Konfirmasi jual' }));
         await screen.findByRole('status', { name: 'Status pencetakan struk' });
-        await user.click(screen.getByRole('link', { name: 'Lihat detail penjualan' }));
+        await user.click(screen.getByRole('link', { name: 'Buka detail penjualan' }));
 
-        const pendingPrintButton = await screen.findByRole('button', { name: 'Mencetak...' });
+        const pendingPrintButton = await screen.findByRole('button', {
+            name: 'Mengirim ke layanan cetak...'
+        });
         expect(pendingPrintButton).toBeDisabled();
         expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(1);
 
         await act(async () => printRequest.resolve({ data: { data: true } }));
-        expect(await screen.findByText('Struk berhasil dicetak.')).toBeInTheDocument();
+        expect(await screen.findByText(/Permintaan cetak diterima oleh layanan\./))
+            .toBeInTheDocument();
         expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
         expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(1);
         expect(checkoutMocks.printReceipt).toHaveBeenCalledWith(completedSale.code, undefined);
@@ -293,8 +365,7 @@ describe('CashierCheckout', () => {
         checkoutMocks.createSale.mockResolvedValue({ data: { data: completedSale } });
         renderCheckout();
 
-        await user.click(screen.getByRole('combobox', { name: 'Metode pembayaran' }));
-        await user.click(screen.getByRole('option', { name: 'QRIS' }));
+        await user.click(screen.getByRole('button', { name: 'QRIS' }));
         await user.type(
             screen.getByRole('textbox', { name: 'Nominal QRIS terkonfirmasi' }),
             '18750'
@@ -311,7 +382,9 @@ describe('CashierCheckout', () => {
             undefined
         ));
         expect(await screen.findByRole('status', { name: 'Status penjualan' }))
-            .toHaveTextContent('Kembalian server: Rp 0.');
+            .toHaveTextContent('Penjualan tersimpan');
+        expect(screen.getByLabelText('Nilai resmi penjualan dari server'))
+            .toHaveTextContent('KembalianRp 0');
     });
 
     it('focuses local validation and maps backend payment validation without clearing the cart', async () => {
@@ -334,7 +407,8 @@ describe('CashierCheckout', () => {
         await user.click(await screen.findByRole('button', { name: 'Konfirmasi jual' }));
 
         expect(await screen.findByText('Paid amount is required')).toBeInTheDocument();
-        expect(paidAmount).toHaveFocus();
+        expect(screen.getByRole('textbox', { name: 'Uang tunai diterima' })).toHaveFocus();
+        expect(sessionStorage.getItem(SALE_CHECKOUT_RECOVERY_STORAGE_KEY)).toBeNull();
         expect(screen.getByText('Kain katun: 1,25 meter dari STORE')).toBeInTheDocument();
     });
 
@@ -390,7 +464,8 @@ describe('CashierCheckout', () => {
         const firstRequest = checkoutMocks.createSale.mock.calls[0][0];
         const firstKey = checkoutMocks.createSale.mock.calls[0][1];
         expect(checkoutMocks.getCheckoutStatus).toHaveBeenCalledWith(firstKey, undefined, undefined);
-        expect(screen.getByRole('textbox', { name: 'Uang tunai diterima' })).toBeDisabled();
+        expect(screen.queryByRole('textbox', { name: 'Uang tunai diterima' }))
+            .not.toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Kirim ulang permintaan yang sama' }));
 
@@ -399,6 +474,121 @@ describe('CashierCheckout', () => {
         expect(await screen.findByRole('status', { name: 'Status penjualan' }))
             .toHaveTextContent(completedSale.code);
         expect(onSaleCompleted).toHaveBeenCalledWith(completedSale);
+    });
+
+    it('restores an ambiguous account-owned attempt after remount without mutating the cart', async () => {
+        const user = userEvent.setup();
+        const retryRequest = deferred();
+        checkoutMocks.createSale
+            .mockRejectedValueOnce(Object.assign(new Error('Gagal terhubung.'), {
+                category: 'network',
+                status: null
+            }))
+            .mockReturnValueOnce(retryRequest.promise);
+        checkoutMocks.getCheckoutStatus.mockResolvedValue({
+            data: { data: { status: 'UNKNOWN', sale: null } }
+        });
+        const firstView = renderCheckout();
+
+        await reviewCashPayment(user);
+        await user.click(screen.getByRole('button', { name: 'Konfirmasi jual' }));
+        await screen.findByRole('alert', { name: 'Pemulihan checkout' });
+
+        const firstRequest = checkoutMocks.createSale.mock.calls[0][0];
+        const firstKey = checkoutMocks.createSale.mock.calls[0][1];
+        const durableState = sessionStorage.getItem(SALE_CHECKOUT_RECOVERY_STORAGE_KEY);
+        expect(durableState).not.toBeNull();
+
+        firstView.unmount();
+        const { onSaleCompleted } = renderCheckout({ itemList: [] });
+
+        const recovery = await screen.findByRole('alert', { name: 'Pemulihan checkout' });
+        expect(recovery).toHaveTextContent('Permintaan tersimpan dari percobaan sebelumnya');
+        expect(recovery).toHaveTextContent('Kain katun: 1,25 meter dari STORE');
+        expect(screen.queryByRole('textbox', { name: 'Uang tunai diterima' })).not.toBeInTheDocument();
+        expect(onSaleCompleted).not.toHaveBeenCalled();
+
+        await user.click(screen.getByRole('button', { name: 'Periksa status lagi' }));
+        await waitFor(() => expect(checkoutMocks.getCheckoutStatus).toHaveBeenCalledTimes(2));
+        expect(checkoutMocks.getCheckoutStatus).toHaveBeenLastCalledWith(
+            firstKey,
+            undefined,
+            undefined
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Kirim ulang permintaan yang sama' }));
+        await waitFor(() => expect(checkoutMocks.createSale).toHaveBeenCalledTimes(2));
+        expect(checkoutMocks.createSale.mock.calls[1]).toEqual([firstRequest, firstKey, undefined]);
+        expect(sessionStorage.getItem(SALE_CHECKOUT_RECOVERY_STORAGE_KEY)).toBe(durableState);
+    });
+
+    it('quarantines another account checkout without exposing or replaying its request', async () => {
+        const request = {
+            discountAmount: '0',
+            paidAmount: '987654',
+            description: 'Rahasia akun asal',
+            paymentType: 'CASH',
+            saleItemList: [{
+                itemSku: 'SECRET-SKU',
+                quantity: '1',
+                stockLocation: 'STORE'
+            }]
+        };
+        const attempt = {
+            ownerAccountId: '101',
+            key: 'sale-owner-101',
+            request,
+            signature: JSON.stringify(request),
+            displayLines: [{
+                sku: 'SECRET-SKU',
+                name: 'Barang rahasia',
+                quantity: '1',
+                baseUnitOfMeasure: 'PIECE'
+            }]
+        };
+        sessionStorage.setItem(SALE_CHECKOUT_RECOVERY_STORAGE_KEY, JSON.stringify({
+            version: 1,
+            ownerAccountId: '101',
+            attempt
+        }));
+        useAuthStore.setState({
+            authStatus: 'authenticated',
+            currentUser: {
+                accountId: '202',
+                username: 'admin-baru'
+            }
+        });
+
+        renderCheckout({ itemList: [] });
+
+        const quarantine = await screen.findByRole('alert', {
+            name: 'Pemulihan checkout akun lain'
+        });
+        expect(quarantine).toHaveTextContent('Pemulihan checkout dikunci untuk akun ini');
+        expect(screen.queryByText('Barang rahasia')).not.toBeInTheDocument();
+        expect(screen.queryByText('987654')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Periksa status lagi' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', {
+            name: 'Kirim ulang permintaan yang sama'
+        })).not.toBeInTheDocument();
+        expect(checkoutMocks.createSale).not.toHaveBeenCalled();
+        expect(checkoutMocks.getCheckoutStatus).not.toHaveBeenCalled();
+    });
+
+    it('does not post when exact recovery persistence is unavailable', async () => {
+        const user = userEvent.setup();
+        renderCheckout();
+        await reviewCashPayment(user);
+        vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+            throw new Error('Storage blocked');
+        });
+
+        await user.click(screen.getByRole('button', { name: 'Konfirmasi jual' }));
+
+        const failure = await screen.findByText(/Pemulihan transaksi tidak dapat disimpan/);
+        expect(failure).toBeInTheDocument();
+        expect(checkoutMocks.createSale).not.toHaveBeenCalled();
+        expect(sessionStorage.getItem(SALE_CHECKOUT_RECOVERY_STORAGE_KEY)).toBeNull();
     });
 
     it('turns an ambiguous POST into success when same-key lookup reports COMPLETED', async () => {

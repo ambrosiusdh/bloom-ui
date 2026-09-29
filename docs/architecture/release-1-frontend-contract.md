@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Contract
 
-Last updated: 2026-09-28
+Last updated: 2026-09-30
 
 ## 1. Purpose
 
@@ -29,10 +29,32 @@ Bloom UI is currently a JavaScript React application:
 - Material UI, Sass, and existing utility styles.
 - Vitest, React Testing Library, and jsdom for frontend tests.
 - PropTypes and existing ESLint rules for current runtime/static checks.
+- UXI-01 appearance foundation is implemented: first use renders in light mode; operators can choose
+  `Terang`, `Gelap`, or `Ikuti sistem`; the explicit browser/device-local choice resolves before
+  application paint; system mode follows later operating-system changes; and shared Operational Blue,
+  semantic state, focus, surface, text, border, and disabled tokens drive both MUI and existing shell
+  styles without an account preference or backend endpoint.
 - FE-04 cashier-focused layout is implemented: `/cashier` uses a focused shell with a clear back-office escape while preserving the route and shared theme.
 - FE-05 back-office navigation accessibility is implemented: current destinations are semantically grouped, route-active, keyboard accessible, and usable as a responsive drawer without adding or changing routes.
 - FE-06 item-category reliability is implemented: active-category list/create/edit/deactivate flows match the current backend contract and cover explicit async, validation, conflict, pending, success, confirmation, and focus behavior.
 - UXI-04 approved item-category UX is implemented: the paged active list groups name, code, and description; presents separate update actor/time facts with explicit fallbacks; provides 44-pixel named icon actions and labelled narrow records; links create/edit breadcrumbs back to the list; and preserves validated input, conflict recovery, safe cascade-aware deactivation, and deliberate result focus.
+- UXI-05 approved cash-session current/history/opening UX is implemented: `/cash-sessions` is the single `Sesi kas` destination, composes the separately verified current-session read above the separately requested server-paged history, preserves the backend-confirmed no-session meaning, accepts Indonesian-formatted opening cash while sending only canonical `openingCash`, exposes explicit range/total/page/navigation context, and keeps every history fact available in labelled narrow records without predicting reconciliation.
+- UXI-06 approved cash-session close/reconciliation/detail UX is implemented: expected cash is requested only after closing starts; Indonesian actual-cash input is frozen into a cancel-first review before one locked close; uncertain outcomes require status recovery; final expected cash, actual cash, variance, audit facts, and conflict replacement come from server responses; and a fresh current-session read must verify no open session before the next open action appears. Current, history, and detail use one Jakarta/WIB timestamp pattern, while narrow actions and detail sections preserve an explicit non-wrapping hierarchy.
+- UXI-07 approved cashier discovery/cart UX is implemented: the session-gated workspace uses the approved continuous catalog/transaction split, moves full session management behind a compact header control, keeps category-aware manual/scanner discovery beside one persistent transaction panel, uses compact UOM-aware quantity rows and advisory STORE checks, and offers one-step undo after removing a line. Exact-decimal line/subtotal/discount/estimated-total and live cash-change hints remain non-authoritative; existing sale fields prepare CASH/QRIS tender with practical cash shortcuts, cart cancellation stays confirmed, and narrow desktop stacks into one document flow while keeping stock visible. Scanner wording reports capability without claiming a connected device; FE-19 physical store-laptop verification remains outstanding.
+- UXI-08 approved checkout/durable-recovery UX is implemented: `Tinjau pembayaran` replaces only the transaction panel with a compact frozen review; CASH sends tendered cash while QRIS sends the externally confirmed exact settlement; and one account-bound exact request/idempotency key is verified in tab storage before POST. Definitive rejection restores editable intent and focused guidance, while ambiguous outcomes survive navigation/reload and permit only same-key status checks or exact replay without mutating the cart or navigating away.
+- UXI-09 approved sale-result/printing UX is implemented: the completed sale replaces the cart with
+  the server-returned reference, subtotal, discount, total, tender, payment method, and change before
+  a separate sale-reference-only print operation begins. Pending printing locks duplicate requests;
+  failure leaves the confirmed sale intact and retryable; success reports only print-service
+  acknowledgement and directs the operator to check the printer. The result preserves encoded sale
+  detail access and requires an explicit new-sale reset before cashier entry resumes.
+- UXI-10 approved sales-history/detail/reprint UX is implemented: the history keeps only the
+  backend-supported code, creator, start-date, and end-date filters; owns `DD-MM-YYYY` validation in
+  Indonesian; exposes stable server page/range context; and switches from labelled wide rows to
+  grouped narrow records without page-level horizontal panning. Detail has one page heading and
+  separate transaction/status, server-value, persisted-line, and reprint sections. Statuses, money,
+  UOM, and location remain backend-returned facts, while reprint stays a duplicate-locked,
+  sale-reference-only operation whose failure never changes the recorded sale.
 - FE-07 backend receipt reprint is implemented: sale detail calls the backend print endpoint for the existing sale reference with pending, duplicate-click prevention, success, failure, and same-reference retry behavior.
 - FE-08 current dashboard reliability is implemented: the existing backend overview metrics have explicit accessible loading, error/retry, zero/empty, refresh, and last-successful-data behavior without frontend aggregation.
 - FE-10 item creation is implemented: `/items/new` sends item metadata, the Release 1 UOM/fractional policy, and optional decimal STORE/WAREHOUSE openings through the backend's single atomic create operation, with explicit category, validation, pending, conflict, failure-recovery, success, and focus behavior.

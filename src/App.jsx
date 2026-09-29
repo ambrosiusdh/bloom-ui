@@ -22,7 +22,7 @@ function App() {
     const contentMainSpacing = hideLayout
         ? 'bloom__content-main--standalone'
         : isCashierMode
-            ? 'p-4 md:p-6'
+            ? 'bloom__content-main--cashier'
             : 'p-4';
 
     useEffect(() => {
@@ -107,7 +107,7 @@ function App() {
     }
 
     return (
-        <div className={ `bloom ${isCashierMode ? 'bloom--cashier' : ''} flex w-full min-h-screen bg-gray-100 dark:bg-zinc-900 text-zinc-900 dark:text-white transition duration-300` }>
+        <div className={ `bloom ${isCashierMode ? 'bloom--cashier' : ''} flex w-full min-h-screen` }>
             <Loader />
 
             { !hideLayout && !isCashierMode && (

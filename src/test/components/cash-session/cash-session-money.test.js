@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { formatCashSessionDate } from '@components/cash-session/cash-session-date.js';
 import {
     formatRupiah,
     getMoneySign,
@@ -7,6 +8,12 @@ import {
 } from '@components/cash-session/cash-session-money.js';
 
 describe('cash-session money presentation', () => {
+    it('formats audit timestamps in the approved Jakarta reading pattern', () => {
+        expect(formatCashSessionDate('2026-08-25T03:00:00Z'))
+            .toBe('25 Agu 2026, 10.00 WIB');
+        expect(formatCashSessionDate('not-an-instant')).toBe('not-an-instant');
+    });
+
     it.each([
         ['0.0000', 0],
         ['-0.0000', 0],

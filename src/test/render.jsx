@@ -1,9 +1,7 @@
-
+import { MemoryRouter } from 'react-router-dom';
 import { render as testingLibraryRender } from '@testing-library/react';
 import { SnackbarProvider } from 'notistack';
 import PropTypes from 'prop-types';
-
-import { MemoryRouter } from 'react-router-dom';
 
 import { ThemeProvider } from '@mui/material/styles';
 

@@ -17,10 +17,17 @@ const stepDecimal = (draft, direction) => {
 };
 
 export default function BloomQuantityField({
-    value, onChange, onStep, unitOfMeasure, decrementDisabled = false, ...fieldProps
+    value,
+    onChange,
+    onStep,
+    unitOfMeasure,
+    decrementDisabled = false,
+    hideVisibleLabel = false,
+    label,
+    ...fieldProps
 }) {
     const unit = formatUnitOfMeasure(unitOfMeasure);
-    const actionLabel = fieldProps.label.replace(/^Jumlah/, 'jumlah');
+    const actionLabel = label.replace(/^Jumlah/, 'jumlah');
     const stepButton = direction => (
         <IconButton
             type="button"
@@ -39,9 +46,16 @@ export default function BloomQuantityField({
                 { ...fieldProps }
                 className="min-w-0 flex-grow"
                 size="small"
+                label={ hideVisibleLabel ? undefined : label }
                 value={ value }
                 onChange={ event => onChange(event.target.value) }
-                slotProps={ { htmlInput: { inputMode: 'decimal' }, input: { endAdornment: unit } } }
+                slotProps={ {
+                    htmlInput: {
+                        inputMode: 'decimal',
+                        'aria-label': hideVisibleLabel ? label : undefined
+                    },
+                    input: { endAdornment: unit }
+                } }
             />
             { stepButton(1) }
         </div>
@@ -51,6 +65,8 @@ export default function BloomQuantityField({
 BloomQuantityField.propTypes = {
     value: PropTypes.string.isRequired, onChange: PropTypes.func.isRequired,
     onStep: PropTypes.func.isRequired, unitOfMeasure: PropTypes.string,
-    decrementDisabled: PropTypes.bool, label: PropTypes.string.isRequired,
+    decrementDisabled: PropTypes.bool,
+    hideVisibleLabel: PropTypes.bool,
+    label: PropTypes.string.isRequired,
     disabled: PropTypes.bool
 };

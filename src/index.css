@@ -3,81 +3,124 @@
 @tailwind utilities;
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --bloom-shell-bg: #f3f6fb;
+  --bloom-shell-surface: #ffffff;
+  --bloom-shell-surface-soft: #f7f9fc;
+  --bloom-shell-border: #d6deea;
+  --bloom-shell-border-strong: #b9c5d6;
+  --bloom-shell-text: #15233a;
+  --bloom-shell-muted: #53637a;
+  --bloom-shell-sidebar: #0d244f;
+  --bloom-shell-sidebar-hover: #17386f;
+  --bloom-shell-sidebar-text: #f7faff;
+  --bloom-shell-sidebar-muted: #c9d6ea;
+  --bloom-shell-primary: #2563eb;
+  --bloom-shell-primary-strong: #1d4ed8;
+  --bloom-shell-primary-soft: #e6efff;
+  --bloom-shell-primary-soft-text: #153d91;
+  --bloom-shell-on-primary: #ffffff;
+  --bloom-shell-success: #18794e;
+  --bloom-shell-success-soft: #e8f7ef;
+  --bloom-shell-warning: #935b00;
+  --bloom-shell-warning-soft: #fff5d8;
+  --bloom-shell-danger: #b42318;
+  --bloom-shell-danger-soft: #fff0ee;
+  --bloom-shell-focus: #9a4d00;
+
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
   color-scheme: light;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
+  color: var(--bloom-shell-text);
+  background: var(--bloom-shell-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+.dark {
+  --bloom-shell-bg: #0a1220;
+  --bloom-shell-surface: #111c2f;
+  --bloom-shell-surface-soft: #17243a;
+  --bloom-shell-border: #2d3b52;
+  --bloom-shell-border-strong: #4a5b73;
+  --bloom-shell-text: #f5f8ff;
+  --bloom-shell-muted: #b5c1d3;
+  --bloom-shell-sidebar: #07152e;
+  --bloom-shell-sidebar-hover: #12305f;
+  --bloom-shell-sidebar-text: #f7faff;
+  --bloom-shell-sidebar-muted: #bdcbe0;
+  --bloom-shell-primary: #6f9cff;
+  --bloom-shell-primary-strong: #8bb0ff;
+  --bloom-shell-primary-soft: #173463;
+  --bloom-shell-primary-soft-text: #f2f6ff;
+  --bloom-shell-on-primary: #08152f;
+  --bloom-shell-success: #6ee7b7;
+  --bloom-shell-success-soft: #123b32;
+  --bloom-shell-warning: #ffd166;
+  --bloom-shell-warning-soft: #463516;
+  --bloom-shell-danger: #ff9b92;
+  --bloom-shell-danger-soft: #48221f;
+  --bloom-shell-focus: #fbbf24;
+
+  color-scheme: dark;
 }
-a:hover {
-  color: #535bf2;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  min-height: 100dvh;
+  color: var(--bloom-shell-text);
+  background: var(--bloom-shell-bg);
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
+a {
+  color: var(--bloom-shell-primary-strong);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:not(:disabled) {
   cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+:focus-visible {
+  outline: 3px solid var(--bloom-shell-focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  color: var(--bloom-shell-primary-soft-text);
+  background: var(--bloom-shell-primary-soft);
 }
 
 @layer components {
   .card {
-    @apply bg-white rounded-lg shadow-lg p-4;
+    padding: 1rem;
+    color: var(--bloom-shell-text);
+    background: var(--bloom-shell-surface);
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 18px rgb(23 42 76 / 12%);
   }
-}
 
-@layer components {
   .card-hover {
     @apply transition-shadow hover:shadow-xl;
   }
@@ -86,7 +129,7 @@ button:focus-visible {
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: #A72828 transparent;
+    scrollbar-color: var(--bloom-shell-primary) transparent;
   }
   .scrollbar-thin::-webkit-scrollbar {
     height: 6px;
@@ -96,10 +139,94 @@ button:focus-visible {
     background: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: #A72828;
+    background: var(--bloom-shell-primary);
     border-radius: 9999px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: #8a1212;
+    background: var(--bloom-shell-primary-strong);
+  }
+}
+
+/* Keep existing utility-based screens semantically equivalent until each domain UXI is implemented. */
+.dark .bg-white {
+  background-color: var(--bloom-shell-surface);
+}
+
+.dark .bg-gray-50,
+.dark .bg-gray-100 {
+  background-color: var(--bloom-shell-surface-soft);
+}
+
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-gray-700 {
+  color: var(--bloom-shell-text);
+}
+
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark .text-gray-400,
+.dark .text-gray-300 {
+  color: var(--bloom-shell-muted);
+}
+
+.dark .border,
+.dark .border-b,
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--bloom-shell-border);
+}
+
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-gray-100:hover {
+  background-color: var(--bloom-shell-surface-soft);
+}
+
+.dark .bg-green-100 {
+  background-color: var(--bloom-shell-success-soft);
+}
+
+.dark .text-green-600,
+.dark .text-green-700,
+.dark .text-green-800 {
+  color: var(--bloom-shell-success);
+}
+
+.dark .bg-amber-100,
+.dark .bg-yellow-100 {
+  background-color: var(--bloom-shell-warning-soft);
+}
+
+.dark .text-amber-700,
+.dark .text-amber-900,
+.dark .text-yellow-700,
+.dark .text-yellow-900 {
+  color: var(--bloom-shell-warning);
+}
+
+.dark .bg-red-100 {
+  background-color: var(--bloom-shell-danger-soft);
+}
+
+.dark .text-red-600,
+.dark .text-red-700,
+.dark .text-red-800 {
+  color: var(--bloom-shell-danger);
+}
+
+.dark .text-blue-500,
+.dark .text-blue-600,
+.dark .text-blue-700 {
+  color: var(--bloom-shell-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }

@@ -88,6 +88,8 @@ describe('back-office navigation', () => {
         ]);
         expect(within(navigation).getByRole('link', { name: 'Pergerakan stok' }))
             .toHaveAttribute('href', '/stock-movements');
+        expect(within(navigation).getByRole('link', { name: 'Sesi kas' }))
+            .toHaveAttribute('href', '/cash-sessions');
         expect(within(navigation).queryByRole('link', { name: 'Buat transfer stok' }))
             .not.toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Buka Kasir' })).toHaveAttribute('href', '/cashier');
@@ -127,6 +129,8 @@ describe('back-office navigation', () => {
 
         const breadcrumbs = screen.getByRole('navigation', { name: 'Lokasi halaman' });
 
+        expect(screen.getByRole('button', { name: 'Tampilan aplikasi: Terang' }))
+            .toBeInTheDocument();
         expect(within(breadcrumbs).getByText('Persediaan')).toBeInTheDocument();
         expect(within(breadcrumbs).getByRole('link', { name: 'Pergerakan stok' }))
             .toHaveAttribute('href', '/stock-movements');

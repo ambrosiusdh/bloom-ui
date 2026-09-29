@@ -4,13 +4,13 @@ import { Alert, Button, Chip, CircularProgress, Paper } from '@mui/material';
 import { ArrowLeft } from 'lucide-react';
 
 import cashSessionApi from '@api/cash-session.js';
+import { formatCashSessionDate } from '@components/cash-session/cash-session-date.js';
 import {
     formatRupiah,
     getVariancePresentation
 } from '@components/cash-session/cash-session-money.js';
 import { GENERIC_ERR_MESSAGE } from '@constants/general.js';
 import { useBreadcrumbStore } from '@stores/index.js';
-import { formatDate } from '@utils/date-utils.js';
 
 const money = value => value == null ? '-' : formatRupiah(value);
 
@@ -80,10 +80,19 @@ export default function CashSessionDetail() {
         <div className="space-y-4 pb-8">
             <Button component={ Link } to={ returnTo } startIcon={ <ArrowLeft /> }>Kembali ke riwayat</Button>
             <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div><h2 className="text-2xl font-bold">Detail Sesi Kas #{ session.id }</h2><p className="text-gray-600">Data audit dan rekonsiliasi dari server.</p></div>
+                <div>
+                    <h2 className="text-2xl font-bold">Detail Sesi Kas #{ session.id }</h2>
+                    <p className="text-gray-600">Data audit dan rekonsiliasi dari server.</p>
+                </div>
                 <Chip color={ closed ? 'success' : 'warning' } label={ statusLabel } aria-label={ `Status sesi: ${ statusLabel }` } />
             </header>
 
+            { closed && (
+                <Alert severity="success">
+                    Sesi ditutup { formatCashSessionDate(session.closedAt) || '-' } oleh { ' ' }
+                    { session.closedBy || '-' }. Nilai rekonsiliasi berikut adalah hasil server.
+                </Alert>
+            ) }
             { !closed && <Alert severity="info">Sesi masih terbuka. Nilai kas aktual dan hasil selisih tersedia setelah sesi ditutup.</Alert> }
 
             <div className="grid gap-4 lg:grid-cols-2">
@@ -92,19 +101,49 @@ export default function CashSessionDetail() {
                     <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div><dt className="text-sm text-gray-600">Kas awal</dt><dd className="text-xl font-semibold">{ money(session.openingCash) }</dd></div>
                         <div><dt className="text-sm text-gray-600">Dibuka oleh</dt><dd>{ session.openedBy || '-' }</dd></div>
-                        <div className="sm:col-span-2"><dt className="text-sm text-gray-600">Waktu buka</dt><dd>{ formatDate(session.openedAt) || '-' }</dd></div>
+                        <div className="sm:col-span-2"><dt className="text-sm text-gray-600">Dibuka pada</dt><dd>{ formatCashSessionDate(session.openedAt) || '-' }</dd></div>
                     </dl>
                 </Paper>
 
                 <Paper className="p-4 md:p-5" component="section" aria-labelledby="session-closing-title">
                     <h3 id="session-closing-title" className="text-lg font-bold mb-4">Penutupan dan rekonsiliasi</h3>
                     { closed ? (
-                        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div><dt className="text-sm text-gray-600">Kas diharapkan</dt><dd className="font-semibold">{ money(session.expectedClosingCash) }</dd></div>
-                            <div><dt className="text-sm text-gray-600">Kas aktual</dt><dd className="font-semibold">{ money(session.actualClosingCash) }</dd></div>
-                            <div><dt className="text-sm text-gray-600">{ variance.label }</dt><dd className="text-xl font-bold">{ money(session.difference) }</dd></div>
-                            <div><dt className="text-sm text-gray-600">Ditutup oleh</dt><dd>{ session.closedBy || '-' }</dd></div>
-                            <div className="sm:col-span-2"><dt className="text-sm text-gray-600">Waktu tutup</dt><dd>{ formatDate(session.closedAt) || '-' }</dd></div>
+                        <dl className="space-y-4">
+                            <div className="grid gap-4 sm:grid-cols-3">
+                                <div>
+                                    <dt className="text-sm text-gray-600">Kas diharapkan</dt>
+                                    <dd className="text-lg font-semibold tabular-nums">
+                                        { money(session.expectedClosingCash) }
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt className="text-sm text-gray-600">Kas aktual</dt>
+                                    <dd className="text-lg font-semibold tabular-nums">
+                                        { money(session.actualClosingCash) }
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt className="text-sm text-gray-600">Selisih resmi</dt>
+                                    <dd className="mt-1 flex flex-col items-start gap-1">
+                                        <span className={ `${ variance.badgeClass } rounded-full px-2 py-0.5 text-xs font-bold` }>
+                                            { variance.shortLabel }
+                                        </span>
+                                        <strong className={ `${ variance.amountClass } text-lg tabular-nums` }>
+                                            { money(session.difference) }
+                                        </strong>
+                                    </dd>
+                                </div>
+                            </div>
+                            <div className="grid gap-4 border-t border-gray-200 pt-4 sm:grid-cols-2">
+                                <div>
+                                    <dt className="text-sm text-gray-600">Ditutup oleh</dt>
+                                    <dd>{ session.closedBy || '-' }</dd>
+                                </div>
+                                <div>
+                                    <dt className="text-sm text-gray-600">Ditutup pada</dt>
+                                    <dd>{ formatCashSessionDate(session.closedAt) || '-' }</dd>
+                                </div>
+                            </div>
                         </dl>
                     ) : <p className="text-gray-600">Belum ada hasil penutupan untuk sesi ini.</p> }
                 </Paper>

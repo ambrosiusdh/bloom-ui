@@ -1,5 +1,6 @@
 import { matchPath } from "react-router-dom";
 import {
+    BanknoteIcon,
     ClipboardCheckIcon,
     HandCoinsIcon,
     HistoryIcon,
@@ -97,8 +98,8 @@ export const navigationGroups = [
         items: [
             {
                 to: '/cash-sessions',
-                icon: HistoryIcon,
-                label: 'Riwayat Sesi Kas',
+                icon: BanknoteIcon,
+                label: 'Sesi kas',
                 matchPaths: ['/cash-sessions', '/cash-sessions/*']
             },
             {
@@ -202,11 +203,11 @@ const routeBreadcrumbs = [
     },
     {
         path: '/cash-sessions/:sessionId',
-        breadcrumbs: ['Kas', { to: '/cash-sessions', label: 'Riwayat Sesi Kas' }, 'Detail sesi kas']
+        breadcrumbs: ['Kas', { to: '/cash-sessions', label: 'Sesi kas' }, 'Detail sesi kas']
     },
     {
         path: '/cash-sessions',
-        breadcrumbs: ['Kas', 'Riwayat Sesi Kas']
+        breadcrumbs: ['Kas', 'Sesi kas']
     },
     {
         path: '/expenses/new',

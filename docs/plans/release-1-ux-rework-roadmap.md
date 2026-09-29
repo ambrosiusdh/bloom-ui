@@ -1034,6 +1034,8 @@ dependent step while its predecessor is still under review.
 
 #### UXI-01 — Appearance foundation
 
+Status: `IMPLEMENTED`
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-appearance-modes-final-review.html`
 
 Decision: `docs/ux/design/uxr-d16-appearance-modes-decision.md`
@@ -1080,6 +1082,18 @@ Decision/audit: `docs/ux/design/uxr-d03-item-categories-decision.md`; `docs/ux/a
 
 #### UXI-05 — Cash-session current state, history, and opening
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-29):** `/cash-sessions` is now the single `Sesi kas` destination and
+places the independently verified current-session state above independently requested server-paged
+history. Verified `data: null`, open identity/facts, Indonesian opening entry, canonical
+`openingCash`, conflict/status recovery, explicit page size/range/total/current-page/previous-next
+controls, consistent Indonesian timestamps, and complete labelled narrow records are covered without
+requesting expected cash or deriving reconciliation. Opening refreshes history through a new history
+request instead of merging the current and list responses. Seven focused files passed 53 tests; the
+full 67-file suite passed 423 tests, followed by full lint and production build. The build retained
+the pre-existing Browserslist-age and large-chunk advisory warnings.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D08 Sesi kas** and review no-session, open-session, opening, history, pagination, and narrow states.
 
 Decision/audit: `docs/ux/design/uxr-d08-cash-sessions-decision.md`; `docs/ux/audits/uxr-a08-cash-sessions.md`
@@ -1087,6 +1101,21 @@ Decision/audit: `docs/ux/design/uxr-d08-cash-sessions-decision.md`; `docs/ux/aud
 > Implement only UXI-05, Bloom cash-session current state, history, and opening. Read `AGENTS.md`, the governing contracts/roadmaps, `docs/ux/audits/uxr-a08-cash-sessions.md`, `docs/ux/design/uxr-d08-cash-sessions-decision.md`, and the D08 states in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `CashSessionHistory.jsx`, `CurrentCashSession.jsx`, the cash-session store/API/money helpers, and tests. Implement one destination with separately sourced current-session and server-paged history, Indonesian opening-money entry, correct no-session state, explicit page size/range/page/navigation, and complete narrow records. Do not predict reconciliation or merge API meanings. Add tests and run the full validation commands. Update plan status; do not commit or push.
 
 #### UXI-06 — Cash-session close, reconciliation, and detail
+
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-29):** Closing now requests the server preview only after the
+operator starts the close workflow, accepts Indonesian-formatted actual cash, freezes the canonical
+value into a cancel-first review, and posts only `actualClosingCash` through one pending mutation.
+Definitive conflicts replace stale input with the latest server detail; an uncertain failure locks
+resubmission behind a status check and a fresh preview. The server-final expected cash, actual cash,
+variance, actors, and timestamps remain visible after close, and `Buka sesi kas` is withheld until a
+fresh current-session read verifies `data: null`. Current, history, and detail now share the Jakarta
+`d MMM yyyy, HH.mm WIB` pattern; critical session actions do not wrap at the audited narrow width,
+and detail retains labelled opening and reconciliation groups with a prominent signed variance.
+Five focused files passed 43 tests; the full 67-file suite passed 425 tests, followed by full lint
+and production build. The build retained the pre-existing Browserslist-age and large-chunk advisory
+warnings.
 
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D08 Sesi kas** and review close confirmation, pending, backend-confirmed reconciliation, post-close verification, detail, failure/recovery, and narrow states.
 
@@ -1096,6 +1125,33 @@ Decision/audit: `docs/ux/design/uxr-d08-cash-sessions-decision.md`; `docs/ux/aud
 
 #### UXI-07 — Cashier discovery and cart
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-29):** The cashier now uses the approved wide two-panel workspace
+with category-aware manual discovery and connection-neutral E81W guidance on the left, plus one
+persistent transaction panel on the right. Item rows expose category, name, SKU, UOM, advisory
+STORE stock, and price; cart rows preserve exact fractional editing, compact one-unit controls,
+line estimates, and server-rechecked stock guidance. Existing sale fields now prepare CASH/QRIS
+tender, editable discount, and a conditional discount reason while exact-decimal subtotal and
+`Perkiraan bayar` values remain explicitly advisory. Cart cancellation is cancel-first, later search
+or scan work replaces stale cart notices, session-open focus returns to discovery, and narrow
+desktop stacks into one document flow with a direct transaction anchor and no inner cart scroll.
+The checkout submission/recovery contract and backend fields were not expanded. Four focused files
+passed 30 tests; the full 68-file suite passed 430 tests, followed by full lint and production build.
+The build retained the pre-existing Browserslist-age and large-chunk advisories.
+
+**Visual-alignment correction (2026-09-29):** The implementation now follows the approved cashier
+reference as a continuous catalog/transaction workspace rather than a stack of generic cards. The
+cashier header carries a left-aligned menu escape beside Bloom identity, edge-aligned date/time, a
+compact session control that opens the complete existing session workflow, and appearance control.
+Category chips lead
+into search; product and cart rows are denser without removing SKU/UOM/STORE facts; cart quantity
+editing is compact; line removal offers `Urungkan`; and the payment area emphasizes `Perkiraan
+bayar`, practical cash shortcuts, exact advisory change, discount, and the 50px review action.
+Prototype-only state controls were not copied into the application. UXI-08 account-bound durable
+recovery, exact request replay, server authority, keyboard behavior, and narrow stock visibility
+remain intact.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-cashier-workspace-rework.html`; review workspace empty/populated/search/scanner/stock-check/discount/cancel and narrow states.
 
 Decision/audit: `docs/ux/design/uxr-d09-d10-cashier-decision.md`; `docs/ux/audits/uxr-a09-cashier-cart.md`
@@ -1103,6 +1159,21 @@ Decision/audit: `docs/ux/design/uxr-d09-d10-cashier-decision.md`; `docs/ux/audit
 > Implement only UXI-07, Bloom cashier discovery and cart. Read the governing documents, `docs/ux/audits/uxr-a09-cashier-cart.md`, `docs/ux/design/uxr-d09-d10-cashier-decision.md`, and `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-cashier-workspace-rework.html`. Inspect `Cashier.jsx`, `CashierCart.jsx`, scanner/quantity utilities, constants, stores, and cashier tests. Implement the approved two-panel workspace: search/scanner and category filters on the left; simple item rows with name/category/SKU/UOM/stock/price; persistent cart on the right with compact quantity controls, line price, subtotal/estimated total, editable discount and conditional reason, CASH/QRIS/tender preparation, cancel confirmation, and narrow transaction access. Preserve fractional rules, focus recovery, stock/session gating, and advisory pre-checkout totals. Do not call checkout or add backend fields in this step. Add tests and run the full validation commands. Update plan status; do not commit or push.
 
 #### UXI-08 — Checkout and durable recovery
+
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-29):** Checkout review now replaces only the right transaction
+panel with a compact frozen summary of STORE lines, payment meaning, requested discount, and the
+explicit server-owned total/change boundary. CASH persists tendered cash; QRIS persists the
+externally confirmed exact settlement. Before every POST, the exact request, idempotency key,
+presentation snapshot, and immutable backend `accountId` owner are synchronously verified in tab
+storage; unavailable storage prevents submission. Ambiguous results remain locked across
+navigation/reload and expose only same-key status lookup or exact replay, while foreign-account and
+legacy/malformed recovery is quarantined without exposing its facts. Definitive server rejection
+clears durable recovery, preserves editable cart/tender intent, and focuses the specific recovery
+target without route navigation. Four focused files passed 34 tests; the full 68-file suite passed
+434 tests, followed by full lint and production build. The build retained the pre-existing
+Browserslist-age and large-chunk advisory warnings.
 
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-cashier-workspace-rework.html`; review confirm/review, submitting, checking, known rejection, unknown outcome, and same-request recovery states.
 
@@ -1112,6 +1183,21 @@ Decision/audit: `docs/ux/design/uxr-d09-d10-cashier-decision.md`; `docs/ux/audit
 
 #### UXI-09 — Sale result and printing
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-30):** The completed sale now replaces the empty transaction/cart
+state with a focused result that renders only the backend-returned reference, subtotal, discount,
+total, paid amount, payment method, and change. Cashier entry remains locked until the explicit
+`Penjualan baru` reset. Automatic printing still begins only after confirmed sale completion and
+uses the existing sale-reference-scoped coordinator: pending requests block duplicates, failures
+keep the sale visibly successful and retry only printing, and navigation to the encoded sale detail
+preserves the same pending or terminal operation. Success now says the print service accepted the
+request and asks the operator to check the printer; it does not claim physical paper output. Four
+focused files passed 46 tests. The full 68-file suite passed 436 tests with one worker after the
+default parallel run hit cross-domain five-second interaction-test timeouts under contention; full
+lint and production build then passed. The build retained the pre-existing stale-Browserslist and
+large-chunk advisory warnings. Physical printer output was not verified in this implementation.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-cashier-workspace-rework.html`; review result plus print-pending, print-success, and print-error states.
 
 Decision/audit: `docs/ux/design/uxr-d09-d10-cashier-decision.md`; `docs/ux/audits/uxr-a10-checkout-print.md`
@@ -1119,6 +1205,22 @@ Decision/audit: `docs/ux/design/uxr-d09-d10-cashier-decision.md`; `docs/ux/audit
 > Implement only UXI-09, Bloom sale result and printing. Read the governing documents, `docs/ux/audits/uxr-a10-checkout-print.md`, `docs/ux/design/uxr-d09-d10-cashier-decision.md`, and result/printing states in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-cashier-workspace-rework.html`. Inspect cashier checkout/result code, `src/utils/receipt-print.js`, receipt-print constants, sale API/store, and tests. Implement sale-first success, server-returned official amounts, printing as a separate retryable operation, duplicate print lock, failure that never implies sale failure, and success wording that reports print-service acknowledgement without claiming physical paper output. Preserve sale detail access and new-sale reset. Add tests and run the full validation commands. Update plan status; do not commit or push.
 
 #### UXI-10 — Sales history, detail, and reprint
+
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-30):** Sales history now exposes only code, creator, start-date, and
+end-date filters with application-owned `DD-MM-YYYY` parsing and Indonesian invalid/inverted-range
+feedback before a request is sent. URL-backed server paging shows page, visible range, total, and
+previous/next boundaries; out-of-range pages recover to the final server page. Wide rows and grouped
+narrow records retain reference/session, lifecycle and correction status, payment method/status,
+server total, creator/time, and a named detail action without whole-page horizontal panning. Detail
+now has one page heading plus separate transaction/status, server-value, persisted-line, and
+sale-reference-only reprint sections; no amount or status is inferred or recalculated. Reprint
+pending blocks duplicate requests, and latest-attempt success/failure feedback keeps the sale visibly
+recorded. Three focused sales/cashier files passed 31 tests. The full 68-file suite passed 438 tests
+with one worker after the default parallel run hit three unrelated stock-adjustment five-second
+interaction-test timeouts; full lint and production build passed. The build retained the pre-existing
+stale-Browserslist and large-chunk advisory warnings. Physical printer output was not verified.
 
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D11 Riwayat penjualan** and review list, invalid range, empty/error, detail, reprint states, and narrow list/detail.
 
