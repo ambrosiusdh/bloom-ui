@@ -19,6 +19,7 @@ import PropTypes from 'prop-types';
 
 import { API_ERROR_CATEGORY } from '@api/index.js';
 import BloomMoneyField from '@components/_ui/BloomMoneyField.jsx';
+import { formatCashSessionDate } from '@components/cash-session/cash-session-date.js';
 import {
     formatRupiah,
     getVariancePresentation,
@@ -27,14 +28,16 @@ import {
 } from '@components/cash-session/cash-session-money.js';
 import CloseCashSessionDialog from '@components/cash-session/CloseCashSessionDialog.jsx';
 import { useCashSessionStore } from '@stores/index.js';
-import { formatDate } from '@utils/date-utils.js';
 
 const validateOpeningCash = value => validateCashAmount(value, 'Modal awal');
 
 const getOpeningFieldError = error => error?.validationErrors
     ?.find(detail => detail.field === 'openingCash')?.message || '';
 
-export default function CurrentCashSession({ onSessionOpened }) {
+export default function CurrentCashSession({
+    onSessionOpened,
+    onSessionClosed
+}) {
     const currentSession = useCashSessionStore(state => state.currentSession);
     const currentStatus = useCashSessionStore(state => state.currentStatus);
     const currentError = useCashSessionStore(state => state.currentError);
@@ -83,6 +86,24 @@ export default function CurrentCashSession({ onSessionOpened }) {
     const refreshStatus = () => {
         setNotice(null);
         getCurrentSession().catch(() => undefined);
+    };
+
+    const verifyPostCloseStatus = () => {
+        setNotice({
+            severity: 'info',
+            message: 'Memeriksa status sesi terbaru sebelum menawarkan sesi berikutnya...'
+        });
+        getCurrentSession().then(session => {
+            if (!mountedRef.current) return;
+
+            setNotice(session ? {
+                severity: 'warning',
+                message: `Sesi kas #${ session.id } sekarang terbuka. Status terbaru ditampilkan.`
+            } : {
+                severity: 'success',
+                message: 'Tidak ada sesi kas terbuka. Anda dapat membuka sesi berikutnya.'
+            });
+        }).catch(() => undefined);
     };
 
     const showOpeningDialog = () => {
@@ -230,7 +251,7 @@ export default function CurrentCashSession({ onSessionOpened }) {
             ) }
 
             <Paper className="cash-session-status p-4 md:p-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex min-w-0 items-start gap-3">
                         <BanknoteIcon className="mt-1 shrink-0" aria-hidden="true" />
                         <div>
@@ -270,7 +291,7 @@ export default function CurrentCashSession({ onSessionOpened }) {
                                     </div>
                                     <div>
                                         <dt className="text-gray-500">Waktu buka</dt>
-                                        <dd>{ formatDate(currentSession.openedAt, 'dd MMMM yyyy, HH:mm') }</dd>
+                                        <dd>{ formatCashSessionDate(currentSession.openedAt) }</dd>
                                     </div>
                                     { hasClosedSessionResult && (
                                         <>
@@ -301,10 +322,7 @@ export default function CurrentCashSession({ onSessionOpened }) {
                                             <div className="mt-2">
                                                 <dt className="text-gray-500">Waktu tutup</dt>
                                                 <dd>
-                                                    { formatDate(
-                                                        currentSession.closedAt,
-                                                        'dd MMMM yyyy, HH:mm'
-                                                    ) }
+                                                    { formatCashSessionDate(currentSession.closedAt) }
                                                 </dd>
                                             </div>
                                         </>
@@ -323,7 +341,11 @@ export default function CurrentCashSession({ onSessionOpened }) {
                     </div>
 
                     { currentStatus === 'ready' && !currentSession && (
-                        <Button variant="contained" onClick={ showOpeningDialog }>
+                        <Button
+                            variant="contained"
+                            onClick={ showOpeningDialog }
+                            className="w-full whitespace-nowrap lg:w-auto"
+                        >
                             Buka sesi kas
                         </Button>
                     ) }
@@ -333,8 +355,18 @@ export default function CurrentCashSession({ onSessionOpened }) {
                             variant="outlined"
                             onClick={ showClosingDialog }
                             disabled={ !drawerActionsEnabled }
+                            className="w-full whitespace-nowrap lg:w-auto"
                         >
                             Tutup sesi kas
+                        </Button>
+                    ) }
+                    { hasClosedSessionResult && (
+                        <Button
+                            variant="contained"
+                            onClick={ verifyPostCloseStatus }
+                            className="w-full whitespace-nowrap lg:w-auto"
+                        >
+                            Periksa status sesi
                         </Button>
                     ) }
                     { currentStatus === 'loading' && currentSession && (
@@ -426,11 +458,13 @@ export default function CurrentCashSession({ onSessionOpened }) {
                 session={ currentSession }
                 onClose={ () => setCloseDialogOpen(false) }
                 onNotice={ setNotice }
+                onClosed={ onSessionClosed }
             />
         </section>
     );
 }
 
 CurrentCashSession.propTypes = {
-    onSessionOpened: PropTypes.func
+    onSessionOpened: PropTypes.func,
+    onSessionClosed: PropTypes.func
 };

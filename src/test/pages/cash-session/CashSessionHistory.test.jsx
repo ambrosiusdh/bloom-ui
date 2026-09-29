@@ -121,7 +121,7 @@ describe('CashSessionHistory', () => {
         expect(screen.getAllByText('Lebih')[0]).toHaveClass('bg-amber-100', 'text-amber-900', 'font-bold');
         expect(screen.getAllByText('-Rp 2.000')[0]).toHaveClass('text-red-700');
         expect(screen.getAllByText('+Rp 2.000')[0]).toHaveClass('text-amber-700');
-        expect(screen.getAllByText(/25 Agustus 2026/)).not.toHaveLength(0);
+        expect(screen.getAllByText(/25 Agu 2026, .* WIB/)).not.toHaveLength(0);
         const openRecord = screen.getAllByRole('article')
             .find(record => within(record).queryByText('Sesi #18'));
         expect(within(openRecord).getByText('Dibuka oleh & pada')).toBeInTheDocument();
@@ -263,9 +263,17 @@ describe('CashSessionDetail', () => {
         expect(screen.getByLabelText('Status sesi: Ditutup')).toBeInTheDocument();
         expect(screen.getByText('Kas diharapkan').nextSibling).toHaveTextContent('Rp 110.000');
         expect(screen.getByText('Kas aktual').nextSibling).toHaveTextContent('Rp 108.000');
-        expect(screen.getByText('Selisih kurang').nextSibling).toHaveTextContent('-Rp 2.000');
+        const reconciliation = screen.getByRole('heading', {
+            name: 'Penutupan dan rekonsiliasi'
+        }).closest('section');
+        expect(within(reconciliation).getByText('Selisih resmi')).toBeInTheDocument();
+        expect(within(reconciliation).getByText('Kurang')).toHaveClass(
+            'bg-red-100',
+            'text-red-800'
+        );
+        expect(within(reconciliation).getByText('-Rp 2.000')).toHaveClass('text-red-700');
         expect(screen.getByText('manager')).toBeInTheDocument();
-        expect(screen.getAllByText(/25-08-2026/)).not.toHaveLength(0);
+        expect(screen.getAllByText(/25 Agu 2026, .* WIB/)).not.toHaveLength(0);
         expect(cashSessionApi.getSessionDetails).toHaveBeenCalledTimes(1);
         expect(cashSessionApi.getSessionHistory).not.toHaveBeenCalled();
     });

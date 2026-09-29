@@ -1102,6 +1102,21 @@ Decision/audit: `docs/ux/design/uxr-d08-cash-sessions-decision.md`; `docs/ux/aud
 
 #### UXI-06 — Cash-session close, reconciliation, and detail
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-29):** Closing now requests the server preview only after the
+operator starts the close workflow, accepts Indonesian-formatted actual cash, freezes the canonical
+value into a cancel-first review, and posts only `actualClosingCash` through one pending mutation.
+Definitive conflicts replace stale input with the latest server detail; an uncertain failure locks
+resubmission behind a status check and a fresh preview. The server-final expected cash, actual cash,
+variance, actors, and timestamps remain visible after close, and `Buka sesi kas` is withheld until a
+fresh current-session read verifies `data: null`. Current, history, and detail now share the Jakarta
+`d MMM yyyy, HH.mm WIB` pattern; critical session actions do not wrap at the audited narrow width,
+and detail retains labelled opening and reconciliation groups with a prominent signed variance.
+Five focused files passed 43 tests; the full 67-file suite passed 425 tests, followed by full lint
+and production build. The build retained the pre-existing Browserslist-age and large-chunk advisory
+warnings.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D08 Sesi kas** and review close confirmation, pending, backend-confirmed reconciliation, post-close verification, detail, failure/recovery, and narrow states.
 
 Decision/audit: `docs/ux/design/uxr-d08-cash-sessions-decision.md`; `docs/ux/audits/uxr-a08-cash-sessions.md`

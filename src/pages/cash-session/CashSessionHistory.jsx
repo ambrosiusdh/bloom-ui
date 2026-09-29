@@ -18,6 +18,7 @@ import {
 import PropTypes from 'prop-types';
 
 import cashSessionApi from '@api/cash-session.js';
+import { formatCashSessionDate } from '@components/cash-session/cash-session-date.js';
 import {
     formatRupiah,
     getVariancePresentation
@@ -25,12 +26,11 @@ import {
 import CurrentCashSession from '@components/cash-session/CurrentCashSession.jsx';
 import { GENERIC_ERR_MESSAGE } from '@constants/general.js';
 import { useBreadcrumbStore } from '@stores/index.js';
-import { formatDate } from '@utils/date-utils.js';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const STATUS_OPTIONS = { OPEN: 'Terbuka', CLOSED: 'Ditutup' };
 const money = value => value == null ? '-' : formatRupiah(value);
-const sessionDate = value => formatDate(value, 'dd MMMM yyyy, HH:mm');
+const sessionDate = value => formatCashSessionDate(value);
 
 const getQueryState = params => {
     const next = new URLSearchParams(params);
@@ -198,6 +198,7 @@ export default function CashSessionHistory() {
 
             <CurrentCashSession
                 onSessionOpened={ () => setRetryVersion(value => value + 1) }
+                onSessionClosed={ () => setRetryVersion(value => value + 1) }
             />
 
             { error && (
