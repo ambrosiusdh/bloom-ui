@@ -28,6 +28,9 @@ vi.mock('@stores/index.js', () => ({
         drawerActionsEnabled: true,
         getCurrentSession: cashierStore.getCurrentSession
     }),
+    useItemCategoryStore: selector => selector({
+        getItemCategoryList: cashierStore.getItemCategoryList
+    }),
     useSaleStore: selector => selector({
         createSale: cashierStore.createSale,
         getCheckoutStatus: cashierStore.getCheckoutStatus
@@ -47,8 +50,12 @@ describe('Cashier responsive layout', () => {
         const cart = screen.getByTestId('cashier-cart').parentElement;
 
         expect(screen.getByTestId('cash-session-status')).toBeInTheDocument();
-        expect(cashier).toHaveClass('flex-col', 'xl:flex-row');
-        expect(content).toHaveClass('xl:basis-2/3');
-        expect(cart).toHaveClass('xl:basis-1/3', 'xl:min-w-[20rem]');
+        expect(cashier).toHaveClass('grid', 'xl:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)]');
+        expect(content).toHaveClass('min-w-0');
+        expect(cart).toHaveClass('xl:sticky', 'xl:top-4');
+        expect(screen.getByRole('link', { name: 'Buka transaksi (0)' })).toHaveAttribute(
+            'href',
+            '#cashier-transaction'
+        );
     });
 });

@@ -1125,6 +1125,21 @@ Decision/audit: `docs/ux/design/uxr-d08-cash-sessions-decision.md`; `docs/ux/aud
 
 #### UXI-07 — Cashier discovery and cart
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-29):** The cashier now uses the approved wide two-panel workspace
+with category-aware manual discovery and connection-neutral E81W guidance on the left, plus one
+persistent transaction panel on the right. Item rows expose category, name, SKU, UOM, advisory
+STORE stock, and price; cart rows preserve exact fractional editing, compact one-unit controls,
+line estimates, and server-rechecked stock guidance. Existing sale fields now prepare CASH/QRIS
+tender, editable discount, and a conditional discount reason while exact-decimal subtotal and
+`Perkiraan bayar` values remain explicitly advisory. Cart cancellation is cancel-first, later search
+or scan work replaces stale cart notices, session-open focus returns to discovery, and narrow
+desktop stacks into one document flow with a direct transaction anchor and no inner cart scroll.
+The checkout submission/recovery contract and backend fields were not expanded. Four focused files
+passed 30 tests; the full 68-file suite passed 430 tests, followed by full lint and production build.
+The build retained the pre-existing Browserslist-age and large-chunk advisories.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-cashier-workspace-rework.html`; review workspace empty/populated/search/scanner/stock-check/discount/cancel and narrow states.
 
 Decision/audit: `docs/ux/design/uxr-d09-d10-cashier-decision.md`; `docs/ux/audits/uxr-a09-cashier-cart.md`

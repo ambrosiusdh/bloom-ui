@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { IconButton } from '@mui/material';
+import {
+    Button,
+    IconButton
+} from '@mui/material';
 import {
     ShoppingBasketIcon,
     Trash2Icon
@@ -7,6 +10,8 @@ import {
 import PropTypes from 'prop-types';
 
 import BloomQuantityField from '@components/_ui/BloomQuantityField.jsx';
+import { formatRupiah } from '@components/cash-session/cash-session-money.js';
+import { getAdvisorySaleEstimate } from '@components/cashier/sale-checkout.js';
 import {
     canDecrementQuantityByOne,
     formatQuantity,
@@ -15,12 +20,6 @@ import {
     normalizeQuantity,
     validateQuantity
 } from '@utils/quantity-utils.js';
-
-const formatPrice = value => new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    maximumFractionDigits: 4
-}).format(Number(value || 0));
 
 function QuantityField({
     item,
@@ -130,29 +129,50 @@ export default function CashierCart({
     onQuantityUpdate,
     onQuantityValidityChange = () => undefined,
     onRemove,
-    onEditComplete
+    onEditComplete,
+    onCancel
 }) {
+    const estimate = getAdvisorySaleEstimate(itemList);
+
     return (
-        <section className="cashier-cart card w-full" aria-labelledby="cashier-cart-title">
-            <h2 id="cashier-cart-title" className="text-lg font-bold">Keranjang</h2>
-            <p className="mt-1 text-sm text-gray-600">
-                Menambah barang yang sama menaikkan jumlahnya tepat 1 satuan dasar.
-                Tombol +/− juga mengubah tepat 1; jumlah pecahan tetap dapat diketik.
-            </p>
+        <section className="cashier-cart w-full" aria-labelledby="cashier-cart-title">
+            <div className="flex items-start justify-between gap-3 border-b pb-4">
+                <div>
+                    <h2 id="cashier-cart-title" className="text-lg font-bold">Transaksi saat ini</h2>
+                    <p className="mt-1 text-sm text-gray-600">
+                        { itemList.length } jenis barang dipilih
+                    </p>
+                </div>
+                <Button
+                    type="button"
+                    color="error"
+                    size="small"
+                    disabled={ disabled || !itemList.length }
+                    onClick={ onCancel }
+                >
+                    Batalkan
+                </Button>
+            </div>
 
             { itemList.length ? (
-                <div className="mt-4 max-h-[55vh] overflow-y-auto scrollbar-thin">
+                <div className="divide-y">
                     { itemList.map((item, index) => {
                         const aboveAvailability = isQuantityAboveAvailability(item.quantity, item.stockStore);
+                        const lineAmount = estimate.lineAmounts[item.sku];
 
                         return (
-                            <article className="mb-4 rounded border p-3" key={ item.sku }>
+                            <article className="py-4" key={ item.sku }>
                                 <div className="flex items-start gap-3">
-                                    <span className="text-gray-500">{ index + 1 }</span>
+                                    <span className="mt-0.5 text-sm text-gray-500">{ index + 1 }</span>
                                     <div className="min-w-0 flex-grow">
                                         <div className="font-semibold break-words">{ item.name }</div>
                                         <div className="text-sm text-gray-600">
-                                            { item.sku } · { formatPrice(item.price) }/{ formatUnitOfMeasure(item.baseUnitOfMeasure) }
+                                            { item.sku } · { formatRupiah(item.price) }/{ formatUnitOfMeasure(item.baseUnitOfMeasure) }
+                                        </div>
+                                        <div className="mt-1 text-sm font-semibold tabular-nums">
+                                            { lineAmount
+                                                ? `Perkiraan baris ${ formatRupiah(lineAmount) }`
+                                                : 'Perkiraan baris belum tersedia' }
                                         </div>
                                     </div>
                                     <IconButton
@@ -176,19 +196,37 @@ export default function CashierCart({
                                     />
                                 </div>
 
-                                <p className={ `mt-2 text-sm ${ aboveAvailability ? 'text-amber-700' : 'text-gray-600' }` }>
-                                    Tersedia di STORE: { formatQuantity(item.stockStore, item.baseUnitOfMeasure) }
-                                    { aboveAvailability && ' — jumlah keranjang melebihi informasi stok saat ini.' }
-                                    { ' ' }Stok ini bersifat informasi; server memeriksa kembali saat checkout.
-                                </p>
+                                <div className={ `mt-2 text-sm ${ aboveAvailability ? 'rounded border border-amber-300 bg-amber-50 p-2 text-amber-900' : 'text-gray-600' }` }>
+                                    <span>
+                                        Tersedia di STORE: { formatQuantity(item.stockStore, item.baseUnitOfMeasure) }
+                                        { aboveAvailability && ' — jumlah keranjang melebihi informasi stok saat ini.' }
+                                        { ' ' }Server memeriksa kembali saat checkout.
+                                    </span>
+                                    { aboveAvailability && Number(item.stockStore) > 0 && (
+                                        <Button
+                                            type="button"
+                                            color="warning"
+                                            size="small"
+                                            className="mt-1"
+                                            disabled={ disabled }
+                                            onClick={ () => {
+                                                const normalizedStock = normalizeQuantity(item.stockStore);
+                                                onQuantityUpdate(normalizedStock, item.sku);
+                                                onQuantityValidityChange(item.sku, true);
+                                            } }
+                                        >
+                                            Ubah ke stok tercatat
+                                        </Button>
+                                    ) }
+                                </div>
                             </article>
                         );
                     }) }
                 </div>
             ) : (
-                <div className="flex h-[55vh] w-full flex-col items-center justify-center gap-4">
-                    <ShoppingBasketIcon className="h-[20vh] w-[20vh] text-gray-300" aria-hidden="true" />
-                    <div className="text-center text-lg text-gray-500">
+                <div className="flex min-h-64 w-full flex-col items-center justify-center gap-4 py-8">
+                    <ShoppingBasketIcon className="h-20 w-20 text-gray-300" aria-hidden="true" />
+                    <div className="text-center text-base text-gray-500">
                         Cari barang lalu tambahkan ke keranjang
                     </div>
                 </div>
@@ -203,5 +241,6 @@ CashierCart.propTypes = {
     onQuantityUpdate: PropTypes.func.isRequired,
     onQuantityValidityChange: PropTypes.func,
     onRemove: PropTypes.func.isRequired,
-    onEditComplete: PropTypes.func.isRequired
+    onEditComplete: PropTypes.func.isRequired,
+    onCancel: PropTypes.func.isRequired
 };

@@ -4,9 +4,10 @@ import {
     Alert,
     Button,
     CircularProgress,
-    MenuItem,
     Paper,
-    TextField
+    TextField,
+    ToggleButton,
+    ToggleButtonGroup
 } from '@mui/material';
 import { Printer } from 'lucide-react';
 import PropTypes from 'prop-types';
@@ -15,7 +16,10 @@ import { API_DOMAIN_ERROR_CODE } from '@api/error-contract.js';
 import { API_ERROR_CATEGORY } from '@api/index.js';
 import BloomConfirmationModal from '@components/_ui/BloomConfirmationModal.jsx';
 import BloomMoneyField from '@components/_ui/BloomMoneyField.jsx';
-import { formatRupiah } from '@components/cash-session/cash-session-money.js';
+import {
+    formatRupiah,
+    getMoneySign
+} from '@components/cash-session/cash-session-money.js';
 import { useCashSessionStore, useSaleStore } from '@stores/index.js';
 import { formatQuantity } from '@utils/quantity-utils.js';
 import {
@@ -27,8 +31,10 @@ import {
 import {
     createSaleIdempotencyKey,
     createSaleRequest,
+    getAdvisorySaleEstimate,
     getSaleRequestSignature,
     PAYMENT_TYPES,
+    validateDiscountAmount,
     validatePaidAmount
 } from './sale-checkout.js';
 
@@ -62,6 +68,9 @@ export default function CashierCheckout({
     const [paymentType, setPaymentType] = useState(PAYMENT_TYPES.CASH);
     const [paidAmount, setPaidAmount] = useState('');
     const [paidAmountError, setPaidAmountError] = useState('');
+    const [discountAmount, setDiscountAmount] = useState('0');
+    const [discountAmountError, setDiscountAmountError] = useState('');
+    const [discountDescription, setDiscountDescription] = useState('');
     const [phase, setPhase] = useState('idle');
     const [confirmationRequest, setConfirmationRequest] = useState(null);
     const [attempt, setAttempt] = useState(null);
@@ -74,13 +83,22 @@ export default function CashierCheckout({
     const inFlightRef = useRef(false);
     const mountedRef = useRef(true);
     const paidAmountRef = useRef(null);
+    const discountAmountRef = useRef(null);
     const feedbackRef = useRef(null);
     const successRef = useRef(null);
     const printFeedbackRef = useRef(null);
 
     const checkoutLocked = LOCKED_PHASES.has(phase);
-    const currentRequest = createSaleRequest(itemList, paymentType, paidAmount);
+    const currentRequest = createSaleRequest(
+        itemList,
+        paymentType,
+        paidAmount,
+        discountAmount,
+        discountDescription
+    );
     const currentSignature = getSaleRequestSignature(currentRequest);
+    const estimate = getAdvisorySaleEstimate(itemList, discountAmount);
+    const hasDiscount = getMoneySign(discountAmount) > 0;
     const canRetrySameRequest = attempt?.signature === currentSignature && !disabled;
     const printState = result?.code
         ? receiptPrintStateBySale[result.code] || EMPTY_RECEIPT_PRINT_STATE
@@ -100,14 +118,16 @@ export default function CashierCheckout({
     }, [checkoutLocked, onLockChange]);
 
     useEffect(() => {
-        if (paidAmountError) {
+        if (discountAmountError) {
+            discountAmountRef.current?.focus();
+        } else if (paidAmountError) {
             paidAmountRef.current?.focus();
         } else if (phase === 'failed' || phase === 'unknown') {
             feedbackRef.current?.focus();
         } else if (phase === 'success') {
             successRef.current?.focus();
         }
-    }, [paidAmountError, phase]);
+    }, [discountAmountError, paidAmountError, phase]);
 
     useEffect(() => {
         if (printState.status === RECEIPT_PRINT_STATUS.SUCCESS
@@ -128,26 +148,72 @@ export default function CashierCheckout({
         if (phase === 'failed') setPhase('idle');
     };
 
-    const changePaymentType = event => {
-        setPaymentType(event.target.value);
+    const resetAttemptWhenRequestChanges = nextRequest => {
+        if (attemptRef.current?.signature !== getSaleRequestSignature(nextRequest)) {
+            attemptRef.current = null;
+            setAttempt(null);
+        }
+        setResult(null);
+    };
+
+    const changePaymentType = (_event, nextPaymentType) => {
+        if (!nextPaymentType) return;
+
+        setPaymentType(nextPaymentType);
         setPaidAmountError('');
         resetKnownFailure();
-        attemptRef.current = null;
-        setAttempt(null);
-        setResult(null);
+        resetAttemptWhenRequestChanges(createSaleRequest(
+            itemList,
+            nextPaymentType,
+            paidAmount,
+            discountAmount,
+            discountDescription
+        ));
     };
 
     const changePaidAmount = value => {
         setPaidAmount(value);
         setPaidAmountError('');
         resetKnownFailure();
-        if (attemptRef.current?.signature !== getSaleRequestSignature(
-            createSaleRequest(itemList, paymentType, value)
-        )) {
-            attemptRef.current = null;
-            setAttempt(null);
-        }
-        setResult(null);
+        resetAttemptWhenRequestChanges(createSaleRequest(
+            itemList,
+            paymentType,
+            value,
+            discountAmount,
+            discountDescription
+        ));
+    };
+
+    const changeDiscountAmount = value => {
+        const nextDiscountAmount = value || '0';
+        const nextDescription = getMoneySign(nextDiscountAmount) > 0
+            ? discountDescription
+            : '';
+
+        setDiscountAmount(nextDiscountAmount);
+        setDiscountDescription(nextDescription);
+        setDiscountAmountError('');
+        resetKnownFailure();
+        resetAttemptWhenRequestChanges(createSaleRequest(
+            itemList,
+            paymentType,
+            paidAmount,
+            nextDiscountAmount,
+            nextDescription
+        ));
+    };
+
+    const changeDiscountDescription = event => {
+        const value = event.target.value;
+        setDiscountDescription(value);
+        resetKnownFailure();
+        resetAttemptWhenRequestChanges(createSaleRequest(
+            itemList,
+            paymentType,
+            paidAmount,
+            discountAmount,
+            value
+        ));
     };
 
     const completeSale = sale => {
@@ -157,6 +223,9 @@ export default function CashierCheckout({
         setConfirmationRequest(null);
         setPaidAmount('');
         setPaidAmountError('');
+        setDiscountAmount('0');
+        setDiscountAmountError('');
+        setDiscountDescription('');
         setFailureMessage('');
         setUnknownMessage('');
         setCartError('');
@@ -292,11 +361,13 @@ export default function CashierCheckout({
         if (checkoutLocked || disabled || !itemList.length) return;
 
         const nextPaidAmountError = validatePaidAmount(paidAmount);
+        const nextDiscountAmountError = validateDiscountAmount(discountAmount);
         setPaidAmountError(nextPaidAmountError);
+        setDiscountAmountError(nextDiscountAmountError);
         setCartError('');
         setFailureMessage('');
         setResult(null);
-        if (nextPaidAmountError) return;
+        if (nextPaidAmountError || nextDiscountAmountError) return;
 
         setConfirmationRequest(currentRequest);
         setPhase('confirmation');
@@ -350,7 +421,8 @@ export default function CashierCheckout({
     return (
         <Paper
             component="section"
-            className="mt-4 p-4 md:p-5"
+            elevation={ 0 }
+            className="mt-2 border-t p-0 pt-4"
             aria-labelledby="cashier-checkout-title"
         >
             { confirmationRequest && (
@@ -375,14 +447,64 @@ export default function CashierCheckout({
                         <p className="text-sm text-slate-600">
                             Server akan memeriksa sesi dan stok, lalu menghitung total serta kembalian.
                         </p>
+                        <dl className="rounded border bg-slate-50 p-3 text-sm">
+                            <div className="flex justify-between gap-3">
+                                <dt>Perkiraan subtotal</dt>
+                                <dd className="font-semibold tabular-nums">
+                                    { formatRupiah(estimate.subtotalAmount) }
+                                </dd>
+                            </div>
+                            <div className="mt-1 flex justify-between gap-3">
+                                <dt>Diskon diminta</dt>
+                                <dd className="font-semibold tabular-nums">
+                                    { formatRupiah(confirmationRequest.discountAmount) }
+                                </dd>
+                            </div>
+                            { confirmationRequest.description && (
+                                <div className="mt-1 flex justify-between gap-3">
+                                    <dt>Alasan diskon</dt>
+                                    <dd className="font-semibold text-right">
+                                        { confirmationRequest.description }
+                                    </dd>
+                                </div>
+                            ) }
+                            <div className="mt-2 flex justify-between gap-3 border-t pt-2">
+                                <dt>Perkiraan bayar</dt>
+                                <dd className="font-bold tabular-nums">
+                                    { formatRupiah(estimate.totalAmount) }
+                                </dd>
+                            </div>
+                        </dl>
                     </div>
                 </BloomConfirmationModal>
             ) }
 
-            <h2 id="cashier-checkout-title" className="text-lg font-bold">Pembayaran</h2>
+            <h2 id="cashier-checkout-title" className="text-base font-bold">Siapkan pembayaran</h2>
             <p className="mt-1 text-sm text-gray-600">
-                Masukkan pembayaran pelanggan. Total dan kembalian hanya ditentukan server setelah konfirmasi.
+                Nilai di bawah adalah perkiraan dari harga yang tampil. Total dan kembalian resmi ditentukan server.
             </p>
+
+            <dl className="mt-4 rounded-lg bg-blue-50 p-4 text-sm text-blue-950">
+                <div className="flex justify-between gap-3">
+                    <dt>Perkiraan subtotal</dt>
+                    <dd className="font-semibold tabular-nums">
+                        { formatRupiah(estimate.subtotalAmount) }
+                    </dd>
+                </div>
+                <div className="mt-1 flex justify-between gap-3">
+                    <dt>Diskon diminta</dt>
+                    <dd className="font-semibold tabular-nums">
+                        { formatRupiah(discountAmount || '0') }
+                    </dd>
+                </div>
+                <div className="mt-3 flex justify-between gap-3 border-t border-blue-200 pt-3 text-base">
+                    <dt className="font-semibold">Perkiraan bayar</dt>
+                    <dd className="font-bold tabular-nums">
+                        { estimate.hasInvalidLine ? 'Belum tersedia' : formatRupiah(estimate.totalAmount) }
+                    </dd>
+                </div>
+                <p className="mt-1 text-xs text-blue-800">Server menghitung ulang saat checkout.</p>
+            </dl>
 
             { phase === 'submitting' && (
                 <Alert severity="info" className="mt-4" role="status">
@@ -515,18 +637,23 @@ export default function CashierCheckout({
 
             { phase !== 'success' && (
             <form className="mt-4 space-y-4" onSubmit={ reviewCheckout } noValidate>
-                <TextField
-                    select
-                    fullWidth
-                    size="small"
-                    label="Metode pembayaran"
-                    value={ paymentType }
-                    onChange={ changePaymentType }
-                    disabled={ disabled || checkoutLocked }
-                >
-                    <MenuItem value={ PAYMENT_TYPES.CASH }>{ PAYMENT_LABELS.CASH }</MenuItem>
-                    <MenuItem value={ PAYMENT_TYPES.QRIS }>{ PAYMENT_LABELS.QRIS }</MenuItem>
-                </TextField>
+                <div>
+                    <div id="cashier-payment-type-label" className="mb-2 text-sm font-medium">
+                        Metode pembayaran
+                    </div>
+                    <ToggleButtonGroup
+                        exclusive
+                        fullWidth
+                        size="small"
+                        value={ paymentType }
+                        onChange={ changePaymentType }
+                        disabled={ disabled || checkoutLocked }
+                        aria-labelledby="cashier-payment-type-label"
+                    >
+                        <ToggleButton value={ PAYMENT_TYPES.CASH }>Tunai</ToggleButton>
+                        <ToggleButton value={ PAYMENT_TYPES.QRIS }>QRIS</ToggleButton>
+                    </ToggleButtonGroup>
+                </div>
 
                 <BloomMoneyField
                     fullWidth
@@ -540,7 +667,7 @@ export default function CashierCheckout({
                     onBlur={ () => setPaidAmountError(validatePaidAmount(paidAmount)) }
                     error={ Boolean(paidAmountError) }
                     helperText={ paidAmountError || (paymentType === PAYMENT_TYPES.CASH
-                        ? 'Kembalian dihitung server dari nominal tunai ini.'
+                        ? 'Kembalian resmi dihitung server dari nominal tunai ini.'
                         : 'Masukkan nominal yang sudah terkonfirmasi di perangkat QRIS.') }
                     inputRef={ paidAmountRef }
                     groupSeparator=","
@@ -548,6 +675,48 @@ export default function CashierCheckout({
                     currencySymbol="Rp"
                     disabled={ disabled || checkoutLocked }
                 />
+
+                { paymentType === PAYMENT_TYPES.CASH && !estimate.hasInvalidLine && (
+                    <Button
+                        type="button"
+                        size="small"
+                        variant="outlined"
+                        disabled={ disabled || checkoutLocked }
+                        onClick={ () => changePaidAmount(estimate.totalAmount) }
+                    >
+                        Gunakan uang pas (perkiraan)
+                    </Button>
+                ) }
+
+                <BloomMoneyField
+                    fullWidth
+                    size="small"
+                    label="Diskon penjualan"
+                    value={ discountAmount }
+                    onValueChange={ changeDiscountAmount }
+                    onBlur={ () => setDiscountAmountError(validateDiscountAmount(discountAmount)) }
+                    error={ Boolean(discountAmountError) }
+                    helperText={ discountAmountError || 'Opsional. Server memvalidasi diskon dan total akhir.' }
+                    inputRef={ discountAmountRef }
+                    groupSeparator=","
+                    decimalSeparator="."
+                    currencySymbol="Rp"
+                    disabled={ disabled || checkoutLocked }
+                />
+
+                { hasDiscount && (
+                    <TextField
+                        fullWidth
+                        multiline
+                        minRows={ 2 }
+                        size="small"
+                        label="Alasan diskon"
+                        value={ discountDescription }
+                        onChange={ changeDiscountDescription }
+                        helperText="Opsional. Catatan ini disimpan bersama penjualan."
+                        disabled={ disabled || checkoutLocked }
+                    />
+                ) }
 
                 <div className="rounded border bg-slate-50 p-3 text-sm text-slate-700">
                     <div className="font-semibold">Intent keranjang</div>

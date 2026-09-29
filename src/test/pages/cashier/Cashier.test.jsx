@@ -9,6 +9,7 @@ const cashierMocks = vi.hoisted(() => ({
     getCurrentSession: vi.fn(),
     getItemDetails: vi.fn(),
     getItemList: vi.fn(),
+    getItemCategoryList: vi.fn(),
     setBreadcrumbs: vi.fn(),
     session: {
         currentSession: { id: 7, status: 'OPEN' },
@@ -30,6 +31,9 @@ vi.mock('@components/cash-session/CurrentCashSession.jsx', () => ({
 vi.mock('@stores/index.js', () => ({
     useBreadcrumbStore: selector => selector({ setBreadcrumbs: cashierMocks.setBreadcrumbs }),
     useCashSessionStore: selector => selector(cashierMocks.session),
+    useItemCategoryStore: selector => selector({
+        getItemCategoryList: cashierMocks.getItemCategoryList
+    }),
     useSaleStore: selector => selector({
         createSale: cashierMocks.createSale,
         getCheckoutStatus: cashierMocks.getCheckoutStatus,
@@ -48,6 +52,7 @@ const item = overrides => ({
     baseUnitOfMeasure: 'METER',
     fractionalQuantityAllowed: true,
     stockStore: '0.5000',
+    category: { code: 'KAIN', name: 'Kain' },
     active: true,
     ...overrides
 });
@@ -126,6 +131,15 @@ describe('Cashier search and cart', () => {
         vi.clearAllMocks();
         cashierMocks.getItemDetails.mockReset();
         cashierMocks.getItemList.mockReset();
+        cashierMocks.getItemCategoryList.mockReset();
+        cashierMocks.getItemCategoryList.mockResolvedValue({
+            data: {
+                content: [
+                    { code: 'KAIN', name: 'Kain' },
+                    { code: 'ALAT', name: 'Alat' }
+                ]
+            }
+        });
         cashierMocks.createSale.mockReset();
         cashierMocks.getCheckoutStatus.mockReset();
         cashierMocks.printReceipt.mockReset();
@@ -183,6 +197,26 @@ describe('Cashier search and cart', () => {
         expect(await screen.findByText('Tidak ada barang aktif untuk “tidak ada”.')).toBeInTheDocument();
     });
 
+    it('loads active categories and applies a category-only filter to simple item rows', async () => {
+        const user = userEvent.setup();
+        cashierMocks.getItemList.mockResolvedValue(listResponse([item()]));
+        render(<Cashier />);
+
+        await user.click(await screen.findByRole('button', { name: 'Kain' }));
+
+        expect(cashierMocks.getItemList).toHaveBeenCalledWith(expect.objectContaining({
+            params: {
+                page: 1,
+                size: 10,
+                category: 'KAIN'
+            }
+        }));
+        expect(await screen.findByRole('listitem')).toHaveTextContent('Kain katun');
+        expect(screen.getByRole('listitem')).toHaveTextContent('SKU KAIN-00001');
+        expect(screen.getByRole('listitem')).toHaveTextContent('0,5 meter di STORE');
+        expect(screen.getByRole('listitem')).toHaveTextContent('Rp 15.000 per meter');
+    });
+
     it('adds, increments duplicates by one, warns above advisory STORE stock, removes, and restores search focus', async () => {
         const user = setupHumanUser();
         cashierMocks.getItemList.mockResolvedValue(listResponse([item()]));
@@ -222,6 +256,38 @@ describe('Cashier search and cart', () => {
         expect(search).toHaveFocus();
         expect(screen.queryByRole('button', { name: /bayar/i })).not.toBeInTheDocument();
         expect(screen.queryByText(/subtotal/i)).not.toBeInTheDocument();
+    });
+
+    it('clears an old cart notice when a new search starts and cancels only after confirmation', async () => {
+        const user = setupHumanUser();
+        const nextSearch = deferred();
+        cashierMocks.getItemList
+            .mockResolvedValueOnce(listResponse([item()]))
+            .mockReturnValueOnce(nextSearch.promise);
+        render(<Cashier />);
+
+        const search = screen.getByRole('textbox', { name: 'SKU atau nama barang' });
+        await user.type(search, 'kain{Enter}');
+        await user.click(await screen.findByRole('button', { name: 'Tambah Kain katun ke keranjang' }));
+        expect(screen.getByText('Kain katun ditambahkan ke keranjang.')).toBeInTheDocument();
+
+        await user.clear(search);
+        await user.type(search, 'baru{Enter}');
+        expect(screen.queryByText('Kain katun ditambahkan ke keranjang.')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Batalkan' }));
+        const dialog = screen.getByRole('dialog', { name: 'Batalkan transaksi?' });
+        expect(dialog).toHaveTextContent('1 jenis barang');
+        expect(screen.getByRole('button', { name: 'Batal' })).toHaveFocus();
+
+        await user.click(screen.getByRole('button', { name: 'Batal' }));
+        expect(screen.getByRole('textbox', { name: 'Jumlah Kain katun' })).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Batalkan' }));
+        await user.click(screen.getByRole('button', { name: 'Ya, batalkan' }));
+        expect(screen.queryByRole('textbox', { name: 'Jumlah Kain katun' })).not.toBeInTheDocument();
+        await waitFor(() => expect(search).toHaveFocus());
+        expect(cashierMocks.createSale).not.toHaveBeenCalled();
     });
 
     it('accepts comma fractions up to four decimals and rejects fractions for whole-unit items', async () => {
@@ -318,7 +384,8 @@ describe('Cashier search and cart', () => {
         expect(await screen.findByText('Hasil baru')).toBeInTheDocument();
 
         await user.type(search, ' berubah');
-        expect(screen.getByText(/Hasil ini untuk “baru” dan tidak dapat ditambahkan/i)).toBeInTheDocument();
+        expect(screen.getByText(/Hasil ini untuk pencarian sebelumnya dan tidak dapat ditambahkan/i))
+            .toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Tambah Hasil baru ke keranjang' })).toBeDisabled();
     });
 

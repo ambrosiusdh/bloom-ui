@@ -38,6 +38,7 @@ import { render, screen, waitFor } from '@/test/render.jsx';
 const cartItems = [{
     sku: 'KAIN-00001',
     name: 'Kain katun',
+    price: '15000.0000',
     quantity: '1.25',
     baseUnitOfMeasure: 'METER'
 }];
@@ -114,7 +115,8 @@ describe('CashierCheckout', () => {
         const dialog = await reviewCashPayment(user);
         expect(dialog).toHaveTextContent('1 baris barang');
         expect(dialog).toHaveTextContent('Server akan memeriksa sesi dan stok');
-        expect(screen.queryByText(/subtotal/i)).not.toBeInTheDocument();
+        expect(dialog).toHaveTextContent('Perkiraan subtotal');
+        expect(dialog).toHaveTextContent('Rp 18.750');
 
         await user.dblClick(screen.getByRole('button', { name: 'Konfirmasi jual' }));
 
@@ -160,6 +162,28 @@ describe('CashierCheckout', () => {
         expect(checkoutMocks.printReceipt).toHaveBeenNthCalledWith(2, completedSale.code, undefined);
         expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
         expect(browserPrint).not.toHaveBeenCalled();
+    });
+
+    it('prepares discount, conditional reason, CASH tender, and advisory totals before checkout', async () => {
+        const user = userEvent.setup();
+        renderCheckout();
+
+        expect(screen.getByText('Perkiraan subtotal').parentElement).toHaveTextContent('Rp 18.750');
+        expect(screen.getByText('Perkiraan bayar').parentElement).toHaveTextContent('Rp 18.750');
+        expect(screen.queryByRole('textbox', { name: 'Alasan diskon' })).not.toBeInTheDocument();
+
+        await user.clear(screen.getByRole('textbox', { name: 'Diskon penjualan' }));
+        await user.type(screen.getByRole('textbox', { name: 'Diskon penjualan' }), '5000');
+        await user.type(screen.getByRole('textbox', { name: 'Alasan diskon' }), 'Harga langganan');
+        await user.type(screen.getByRole('textbox', { name: 'Uang tunai diterima' }), '20000');
+
+        expect(screen.getByText('Perkiraan bayar').parentElement).toHaveTextContent('Rp 13.750');
+        await user.click(screen.getByRole('button', { name: 'Tinjau pembayaran' }));
+
+        const dialog = await screen.findByRole('dialog', { name: 'Konfirmasi pembayaran' });
+        expect(dialog).toHaveTextContent('Diskon dimintaRp 5.000');
+        expect(dialog).toHaveTextContent('Alasan diskonHarga langganan');
+        expect(checkoutMocks.createSale).not.toHaveBeenCalled();
     });
 
     it('keeps sale success visible when printing fails and retries only that sale reference', async () => {
@@ -293,8 +317,7 @@ describe('CashierCheckout', () => {
         checkoutMocks.createSale.mockResolvedValue({ data: { data: completedSale } });
         renderCheckout();
 
-        await user.click(screen.getByRole('combobox', { name: 'Metode pembayaran' }));
-        await user.click(screen.getByRole('option', { name: 'QRIS' }));
+        await user.click(screen.getByRole('button', { name: 'QRIS' }));
         await user.type(
             screen.getByRole('textbox', { name: 'Nominal QRIS terkonfirmasi' }),
             '18750'
