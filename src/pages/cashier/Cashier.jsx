@@ -55,6 +55,7 @@ export default function Cashier() {
     const [invalidQuantitySkus, setInvalidQuantitySkus] = useState(() => new Set());
     const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
     const [checkoutDraftKey, setCheckoutDraftKey] = useState(0);
+    const [completedSale, setCompletedSale] = useState(null);
 
     const searchInputRef = useRef(null);
     const searchFeedbackRef = useRef(null);
@@ -340,11 +341,13 @@ export default function Cashier() {
             setCartItems([]);
             setRemovedCartItem(null);
             setInvalidQuantitySkus(new Set());
-            setCartNotice(`Penjualan ${ sale.code } dikonfirmasi server.`);
+            setCartNotice('');
+            setCompletedSale(sale);
             return;
         }
 
-        focusSearch();
+        setCompletedSale(null);
+        requestAnimationFrame(() => focusSearch());
     }, [focusSearch]);
 
     const confirmCancelTransaction = () => {
@@ -592,7 +595,7 @@ export default function Cashier() {
                     className="cashier__cart cashier-transaction min-w-0 scroll-mt-4"
                     aria-label="Transaksi saat ini"
                 >
-                    { cartNotice && (
+                    { cartNotice && !completedSale && (
                         <Alert
                             className="mb-3"
                             severity={ cartItems.length ? 'success' : 'info' }
@@ -607,15 +610,17 @@ export default function Cashier() {
                             { cartNotice }
                         </Alert>
                     ) }
-                    <CashierCart
-                        itemList={ cartItems }
-                        disabled={ !cashierInteractionEnabled }
-                        onQuantityUpdate={ updateQuantity }
-                        onQuantityValidityChange={ updateQuantityValidity }
-                        onRemove={ removeItem }
-                        onEditComplete={ focusSearch }
-                        onCancel={ () => setCancelConfirmationOpen(true) }
-                    />
+                    { !completedSale && (
+                        <CashierCart
+                            itemList={ cartItems }
+                            disabled={ !cashierInteractionEnabled }
+                            onQuantityUpdate={ updateQuantity }
+                            onQuantityValidityChange={ updateQuantityValidity }
+                            onRemove={ removeItem }
+                            onEditComplete={ focusSearch }
+                            onCancel={ () => setCancelConfirmationOpen(true) }
+                        />
+                    ) }
                     <CashierCheckout
                         key={ checkoutDraftKey }
                         itemList={ cartItems }

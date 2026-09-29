@@ -165,24 +165,34 @@ describe('CashierCheckout', () => {
         await act(async () => request.resolve({ data: { data: completedSale } }));
 
         const success = await screen.findByRole('status', { name: 'Status penjualan' });
-        expect(success).toHaveTextContent('Penjualan SALE/VIII-2026/0042 berhasil.');
-        expect(success).toHaveTextContent('Total server: Rp 18.750');
-        expect(success).toHaveTextContent('Kembalian server: Rp 1.250');
+        expect(success).toHaveTextContent('Penjualan tersimpan');
+        expect(success).toHaveTextContent('Kode SALE/VIII-2026/0042');
         expect(success).toHaveFocus();
+        expect(screen.getByLabelText('Nilai resmi penjualan dari server'))
+            .toHaveTextContent('SubtotalRp 18.750');
+        expect(screen.getByLabelText('Nilai resmi penjualan dari server'))
+            .toHaveTextContent('DiskonRp 0');
+        expect(screen.getByLabelText('Nilai resmi penjualan dari server'))
+            .toHaveTextContent('TotalRp 18.750');
+        expect(screen.getByLabelText('Nilai resmi penjualan dari server'))
+            .toHaveTextContent('Dibayar · Tunai (CASH)Rp 20.000');
+        expect(screen.getByLabelText('Nilai resmi penjualan dari server'))
+            .toHaveTextContent('KembalianRp 1.250');
         expect(sessionStorage.getItem(SALE_CHECKOUT_RECOVERY_STORAGE_KEY)).toBeNull();
         expect(onSaleCompleted).toHaveBeenCalledWith(completedSale);
         expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(1);
         expect(checkoutMocks.printReceipt).toHaveBeenCalledWith(completedSale.code, undefined);
 
         const printStatus = screen.getByRole('status', { name: 'Status pencetakan struk' });
-        expect(printStatus).toHaveTextContent(`Pencetakan struk ${ completedSale.code }`);
-        expect(printStatus).toHaveTextContent('Permintaan cetak sedang diproses oleh server.');
-        expect(screen.getByRole('button', { name: 'Mencetak...' })).toBeDisabled();
+        expect(printStatus).toHaveTextContent('Mengirim permintaan cetak');
+        expect(printStatus).toHaveTextContent('Struk sedang dikirim ke layanan cetak.');
+        expect(screen.getByRole('button', { name: 'Mengirim...' })).toBeDisabled();
         expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
 
         await act(async () => printRequest.resolve({ data: { data: true } }));
 
-        expect(printStatus).toHaveTextContent('Struk berhasil dicetak.');
+        expect(printStatus).toHaveTextContent('Permintaan cetak diterima oleh layanan.');
+        expect(printStatus).toHaveTextContent('Periksa hasil pada printer.');
         expect(printStatus).toHaveFocus();
         await user.click(screen.getByRole('button', { name: 'Cetak ulang struk' }));
         await waitFor(() => expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(2));
@@ -237,9 +247,9 @@ describe('CashierCheckout', () => {
 
         const saleSuccess = await screen.findByRole('status', { name: 'Status penjualan' });
         const printFailure = await screen.findByRole('alert');
-        expect(saleSuccess).toHaveTextContent(`Penjualan ${ completedSale.code } berhasil.`);
-        expect(printFailure).toHaveTextContent('Printer yang dikonfigurasi pada server tidak ditemukan.');
-        expect(printFailure).toHaveTextContent('Penjualan tetap berhasil dan tidak dikirim ulang.');
+        expect(saleSuccess).toHaveTextContent(`Kode ${ completedSale.code }`);
+        expect(printFailure).toHaveTextContent('Layanan cetak tidak menemukan printer yang dikonfigurasi.');
+        expect(printFailure).toHaveTextContent('Penjualan sudah tersimpan dan tidak akan dikirim ulang.');
         expect(printFailure).toHaveFocus();
 
         await user.click(screen.getByRole('button', { name: 'Coba cetak lagi' }));
@@ -247,7 +257,8 @@ describe('CashierCheckout', () => {
         await waitFor(() => expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(2));
         expect(checkoutMocks.printReceipt).toHaveBeenNthCalledWith(1, completedSale.code, undefined);
         expect(checkoutMocks.printReceipt).toHaveBeenNthCalledWith(2, completedSale.code, undefined);
-        expect(await screen.findByText(/Struk berhasil dicetak\./)).toBeInTheDocument();
+        expect(await screen.findByText(/Permintaan cetak diterima oleh layanan\./))
+            .toBeInTheDocument();
         expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
     });
 
@@ -268,8 +279,8 @@ describe('CashierCheckout', () => {
 
         const printFailure = await screen.findByRole('alert');
         expect(screen.getByRole('status', { name: 'Status penjualan' }))
-            .toHaveTextContent(`Penjualan ${ completedSale.code } berhasil.`);
-        expect(printFailure).toHaveTextContent('Status pencetakan tidak dapat dipastikan');
+            .toHaveTextContent(`Kode ${ completedSale.code }`);
+        expect(printFailure).toHaveTextContent('Status permintaan cetak tidak dapat dipastikan');
         expect(printFailure).toHaveTextContent('Periksa printer sebelum mencoba lagi.');
 
         await user.click(screen.getByRole('button', { name: 'Coba cetak lagi' }));
@@ -293,7 +304,7 @@ describe('CashierCheckout', () => {
 
         const printFailure = await screen.findByRole('alert');
         expect(printFailure).toHaveTextContent(
-            'Penjualan tidak ditemukan oleh server sehingga struk belum dapat dicetak.'
+            'Layanan cetak tidak menemukan penjualan ini sehingga permintaan belum dapat diproses.'
         );
         expect(printFailure).toHaveTextContent('Buka detail penjualan untuk memeriksa transaksi.');
         expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
@@ -328,14 +339,15 @@ describe('CashierCheckout', () => {
         await reviewCashPayment(user);
         await user.click(screen.getByRole('button', { name: 'Konfirmasi jual' }));
         await screen.findByRole('status', { name: 'Status pencetakan struk' });
-        await user.click(screen.getByRole('link', { name: 'Lihat detail penjualan' }));
+        await user.click(screen.getByRole('link', { name: 'Buka detail penjualan' }));
 
-        const pendingPrintButton = await screen.findByRole('button', { name: 'Mencetak...' });
+        const pendingPrintButton = await screen.findByRole('button', { name: 'Mengirim...' });
         expect(pendingPrintButton).toBeDisabled();
         expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(1);
 
         await act(async () => printRequest.resolve({ data: { data: true } }));
-        expect(await screen.findByText('Struk berhasil dicetak.')).toBeInTheDocument();
+        expect(await screen.findByText(/Permintaan cetak diterima oleh layanan\./))
+            .toBeInTheDocument();
         expect(checkoutMocks.createSale).toHaveBeenCalledTimes(1);
         expect(checkoutMocks.printReceipt).toHaveBeenCalledTimes(1);
         expect(checkoutMocks.printReceipt).toHaveBeenCalledWith(completedSale.code, undefined);
@@ -368,7 +380,9 @@ describe('CashierCheckout', () => {
             undefined
         ));
         expect(await screen.findByRole('status', { name: 'Status penjualan' }))
-            .toHaveTextContent('Kembalian server: Rp 0.');
+            .toHaveTextContent('Penjualan tersimpan');
+        expect(screen.getByLabelText('Nilai resmi penjualan dari server'))
+            .toHaveTextContent('KembalianRp 0');
     });
 
     it('focuses local validation and maps backend payment validation without clearing the cart', async () => {

@@ -9,7 +9,11 @@ import {
     ToggleButton,
     ToggleButtonGroup
 } from '@mui/material';
-import { Printer } from 'lucide-react';
+import {
+    CircleCheckBig,
+    Plus,
+    Printer
+} from 'lucide-react';
 import PropTypes from 'prop-types';
 
 import { API_DOMAIN_ERROR_CODE } from '@api/error-contract.js';
@@ -52,7 +56,8 @@ const LOCKED_PHASES = new Set([
     'submitting',
     'checking',
     'unknown',
-    'quarantined'
+    'quarantined',
+    'success'
 ]);
 const PAYMENT_LABELS = {
     CASH: 'Tunai (CASH)',
@@ -157,6 +162,11 @@ export default function CashierCheckout({
         ? receiptPrintStateBySale[result.code] || EMPTY_RECEIPT_PRINT_STATE
         : EMPTY_RECEIPT_PRINT_STATE;
     const printMessage = getReceiptPrintMessage(printState);
+    const printStatusTitle = printState.status === RECEIPT_PRINT_STATUS.PENDING
+        ? 'Mengirim permintaan cetak'
+        : printState.status === RECEIPT_PRINT_STATUS.SUCCESS
+            ? 'Permintaan cetak diterima'
+            : 'Cetak perlu dicoba lagi';
 
     useEffect(() => {
         mountedRef.current = true;
@@ -578,7 +588,9 @@ export default function CashierCheckout({
                 id="cashier-checkout-title"
                 className={ isPreparationPhase ? 'sr-only' : 'text-base font-bold' }
             >
-                { confirmationRequest
+                { phase === 'success'
+                    ? 'Selesai'
+                    : confirmationRequest
                     ? 'Tinjau pembayaran'
                     : ['unknown', 'quarantined'].includes(phase)
                         || (['submitting', 'checking'].includes(phase) && !confirmationRequest)
@@ -587,7 +599,9 @@ export default function CashierCheckout({
             </h2>
             { !isPreparationPhase && (
                 <p className="mt-1 text-sm text-gray-600">
-                    { confirmationRequest
+                    { phase === 'success'
+                        ? 'Hasil resmi dari server'
+                        : confirmationRequest
                         ? 'Permintaan belum menjadi penjualan sampai server mengembalikan hasil.'
                         : 'Keranjang dan permintaan dipertahankan sampai server memberikan hasil pasti.' }
                 </p>
@@ -725,20 +739,48 @@ export default function CashierCheckout({
             ) }
 
             { phase === 'success' && result && (
-                <>
-                    <Alert
-                        severity="success"
-                        className="mt-4"
+                <div className="cashier-checkout__result">
+                    <div
+                        className="cashier-checkout__result-hero"
                         role="status"
                         aria-label="Status penjualan"
                         tabIndex={ -1 }
                         ref={ successRef }
                     >
-                        <div className="font-semibold">Penjualan { result.code } berhasil.</div>
-                        <div>Total server: { formatRupiah(result.totalAmount) }.</div>
-                        <div>Pembayaran: { formatRupiah(result.paidAmount) } via { PAYMENT_LABELS[result.paymentType] }.</div>
-                        <div>Kembalian server: { formatRupiah(result.changeAmount) }.</div>
-                    </Alert>
+                        <span className="cashier-checkout__result-icon" aria-hidden="true">
+                            <CircleCheckBig />
+                        </span>
+                        <div>
+                            <h3>Penjualan tersimpan</h3>
+                            <p>Kode { result.code }</p>
+                        </div>
+                    </div>
+
+                    <dl
+                        className="cashier-checkout__receipt"
+                        aria-label="Nilai resmi penjualan dari server"
+                    >
+                        <div>
+                            <dt>Subtotal</dt>
+                            <dd>{ formatRupiah(result.subtotalAmount) }</dd>
+                        </div>
+                        <div>
+                            <dt>Diskon</dt>
+                            <dd>{ formatRupiah(result.discountAmount) }</dd>
+                        </div>
+                        <div className="cashier-checkout__receipt-total">
+                            <dt>Total</dt>
+                            <dd>{ formatRupiah(result.totalAmount) }</dd>
+                        </div>
+                        <div>
+                            <dt>Dibayar · { PAYMENT_LABELS[result.paymentType] }</dt>
+                            <dd>{ formatRupiah(result.paidAmount) }</dd>
+                        </div>
+                        <div>
+                            <dt>Kembalian</dt>
+                            <dd>{ formatRupiah(result.changeAmount) }</dd>
+                        </div>
+                    </dl>
 
                     { printState.status !== RECEIPT_PRINT_STATUS.IDLE && (
                         <Alert
@@ -755,8 +797,9 @@ export default function CashierCheckout({
                             tabIndex={ -1 }
                             ref={ printFeedbackRef }
                         >
-                            <div className="font-semibold">Pencetakan struk { result.code }</div>
-                            <div>{ printMessage } Penjualan tetap berhasil dan tidak dikirim ulang.</div>
+                            <div className="font-semibold">{ printStatusTitle }</div>
+                            <div>{ printMessage }</div>
+                            <div>Penjualan sudah tersimpan dan tidak akan dikirim ulang.</div>
                             { printState.error?.domainCode === API_DOMAIN_ERROR_CODE.SALE_NOT_FOUND && (
                                 <div>Buka detail penjualan untuk memeriksa transaksi.</div>
                             ) }
@@ -769,7 +812,7 @@ export default function CashierCheckout({
                                 disabled={ printState.status === RECEIPT_PRINT_STATUS.PENDING }
                             >
                                 { printState.status === RECEIPT_PRINT_STATUS.PENDING
-                                    ? 'Mencetak...'
+                                    ? 'Mengirim...'
                                     : printState.status === RECEIPT_PRINT_STATUS.ERROR
                                         ? 'Coba cetak lagi'
                                         : 'Cetak ulang struk' }
@@ -777,20 +820,25 @@ export default function CashierCheckout({
                         </Alert>
                     ) }
 
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="cashier-checkout__result-actions">
+                        <Button
+                            variant="contained"
+                            fullWidth
+                            startIcon={ <Plus size={ 18 } /> }
+                            onClick={ startNextSale }
+                        >
+                            Penjualan baru
+                        </Button>
                         <Button
                             component={ Link }
                             to={ `/sales/${ encodeURIComponent(result.code) }` }
-                            variant="outlined"
-                            size="small"
+                            variant="text"
+                            fullWidth
                         >
-                            Lihat detail penjualan
-                        </Button>
-                        <Button variant="contained" size="small" onClick={ startNextSale }>
-                            Siapkan transaksi berikutnya
+                            Buka detail penjualan
                         </Button>
                     </div>
-                </>
+                </div>
             ) }
 
             { cartError && <Alert severity="warning" className="mt-4">{ cartError }</Alert> }

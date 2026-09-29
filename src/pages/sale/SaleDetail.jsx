@@ -110,7 +110,7 @@ const SaleDetail = () => {
                     aria-busy={ isPrinting }
                     aria-describedby={ printState.status === RECEIPT_PRINT_STATUS.IDLE ? undefined : 'receipt-print-status' }
                 >
-                    { isPrinting ? 'Mencetak...' : 'Cetak ulang struk' }
+                    { isPrinting ? 'Mengirim...' : 'Cetak ulang struk' }
                 </Button>
             </div>
 

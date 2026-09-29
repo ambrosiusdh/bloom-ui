@@ -106,12 +106,13 @@ describe('SaleDetail receipt reprint', () => {
 
         expect(saleApi.printReceipt).toHaveBeenCalledTimes(1);
         expect(saleApi.printReceipt).toHaveBeenCalledWith(sale.code, undefined);
-        expect(screen.getByRole('button', { name: 'Mencetak...' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Mengirim...' })).toBeDisabled();
         expect(screen.getByRole('status')).toHaveTextContent(`Penjualan ${ sale.code }`);
 
         await act(async () => printRequest.resolve({ data: { data: true } }));
 
-        expect(await screen.findByRole('status')).toHaveTextContent('Struk berhasil dicetak.');
+        expect(await screen.findByRole('status'))
+            .toHaveTextContent('Permintaan cetak diterima oleh layanan.');
         expect(screen.getByRole('status')).toHaveTextContent(`Penjualan ${ sale.code }`);
         expect(screen.getByRole('status')).toHaveFocus();
         expect(screen.getByRole('button', { name: 'Cetak ulang struk' })).toBeEnabled();
@@ -133,7 +134,7 @@ describe('SaleDetail receipt reprint', () => {
 
         const alert = await screen.findByRole('alert');
         expect(alert).toHaveTextContent(`Penjualan ${ sale.code }`);
-        expect(alert).toHaveTextContent('Printer yang dikonfigurasi pada server tidak ditemukan.');
+        expect(alert).toHaveTextContent('Layanan cetak tidak menemukan printer yang dikonfigurasi.');
         expect(alert).toHaveFocus();
 
         await user.click(screen.getByRole('button', { name: 'Coba lagi' }));
@@ -141,7 +142,8 @@ describe('SaleDetail receipt reprint', () => {
         await waitFor(() => expect(saleApi.printReceipt).toHaveBeenCalledTimes(2));
         expect(saleApi.printReceipt).toHaveBeenNthCalledWith(1, sale.code, undefined);
         expect(saleApi.printReceipt).toHaveBeenNthCalledWith(2, sale.code, undefined);
-        expect(await screen.findByRole('status')).toHaveTextContent('Struk berhasil dicetak.');
+        expect(await screen.findByRole('status'))
+            .toHaveTextContent('Permintaan cetak diterima oleh layanan.');
         expect(saleApi.createSale).not.toHaveBeenCalled();
     });
 
@@ -231,7 +233,8 @@ describe('SaleDetail receipt reprint', () => {
 
         await act(async () => printRequest.resolve({ data: { data: true } }));
 
-        expect(screen.queryByText('Struk berhasil dicetak.')).not.toBeInTheDocument();
+        expect(screen.queryByText(/Permintaan cetak diterima oleh layanan\./))
+            .not.toBeInTheDocument();
         expect(screen.queryByText(`Penjualan ${ sale.code }.`)).not.toBeInTheDocument();
     });
 
@@ -257,7 +260,7 @@ describe('SaleDetail receipt reprint', () => {
         await user.click(await getReadyPrintButton());
 
         expect(await screen.findByRole('alert')).toHaveTextContent(
-            'Status pencetakan tidak dapat dipastikan'
+            'Status permintaan cetak tidak dapat dipastikan'
         );
         expect(screen.getByRole('alert')).toHaveTextContent(
             'Periksa printer sebelum mencoba lagi.'
@@ -276,7 +279,7 @@ describe('SaleDetail receipt reprint', () => {
 
         const alert = await screen.findByRole('alert');
         expect(alert).toHaveTextContent(
-            'Penjualan tidak ditemukan oleh server sehingga struk belum dapat dicetak.'
+            'Layanan cetak tidak menemukan penjualan ini sehingga permintaan belum dapat diproses.'
         );
         expect(alert).toHaveTextContent('Muat ulang halaman sebelum mencoba lagi.');
     });
@@ -289,7 +292,7 @@ describe('SaleDetail receipt reprint', () => {
         await user.click(await getReadyPrintButton());
 
         expect(await screen.findByRole('alert')).toHaveTextContent(
-            'Struk gagal dicetak. Penjualan tidak diubah.'
+            'Layanan cetak tidak mengonfirmasi permintaan. Penjualan tidak diubah'
         );
     });
 });

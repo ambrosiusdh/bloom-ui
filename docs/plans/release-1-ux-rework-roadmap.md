@@ -1183,6 +1183,21 @@ Decision/audit: `docs/ux/design/uxr-d09-d10-cashier-decision.md`; `docs/ux/audit
 
 #### UXI-09 — Sale result and printing
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-30):** The completed sale now replaces the empty transaction/cart
+state with a focused result that renders only the backend-returned reference, subtotal, discount,
+total, paid amount, payment method, and change. Cashier entry remains locked until the explicit
+`Penjualan baru` reset. Automatic printing still begins only after confirmed sale completion and
+uses the existing sale-reference-scoped coordinator: pending requests block duplicates, failures
+keep the sale visibly successful and retry only printing, and navigation to the encoded sale detail
+preserves the same pending or terminal operation. Success now says the print service accepted the
+request and asks the operator to check the printer; it does not claim physical paper output. Four
+focused files passed 46 tests. The full 68-file suite passed 436 tests with one worker after the
+default parallel run hit cross-domain five-second interaction-test timeouts under contention; full
+lint and production build then passed. The build retained the pre-existing stale-Browserslist and
+large-chunk advisory warnings. Physical printer output was not verified in this implementation.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-cashier-workspace-rework.html`; review result plus print-pending, print-success, and print-error states.
 
 Decision/audit: `docs/ux/design/uxr-d09-d10-cashier-decision.md`; `docs/ux/audits/uxr-a10-checkout-print.md`

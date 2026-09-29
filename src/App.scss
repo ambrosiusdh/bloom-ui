@@ -737,6 +737,99 @@
       grid-column: 1 / -1;
     }
   }
+
+  &__result {
+    display: grid;
+    gap: 0.875rem;
+    padding-top: 0.5rem;
+  }
+
+  &__result-hero {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 1rem;
+    color: var(--bloom-shell-text);
+    background: var(--bloom-shell-surface-soft);
+    border-radius: 1rem;
+
+    h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    p {
+      margin: 0.25rem 0 0;
+      color: var(--bloom-shell-muted);
+      overflow-wrap: anywhere;
+    }
+  }
+
+  &__result-icon {
+    display: inline-flex;
+    flex: 0 0 3rem;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    color: var(--bloom-shell-success);
+    background: var(--bloom-shell-success-soft);
+    border-radius: 0.8125rem;
+
+    svg {
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+  }
+
+  &__receipt {
+    display: grid;
+    gap: 0.625rem;
+    padding: 0.875rem;
+    margin: 0;
+    background: var(--bloom-shell-surface-soft);
+    border-radius: 0.75rem;
+
+    > div {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    dt {
+      color: var(--bloom-shell-muted);
+    }
+
+    dd {
+      margin: 0;
+      font-weight: 600;
+      text-align: right;
+    }
+  }
+
+  &__receipt-total {
+    padding-top: 0.6875rem;
+    margin-top: 0.1875rem;
+    border-top: 1px dashed var(--bloom-shell-border);
+
+    dt,
+    dd {
+      color: var(--bloom-shell-text);
+      font-size: 1.125rem;
+      font-weight: 700;
+    }
+  }
+
+  &__result-actions {
+    display: grid;
+    gap: 0.5rem;
+
+    .MuiButton-root {
+      min-height: 2.75rem;
+    }
+  }
 }
 
 .cashier-primary-action.MuiButton-root {

@@ -349,6 +349,8 @@ describe('Cashier search and cart', () => {
         cashierMocks.createSale.mockResolvedValue({
             data: {
                 code: 'SALE/VIII-2026/0042',
+                subtotalAmount: '15000.0000',
+                discountAmount: '0.0000',
                 totalAmount: '15000.0000',
                 paidAmount: '20000.0000',
                 changeAmount: '5000.0000',
@@ -364,13 +366,26 @@ describe('Cashier search and cart', () => {
         await user.click(screen.getByRole('button', { name: 'Tinjau pembayaran' }));
         await user.click(await screen.findByRole('button', { name: 'Konfirmasi jual' }));
 
-        const successMessage = await screen.findByText('Penjualan SALE/VIII-2026/0042 berhasil.');
+        const successMessage = await screen.findByText('Penjualan tersimpan');
         expect(successMessage).toBeInTheDocument();
         await waitFor(() => expect(successMessage.closest('[role="status"]')).toHaveFocus());
         expect(cashierMocks.printReceipt).toHaveBeenCalledWith('SALE/VIII-2026/0042');
         expect(cashierMocks.createSale).toHaveBeenCalledTimes(1);
         expect(screen.queryByRole('textbox', { name: 'Jumlah Kain katun' })).not.toBeInTheDocument();
-        expect(screen.getByText('Cari barang lalu tambahkan ke keranjang')).toBeInTheDocument();
+        expect(screen.queryByText('Cari barang lalu tambahkan ke keranjang')).not.toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: 'SKU atau nama barang' })).toBeDisabled();
+        expect(screen.getByRole('link', { name: 'Buka detail penjualan' })).toHaveAttribute(
+            'href',
+            '/sales/SALE%2FVIII-2026%2F0042'
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Penjualan baru' }));
+
+        expect(await screen.findByText('Cari barang lalu tambahkan ke keranjang'))
+            .toBeInTheDocument();
+        await waitFor(() => expect(screen.getByRole('textbox', {
+            name: 'SKU atau nama barang'
+        })).toBeEnabled());
     });
 
     it('keeps a definitive checkout rejection focused instead of returning to search', async () => {
