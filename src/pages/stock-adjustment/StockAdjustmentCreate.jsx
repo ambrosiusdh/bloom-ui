@@ -12,7 +12,6 @@ import {
     CardContent,
     CircularProgress,
     IconButton,
-    MenuItem,
     Stack,
     TextField,
     Typography
@@ -24,14 +23,14 @@ import itemApi from '@api/item.js';
 import BloomConfirmationModal from '@components/_ui/BloomConfirmationModal.jsx';
 import BloomQuantityField from '@components/_ui/BloomQuantityField.jsx';
 import StockAdjustmentInfoCard from '@components/stock-adjustment/StockAdjustmentInfoCard.jsx';
-import StockAdjustmentItemsTable from '@components/stock-adjustment/StockAdjustmentItemsTable.jsx';
+import StockAdjustmentItemPicker from '@components/stock-adjustment/StockAdjustmentItemPicker.jsx';
+import StockAdjustmentLines from '@components/stock-adjustment/StockAdjustmentLines.jsx';
 import {
     useBreadcrumbStore,
     useStockAdjustmentStore
 } from '@stores/index.js';
 import {
-    formatQuantity,
-    formatUnitOfMeasure
+    formatQuantity
 } from '@utils/quantity-utils.js';
 import {
     ACTION_TYPES,
@@ -42,13 +41,24 @@ import {
 } from '@utils/stock-adjustment-utils.js';
 
 const ACTION_LABELS = {
-    ADD: 'Tambah stok (ADD)',
-    REMOVE: 'Kurangi stok (REMOVE)',
-    CORRECTION: 'Tetapkan stok absolut (CORRECTION)'
+    ADD: 'Tambah',
+    REMOVE: 'Kurangi',
+    CORRECTION: 'Koreksi stok'
+};
+const ACTION_DESCRIPTIONS = {
+    ADD: 'Tambah memakai jumlah perubahan positif.',
+    REMOVE: 'Kurangi memakai jumlah perubahan positif.',
+    CORRECTION: 'Koreksi stok menetapkan target absolut dan boleh bernilai nol.'
 };
 const LOCATION_LABELS = {
-    STORE: 'Toko (STORE)',
-    WAREHOUSE: 'Gudang (WAREHOUSE)'
+    STORE: 'Toko',
+    WAREHOUSE: 'Gudang'
+};
+const MOVEMENT_LABELS = {
+    IN: 'Masuk',
+    OUT: 'Keluar',
+    ADJUSTMENT_IN: 'Masuk',
+    ADJUSTMENT_OUT: 'Keluar'
 };
 const EMPTY_LINE_ERROR = {
     itemSku: '',
@@ -62,6 +72,7 @@ let nextLineId = 0;
 const createLine = () => ({
     id: `adjustment-line-${ ++nextLineId }`,
     item: null,
+    selectingItem: true,
     stockLocation: 'STORE',
     actionType: 'ADD',
     changeQuantity: ''
@@ -122,6 +133,7 @@ export default function StockAdjustmentCreate() {
     const [itemsError, setItemsError] = useState('');
     const [itemsRetry, setItemsRetry] = useState(0);
     const [submitError, setSubmitError] = useState('');
+    const [serverLineErrors, setServerLineErrors] = useState({});
     const [refreshWarning, setRefreshWarning] = useState('');
     const [showReconciliationConfirmation, setShowReconciliationConfirmation] = useState(false);
 
@@ -163,7 +175,10 @@ export default function StockAdjustmentCreate() {
                 setActiveItems(items);
                 setLines(previous => previous.map(line => ({
                     ...line,
-                    item: line.item ? items.find(item => item.sku === line.item.sku) || null : null
+                    item: line.item ? items.find(item => item.sku === line.item.sku) || null : null,
+                    selectingItem: line.item
+                        ? !items.some(item => item.sku === line.item.sku)
+                        : line.selectingItem
                 })));
                 setItemsStatus('ready');
                 if (itemsRefreshPurposeRef.current === 'conflict') {
@@ -208,6 +223,8 @@ export default function StockAdjustmentCreate() {
     }, [errors]);
 
     const changeLine = (index, field, value) => {
+        const lineId = lines[index]?.id;
+
         setLines(previous => previous.map((line, lineIndex) => lineIndex === index
             ? {
                 ...line,
@@ -223,13 +240,48 @@ export default function StockAdjustmentCreate() {
                 }
                 : lineError)
         }));
+        setServerLineErrors(previous => {
+            const next = { ...previous };
+            delete next[lineId];
+            return next;
+        });
         setSubmitError('');
         setRefreshWarning('');
     };
 
-    const selectItem = (index, sku) => {
-        const item = activeItems.find(option => option.sku === sku) || null;
-        changeLine(index, 'item', item);
+    const selectItem = (index, item) => {
+        setLines(previous => previous.map((line, lineIndex) => lineIndex === index
+            ? {
+                ...line,
+                item,
+                selectingItem: !item
+            }
+            : line));
+        setErrors(previous => ({
+            ...previous,
+            lines: previous.lines.map((lineError, lineIndex) => lineIndex === index
+                ? {
+                    ...lineError,
+                    itemSku: ''
+                }
+                : lineError)
+        }));
+        setServerLineErrors(previous => {
+            const next = { ...previous };
+            delete next[lines[index]?.id];
+            return next;
+        });
+        setSubmitError('');
+    };
+
+    const startSelectingItem = index => {
+        setLines(previous => previous.map((line, lineIndex) => lineIndex === index
+            ? {
+                ...line,
+                selectingItem: true
+            }
+            : line));
+        requestAnimationFrame(() => fieldRefs.current[`${ lines[index].id }-itemSku`]?.focus());
     };
 
     const addLine = () => {
@@ -279,6 +331,7 @@ export default function StockAdjustmentCreate() {
         }
 
         const payload = createStockAdjustmentPayload(reason, lines);
+        setServerLineErrors({});
         setConfirmation({
             payload,
             lines: lines.map(line => ({
@@ -301,7 +354,10 @@ export default function StockAdjustmentCreate() {
                 setActiveItems(items);
                 setLines(previous => previous.map(line => ({
                     ...line,
-                    item: line.item ? items.find(item => item.sku === line.item.sku) || null : null
+                    item: line.item ? items.find(item => item.sku === line.item.sku) || null : null,
+                    selectingItem: line.item
+                        ? !items.some(item => item.sku === line.item.sku)
+                        : line.selectingItem
                 })));
                 setItemsStatus('ready');
                 itemsRefreshPurposeRef.current = '';
@@ -322,6 +378,7 @@ export default function StockAdjustmentCreate() {
         }
         submitInProgressRef.current = true;
         setSubmitError('');
+        setServerLineErrors({});
         setRefreshWarning('');
 
         try {
@@ -334,6 +391,7 @@ export default function StockAdjustmentCreate() {
                     reason: '',
                     lines: [{ ...EMPTY_LINE_ERROR }]
                 });
+                setServerLineErrors({});
             }
             const refreshed = await reloadItems('success');
             if (mountedRef.current && !refreshed) {
@@ -348,9 +406,23 @@ export default function StockAdjustmentCreate() {
                         ? 'Stok berubah saat penyesuaian diproses. Data barang sudah dimuat ulang; periksa lalu konfirmasi kembali.'
                         : 'Stok berubah dan data terbaru gagal dimuat. Muat ulang barang sebelum mencoba lagi.');
                 } else if (error?.category === API_ERROR_CATEGORY.VALIDATION) {
-                    setSubmitError('Server menolak data penyesuaian. Periksa alasan, barang, lokasi, tindakan, dan jumlah.');
+                    setSubmitError('Penyesuaian belum disimpan. Server menolak permintaan; periksa baris yang ditandai lalu tinjau kembali.');
+                    setServerLineErrors(Object.fromEntries(confirmation.lines.map(line => [
+                        lines.find(draftLine => draftLine.item?.sku === line.itemSku)?.id,
+                        line.actionType === 'CORRECTION'
+                            ? 'Server menolak permintaan ini. Pastikan target koreksi berbeda dari stok saat ini yang ditampilkan sebagai panduan.'
+                            : 'Server menolak permintaan ini. Periksa barang, lokasi, tindakan, dan jumlah perubahan.'
+                    ]).filter(([lineId]) => lineId)));
                 } else if (error?.category === 'storage') {
                     setSubmitError('Penyimpanan pemulihan tab ini tidak tersedia. Tidak ada penyesuaian yang dikirim; pulihkan penyimpanan browser sebelum mencoba lagi.');
+                } else if (Number(error?.status) >= 400 && Number(error?.status) < 500) {
+                    setSubmitError('Penyesuaian belum disimpan. Server menolak permintaan; periksa isian lalu tinjau kembali.');
+                    setServerLineErrors(Object.fromEntries(lines.map(line => [
+                        line.id,
+                        line.actionType === 'CORRECTION'
+                            ? 'Permintaan ditolak. Pastikan target koreksi berbeda dari stok saat ini yang ditampilkan sebagai panduan.'
+                            : 'Permintaan ditolak. Periksa lokasi, tindakan, dan jumlah pada baris ini.'
+                    ])));
                 } else {
                     setSubmitError('');
                 }
@@ -367,6 +439,7 @@ export default function StockAdjustmentCreate() {
 
         clearCreated();
         setSubmitError('');
+        setServerLineErrors({});
         setRefreshWarning('');
         requestAnimationFrame(() => fieldRefs.current.reason?.focus());
     };
@@ -381,6 +454,7 @@ export default function StockAdjustmentCreate() {
             lines: [{ ...EMPTY_LINE_ERROR }]
         });
         setSubmitError('');
+        setServerLineErrors({});
         requestAnimationFrame(() => fieldRefs.current.reason?.focus());
     };
 
@@ -401,7 +475,9 @@ export default function StockAdjustmentCreate() {
                             { confirmation.lines.map(line => (
                                 <li key={ line.itemSku }>
                                     { line.itemSku } · { line.itemName } · { LOCATION_LABELS[line.stockLocation] }
-                                    { ' · ' }{ ACTION_LABELS[line.actionType] } · { formatQuantity(
+                                    { ' · ' }{ ACTION_LABELS[line.actionType] } ({ line.actionType === 'CORRECTION'
+                                        ? 'target absolut'
+                                        : 'delta positif' }) · { formatQuantity(
                                         line.changeQuantity,
                                         line.unitOfMeasure
                                     ) }
@@ -432,9 +508,13 @@ export default function StockAdjustmentCreate() {
             ) }
 
             <header>
-                <h2 className="text-2xl font-bold">Buat penyesuaian stok</h2>
+                <h1 className="text-2xl font-bold">
+                    { created ? 'Penyesuaian stok berhasil' : 'Buat penyesuaian stok' }
+                </h1>
                 <p className="mt-1 text-slate-600">
-                    ADD dan REMOVE memakai delta positif. CORRECTION menetapkan stok absolut dan boleh bernilai nol.
+                    { created
+                        ? 'Transaksi sudah disimpan dan hasil stok di bawah dikembalikan oleh server.'
+                        : 'Tambahkan, kurangi, atau koreksi stok fisik. Hasil akhir selalu ditentukan server.' }
                 </p>
             </header>
 
@@ -477,7 +557,30 @@ export default function StockAdjustmentCreate() {
                         </div>
                         <div className="rounded bg-slate-50 p-3 text-sm">
                             <div><strong>Alasan:</strong> { ambiguousAttempt.payload.reason }</div>
-                            <div><strong>Jumlah baris:</strong> { ambiguousAttempt.payload.items.length }</div>
+                            <div className="mt-3 space-y-2">
+                                { ambiguousAttempt.payload.items.map((item, index) => {
+                                    const activeItem = itemsBySku.get(item.itemSku);
+
+                                    return (
+                                        <div
+                                            key={ `${ item.itemSku }-${ item.stockLocation }` }
+                                            className="grid gap-1 rounded border bg-white p-3 sm:grid-cols-[minmax(12rem,1fr)_auto_auto_auto] sm:items-center sm:gap-3"
+                                        >
+                                            <strong>Baris { index + 1 } · { item.itemSku }</strong>
+                                            <span>{ LOCATION_LABELS[item.stockLocation] || item.stockLocation }</span>
+                                            <span>{ ACTION_LABELS[item.actionType] || item.actionType }</span>
+                                            <span className="tabular-nums">
+                                                { activeItem
+                                                    ? formatQuantity(
+                                                        item.changeQuantity,
+                                                        activeItem.baseUnitOfMeasure
+                                                    )
+                                                    : item.changeQuantity }
+                                            </span>
+                                        </div>
+                                    );
+                                }) }
+                            </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <Button component={ Link } to="/stock-adjustments" variant="contained">
@@ -500,7 +603,10 @@ export default function StockAdjustmentCreate() {
                         Penyesuaian { created.adjustment?.stockAdjustmentCode } berhasil dibukukan oleh server.
                     </Alert>
                     <StockAdjustmentInfoCard adjustment={ created.adjustment } />
-                    <StockAdjustmentItemsTable items={ created.adjustment?.items } />
+                    <StockAdjustmentLines
+                        heading="Stok yang dibukukan"
+                        items={ created.adjustment?.items }
+                    />
                     <section className="rounded-lg bg-white p-4 shadow" aria-label="Pergerakan stok yang dibukukan">
                         <h3 className="text-lg font-bold">Pergerakan stok yang dibukukan</h3>
                         <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -508,7 +614,9 @@ export default function StockAdjustmentCreate() {
                                 <article key={ movement.id } className="rounded border p-3">
                                     <strong>{ movement.referenceNo } · { movement.item?.sku }</strong>
                                     <div>{ LOCATION_LABELS[movement.location] || movement.location }</div>
-                                    <div>{ movement.movementType } · { formatQuantity(
+                                    <div>{ MOVEMENT_LABELS[movement.movementType]
+                                        || movement.movementType
+                                        || '-' } · { formatQuantity(
                                         movement.quantity,
                                         movement.item?.baseUnitOfMeasure
                                     ) }</div>
@@ -581,83 +689,111 @@ export default function StockAdjustmentCreate() {
                                                 <Trash size={ 18 } />
                                             </IconButton>
                                         </div>
-                                        <TextField
-                                            select
-                                            fullWidth
-                                            label="Barang"
-                                            value={ line.item?.sku || '' }
+                                        <StockAdjustmentItemPicker
+                                            items={ activeItems }
+                                            value={ line.item }
+                                            selecting={ line.selectingItem }
                                             inputRef={ element => {
                                                 fieldRefs.current[`${ line.id }-itemSku`] = element;
                                             } }
                                             disabled={ interactionDisabled }
-                                            error={ !!lineError.itemSku }
-                                            helperText={ lineError.itemSku || 'Pilih satu barang aktif.' }
-                                            onChange={ event => selectItem(index, event.target.value) }>
-                                            { Array.from(itemsBySku.values()).map(item => (
-                                                <MenuItem key={ item.sku } value={ item.sku }>
-                                                    [{ item.sku }] { item.name }
-                                                </MenuItem>
-                                            )) }
-                                        </TextField>
+                                            error={ lineError.itemSku }
+                                            onChange={ item => selectItem(index, item) }
+                                            onStartSelecting={ () => startSelectingItem(index) }
+                                        />
 
                                         { line.item && (
                                             <Alert severity="info">
-                                                Satuan: <strong>{ formatUnitOfMeasure(line.item.baseUnitOfMeasure) }</strong>.
-                                                { line.item.fractionalQuantityAllowed
-                                                    ? ' Pecahan hingga empat desimal diperbolehkan.'
-                                                    : ' Jumlah harus utuh.' }
-                                                <div className="mt-1 text-sm">
-                                                    Stok { LOCATION_LABELS[line.stockLocation] } saat dimuat: { formatQuantity(
-                                                        line.item[stockField],
-                                                        line.item.baseUnitOfMeasure
-                                                    ) }. Server menentukan hasil akhir saat posting.
-                                                </div>
+                                                Stok { LOCATION_LABELS[line.stockLocation] } saat dimuat:{ ' ' }
+                                                <strong>{ formatQuantity(
+                                                    line.item[stockField],
+                                                    line.item.baseUnitOfMeasure
+                                                ) }</strong>. Nilai ini hanya panduan dan diverifikasi kembali saat disimpan.
                                             </Alert>
                                         ) }
 
-                                        <div className="grid gap-4 md:grid-cols-2">
-                                            <TextField
-                                                select
-                                                label="Lokasi stok"
-                                                value={ line.stockLocation }
-                                                inputRef={ element => {
-                                                    fieldRefs.current[`${ line.id }-stockLocation`] = element;
-                                                } }
-                                                disabled={ interactionDisabled }
-                                                error={ !!lineError.stockLocation }
-                                                helperText={ lineError.stockLocation || 'Wajib STORE atau WAREHOUSE.' }
-                                                onChange={ event => changeLine(index, 'stockLocation', event.target.value) }>
-                                                { STOCK_LOCATIONS.map(location => (
-                                                    <MenuItem key={ location } value={ location }>
-                                                        { LOCATION_LABELS[location] }
-                                                    </MenuItem>
-                                                )) }
-                                            </TextField>
-                                            <TextField
-                                                select
-                                                label="Tindakan"
-                                                value={ line.actionType }
-                                                inputRef={ element => {
-                                                    fieldRefs.current[`${ line.id }-actionType`] = element;
-                                                } }
-                                                disabled={ interactionDisabled }
-                                                error={ !!lineError.actionType }
-                                                helperText={ lineError.actionType || (line.actionType === 'CORRECTION'
-                                                    ? 'Nilai adalah target stok absolut; nol diperbolehkan.'
-                                                    : 'Nilai adalah delta positif.') }
-                                                onChange={ event => changeLine(index, 'actionType', event.target.value) }>
-                                                { ACTION_TYPES.map(action => (
-                                                    <MenuItem key={ action } value={ action }>
-                                                        { ACTION_LABELS[action] }
-                                                    </MenuItem>
-                                                )) }
-                                            </TextField>
+                                        <div className="grid gap-4 lg:grid-cols-[minmax(13rem,0.8fr)_minmax(20rem,1.35fr)]">
+                                            <div>
+                                                <span className="mb-2 block text-sm font-medium">Lokasi stok</span>
+                                                <div
+                                                    className="grid grid-cols-2 gap-2"
+                                                    role="group"
+                                                    aria-label={ `Lokasi stok baris ${ index + 1 }` }
+                                                >
+                                                    { STOCK_LOCATIONS.map(location => (
+                                                        <Button
+                                                            key={ location }
+                                                            type="button"
+                                                            variant={ line.stockLocation === location
+                                                                ? 'contained'
+                                                                : 'outlined' }
+                                                            aria-pressed={ line.stockLocation === location }
+                                                            disabled={ interactionDisabled }
+                                                            ref={ location === 'STORE'
+                                                                ? element => {
+                                                                    fieldRefs.current[`${ line.id }-stockLocation`] = element;
+                                                                }
+                                                                : undefined }
+                                                            onClick={ () => changeLine(
+                                                                index,
+                                                                'stockLocation',
+                                                                location
+                                                            ) }
+                                                        >
+                                                            { LOCATION_LABELS[location] }
+                                                        </Button>
+                                                    )) }
+                                                </div>
+                                                { lineError.stockLocation && (
+                                                    <p className="mt-1 text-sm text-red-700">
+                                                        { lineError.stockLocation }
+                                                    </p>
+                                                ) }
+                                            </div>
+
+                                            <div>
+                                                <span className="mb-2 block text-sm font-medium">Tindakan</span>
+                                                <div
+                                                    className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+                                                    role="group"
+                                                    aria-label={ `Tindakan baris ${ index + 1 }` }
+                                                >
+                                                    { ACTION_TYPES.map(action => (
+                                                        <Button
+                                                            key={ action }
+                                                            type="button"
+                                                            variant={ line.actionType === action
+                                                                ? 'contained'
+                                                                : 'outlined' }
+                                                            aria-pressed={ line.actionType === action }
+                                                            disabled={ interactionDisabled }
+                                                            ref={ action === 'ADD'
+                                                                ? element => {
+                                                                    fieldRefs.current[`${ line.id }-actionType`] = element;
+                                                                }
+                                                                : undefined }
+                                                            onClick={ () => changeLine(
+                                                                index,
+                                                                'actionType',
+                                                                action
+                                                            ) }
+                                                        >
+                                                            { ACTION_LABELS[action] }
+                                                        </Button>
+                                                    )) }
+                                                </div>
+                                                <p className="mt-2 text-sm text-slate-600">
+                                                    { lineError.actionType || ACTION_DESCRIPTIONS[line.actionType] }
+                                                </p>
+                                            </div>
                                         </div>
 
                                         <BloomQuantityField
                                             fullWidth
                                             required
-                                            label="Jumlah penyesuaian"
+                                            label={ line.actionType === 'CORRECTION'
+                                                ? 'Target stok'
+                                                : 'Jumlah perubahan' }
                                             value={ line.changeQuantity }
                                             unitOfMeasure={ line.item?.baseUnitOfMeasure }
                                             disabled={ interactionDisabled }
@@ -676,6 +812,11 @@ export default function StockAdjustmentCreate() {
                                                 }
                                             } }
                                         />
+                                        { serverLineErrors[line.id] && (
+                                            <Alert severity="error" tabIndex={ -1 }>
+                                                { serverLineErrors[line.id] }
+                                            </Alert>
+                                        ) }
                                     </Stack>
                                 </CardContent>
                             </Card>

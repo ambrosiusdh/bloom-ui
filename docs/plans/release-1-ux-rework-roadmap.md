@@ -1294,6 +1294,20 @@ Decision/audit: `docs/ux/design/uxr-d05-stock-movements-decision.md`; `docs/ux/a
 
 #### UXI-14 — Stock adjustment
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-30):** Stock-adjustment history now keeps backend-supported
+reference and date filters in the URL, exposes server paging/order context, distinguishes filtered
+empty results, and uses labelled grouped records on narrow screens. Creation now provides
+keyboard-searchable active-item selection with SKU/category/UOM/fraction policy, explicit
+ADD/REMOVE positive-delta versus CORRECTION absolute-target meaning, UOM-aware exact quantities,
+a frozen cancel-first confirmation, one durable pending request, retained definitive rejection, and
+exact-request ambiguous recovery. Result and detail views show only backend-confirmed balances and
+movements; the browser never calculates final stock authoritatively. Focused validation passed 36
+tests across 6 stock-adjustment files; the full suite passed 448 tests across 68 files, lint passed,
+and the production build passed with only the existing stale-Browserslist and large-chunk advisory
+warnings.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-stock-adjustment-review.html`
 
 Decision/audit: `docs/ux/design/uxr-d06-stock-adjustment-decision.md`; `docs/ux/audits/uxr-a06-stock-adjustment.md`

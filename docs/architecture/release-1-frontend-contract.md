@@ -76,6 +76,14 @@ Bloom UI is currently a JavaScript React application:
   server-returned facts; it links only to already-supported source routes and never requests or invents
   a stock-movement detail endpoint. `Buat transfer stok` remains the primary action under the combined
   `Pergerakan stok` destination.
+- UXI-14 approved stock-adjustment UX is implemented: history retains backend-supported reference and
+  date filters with URL state, explicit server paging/order context, filtered-empty recovery, named
+  detail actions, and grouped narrow records. Creation uses keyboard-searchable active-item selection
+  with SKU/category/UOM/fraction policy, explicit ADD/REMOVE positive-delta versus CORRECTION
+  absolute-target meaning, UOM-aware exact quantities, frozen cancel-first confirmation, one durable
+  exact-request quarantine, retained definitive rejection, and server-confirmed result/movement facts.
+  Detail and result views keep backend-reported previous/new balances together without page-level
+  horizontal panning; the browser never calculates final stock authoritatively.
 - FE-07 backend receipt reprint is implemented: sale detail calls the backend print endpoint for the existing sale reference with pending, duplicate-click prevention, success, failure, and same-reference retry behavior.
 - FE-08 current dashboard reliability is implemented: the existing backend overview metrics have explicit accessible loading, error/retry, zero/empty, refresh, and last-successful-data behavior without frontend aggregation.
 - FE-10 item creation is implemented: `/items/new` sends item metadata, the Release 1 UOM/fractional policy, and optional decimal STORE/WAREHOUSE openings through the backend's single atomic create operation, with explicit category, validation, pending, conflict, failure-recovery, success, and focus behavior.
