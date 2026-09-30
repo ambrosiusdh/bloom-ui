@@ -31,7 +31,6 @@ import {
     PencilIcon,
     Plus
 } from 'lucide-react';
-import { enqueueSnackbar } from 'notistack';
 
 import BloomConfirmationModal from '@components/_ui/BloomConfirmationModal.jsx';
 import { formatRupiah } from '@components/cash-session/cash-session-money.js';
@@ -104,12 +103,18 @@ export default function ItemList() {
     const [listError, setListError] = useState('');
     const [isLoadingItemDetail, setLoadingItemDetail] = useState(false);
     const [itemDetailError, setItemDetailError] = useState('');
+    const [isDeactivating, setIsDeactivating] = useState(false);
+    const [deactivationError, setDeactivationError] = useState('');
     const [messageAlertData, setMessageAlertData] = useState(() => ({
         show: searchParams.has('message'),
         message: searchParams.get('message'),
         type: searchParams.get('messageType') || 'info'
     }));
     const detailRequestRef = useRef(null);
+    const deactivateTriggerRef = useRef(null);
+    const deactivationInProgressRef = useRef(false);
+    const deactivationErrorRef = useRef(null);
+    const messageAlertRef = useRef(null);
     const syncingSearchParamsRef = useRef(false);
     const searchParamKey = searchParams.toString();
 
@@ -187,18 +192,54 @@ export default function ItemList() {
         }
     };
 
+    const openDeactivateConfirmation = (item, trigger) => {
+        deactivateTriggerRef.current = trigger;
+        setDeactivationError('');
+        setSelectedDeactivateTarget(item);
+    };
+
+    const closeDeactivateConfirmation = () => {
+        if (isDeactivating) {
+            return;
+        }
+
+        const trigger = deactivateTriggerRef.current;
+
+        setDeactivationError('');
+        setSelectedDeactivateTarget({});
+        window.setTimeout(() => {
+            if (trigger?.isConnected) {
+                trigger.focus();
+            }
+        }, 0);
+    };
+
     const handleDeactivateItem = async () => {
+        if (deactivationInProgressRef.current || !selectedDeactivateTarget.sku) {
+            return;
+        }
+
+        deactivationInProgressRef.current = true;
+        setIsDeactivating(true);
+        setDeactivationError('');
+
         try {
-            await deactivateItem(selectedDeactivateTarget.sku, { useLoader: true });
-            enqueueSnackbar(
-                ITEM_LIST_MESSAGES.deactivateItemSuccess.message(selectedDeactivateTarget.name),
-                ITEM_LIST_MESSAGES.deactivateItemSuccess.options
-            );
+            await deactivateItem(selectedDeactivateTarget.sku, { useLoader: false });
+            setMessageAlertData({
+                show: true,
+                message: ITEM_LIST_MESSAGES.deactivateItemSuccess.message(
+                    selectedDeactivateTarget.name
+                ),
+                type: 'success'
+            });
             setSelectedDeactivateTarget({});
             setCurrentPage(1);
             refreshItemList();
         } catch (error) {
-            enqueueSnackbar(getErrorMessage(error), { variant: 'error' });
+            setDeactivationError(getErrorMessage(error));
+        } finally {
+            deactivationInProgressRef.current = false;
+            setIsDeactivating(false);
         }
     };
 
@@ -290,6 +331,18 @@ export default function ItemList() {
 
     useEffect(() => () => detailRequestRef.current?.abort(), []);
 
+    useEffect(() => {
+        if (deactivationError) {
+            deactivationErrorRef.current?.focus();
+        }
+    }, [deactivationError]);
+
+    useEffect(() => {
+        if (messageAlertData.show) {
+            messageAlertRef.current?.focus();
+        }
+    }, [messageAlertData]);
+
     return (
         <div className="item-list">
             { selectedBarcodeItem?.sku && (
@@ -312,13 +365,25 @@ export default function ItemList() {
 
             { selectedDeactivateTarget?.sku && (
                 <BloomConfirmationModal
-                    onCancel={ () => setSelectedDeactivateTarget({}) }
+                    onCancel={ closeDeactivateConfirmation }
                     onConfirm={ handleDeactivateItem }
                     title={ `Nonaktifkan ${ selectedDeactivateTarget.name }?` }
-                    confirmButtonText="Nonaktifkan"
+                    confirmButtonText={ isDeactivating ? 'Menonaktifkan...' : 'Nonaktifkan' }
                     confirmButtonColor="error"
+                    isPending={ isDeactivating }
+                    focusCancel
                 >
                     <div className="item-list__delete">
+                        { deactivationError && (
+                            <Alert
+                                ref={ deactivationErrorRef }
+                                severity="error"
+                                tabIndex={ -1 }
+                                className="mb-3"
+                            >
+                                { deactivationError }
+                            </Alert>
+                        ) }
                         <div className="item-list__delete-description">
                             <span className="font-bold">{ selectedDeactivateTarget.name }</span> tidak lagi muncul
                             dalam daftar barang aktif.
@@ -330,9 +395,11 @@ export default function ItemList() {
 
             { messageAlertData.show && (
                 <Alert
+                    ref={ messageAlertRef }
                     className="item-list__alert mb-4"
                     variant="filled"
                     severity={ messageAlertData.type }
+                    tabIndex={ -1 }
                     onClose={ () => setMessageAlertData({}) }
                 >
                     { messageAlertData.message }
@@ -613,7 +680,10 @@ export default function ItemList() {
                                                     <IconButton
                                                         color="error"
                                                         aria-label={ `Nonaktifkan barang ${ item.name }` }
-                                                        onClick={ () => setSelectedDeactivateTarget(item) }
+                                                        onClick={ event => openDeactivateConfirmation(
+                                                            item,
+                                                            event.currentTarget
+                                                        ) }
                                                         sx={ {
                                                             width: 44,
                                                             height: 44

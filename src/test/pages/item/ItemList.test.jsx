@@ -39,11 +39,17 @@ const listResponse = (content, paging = {}) => ({
 });
 
 const deferred = () => {
+    let reject;
     let resolve;
-    const promise = new Promise(resolvePromise => {
+    const promise = new Promise((resolvePromise, rejectPromise) => {
+        reject = rejectPromise;
         resolve = resolvePromise;
     });
-    return { promise, resolve };
+    return {
+        promise,
+        reject,
+        resolve
+    };
 };
 
 const HistoryBackButton = () => {
@@ -278,5 +284,92 @@ describe('ItemList', () => {
             skuOrName: '',
             category: ''
         }));
+    });
+
+    it('explains history-preserving deactivation, starts on cancel, and restores trigger focus', async () => {
+        const item = {
+            name: 'Kain katun',
+            sku: 'KAIN-00001',
+            price: '15000',
+            stockStore: '2',
+            stockWarehouse: '3',
+            baseUnitOfMeasure: 'METER',
+            fractionalQuantityAllowed: false,
+            category: {
+                code: 'KAIN',
+                name: 'Kain'
+            }
+        };
+        itemApi.getItemList.mockResolvedValue(listResponse([item]));
+        render(<ItemList />, { route: '/items' });
+
+        const trigger = await screen.findByRole('button', {
+            name: 'Nonaktifkan barang Kain katun'
+        });
+        fireEvent.click(trigger);
+
+        expect(await screen.findByRole('dialog', { name: 'Nonaktifkan Kain katun?' }))
+            .toBeInTheDocument();
+        expect(screen.getByText(/Riwayat dan saldo barang tidak dihapus/))
+            .toBeInTheDocument();
+        const cancelButton = screen.getByRole('button', { name: 'Batal' });
+        await waitFor(() => expect(cancelButton).toHaveFocus());
+
+        fireEvent.click(cancelButton);
+        await waitFor(() => expect(trigger).toHaveFocus());
+        expect(itemApi.deactivateItem).not.toHaveBeenCalled();
+    });
+
+    it('locks duplicate deactivation, retains failures, and focuses the preserved-history result', async () => {
+        const item = {
+            name: 'Kain katun',
+            sku: 'KAIN-00001',
+            price: '15000',
+            stockStore: '2',
+            stockWarehouse: '3',
+            baseUnitOfMeasure: 'METER',
+            fractionalQuantityAllowed: false,
+            category: {
+                code: 'KAIN',
+                name: 'Kain'
+            }
+        };
+        const firstRequest = deferred();
+        itemApi.getItemList.mockResolvedValue(listResponse([item]));
+        itemApi.deactivateItem
+            .mockReturnValueOnce(firstRequest.promise)
+            .mockResolvedValueOnce({ data: { data: true } });
+        render(<ItemList />, { route: '/items' });
+
+        fireEvent.click(await screen.findByRole('button', {
+            name: 'Nonaktifkan barang Kain katun'
+        }));
+        const confirmButton = screen.getByRole('button', { name: 'Nonaktifkan' });
+        fireEvent.click(confirmButton);
+        fireEvent.click(confirmButton);
+
+        expect(itemApi.deactivateItem).toHaveBeenCalledTimes(1);
+        expect(itemApi.deactivateItem).toHaveBeenCalledWith(
+            'KAIN-00001',
+            { useLoader: false }
+        );
+        expect(screen.getByRole('button', { name: 'Menonaktifkan...' })).toBeDisabled();
+
+        await act(async () => firstRequest.reject(new Error('Barang gagal dinonaktifkan.')));
+        const errorAlert = await screen.findByRole('alert');
+        expect(errorAlert).toHaveTextContent('Barang gagal dinonaktifkan.');
+        await waitFor(() => expect(errorAlert).toHaveFocus());
+        expect(screen.getByRole('dialog', { name: 'Nonaktifkan Kain katun?' }))
+            .toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Nonaktifkan' }));
+        await waitFor(() => expect(screen.getByRole('alert'))
+            .toHaveTextContent('Kain katun berhasil dinonaktifkan'));
+        const successAlert = screen.getByRole('alert');
+        expect(successAlert).toHaveTextContent('Kain katun berhasil dinonaktifkan');
+        expect(successAlert).toHaveTextContent('riwayat dan saldo tidak dihapus');
+        await waitFor(() => expect(successAlert).toHaveFocus());
+        expect(screen.queryByRole('dialog', { name: 'Nonaktifkan Kain katun?' }))
+            .not.toBeInTheDocument();
     });
 });

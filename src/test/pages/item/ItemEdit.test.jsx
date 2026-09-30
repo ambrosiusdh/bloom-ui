@@ -86,7 +86,7 @@ describe('ItemEdit', () => {
         await waitFor(() => expect(alert).toHaveFocus());
 
         await user.click(screen.getByRole('button', { name: 'Coba lagi' }));
-        expect(await screen.findByRole('heading', { name: 'Ubah barang KAIN-00001' }))
+        expect(await screen.findByRole('heading', { name: 'Ubah barang' }))
             .toBeInTheDocument();
         expect(itemApi.getItemDetails).toHaveBeenCalledTimes(2);
     });
@@ -97,7 +97,13 @@ describe('ItemEdit', () => {
         itemApi.updateItem.mockReturnValue(updateRequest.promise);
         renderEdit();
 
-        await screen.findByRole('heading', { name: 'Ubah barang KAIN-00001' });
+        await screen.findByRole('heading', { name: 'Ubah barang' });
+        expect(screen.getByRole('heading', { name: 'Identitas dan penjualan' }))
+            .toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Aturan jumlah' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Stok saat ini' })).toBeInTheDocument();
+        expect(screen.getByText('10 meter')).toBeInTheDocument();
+        expect(screen.getByText('4 meter')).toBeInTheDocument();
         expect(screen.queryByLabelText(/Stok (STORE|WAREHOUSE)/i)).not.toBeInTheDocument();
 
         await user.clear(screen.getByLabelText('Nama barang'));
@@ -140,7 +146,7 @@ describe('ItemEdit', () => {
         itemApi.updateItem.mockResolvedValue(apiResponse({ ...lockedItem, name: 'Kain baru' }));
         renderEdit();
 
-        await screen.findByRole('heading', { name: 'Ubah barang KAIN-00001' });
+        await screen.findByRole('heading', { name: 'Ubah barang' });
         const uom = screen.getByRole('combobox', { name: 'Satuan dasar (UOM)' });
         const fractionalPolicy = screen.getByRole('checkbox', {
             name: 'Izinkan jumlah pecahan'
@@ -172,7 +178,7 @@ describe('ItemEdit', () => {
         }));
         renderEdit();
 
-        await screen.findByRole('heading', { name: 'Ubah barang KAIN-00001' });
+        await screen.findByRole('heading', { name: 'Ubah barang' });
         await user.clear(screen.getByLabelText('Nama barang'));
         await user.click(screen.getByRole('button', { name: 'Simpan perubahan' }));
         expect(screen.getByText('Nama barang wajib diisi.')).toBeInTheDocument();
@@ -182,7 +188,7 @@ describe('ItemEdit', () => {
         await user.type(screen.getByLabelText('Nama barang'), 'Nama tetap ada');
         await user.click(screen.getByRole('button', { name: 'Simpan perubahan' }));
         expect(await screen.findByText('SKU sudah digunakan.')).toBeInTheDocument();
-        await waitFor(() => expect(screen.getByLabelText('SKU')).toHaveFocus());
+        await waitFor(() => expect(screen.getByLabelText('Kode barang (SKU)')).toHaveFocus());
         expect(screen.getByLabelText('Nama barang')).toHaveValue('Nama tetap ada');
     });
 
@@ -203,7 +209,7 @@ describe('ItemEdit', () => {
         }));
         renderEdit();
 
-        await screen.findByRole('heading', { name: 'Ubah barang KAIN-00001' });
+        await screen.findByRole('heading', { name: 'Ubah barang' });
         await user.clear(screen.getByLabelText('Nama barang'));
         await user.type(screen.getByLabelText('Nama barang'), 'Edit lokal');
         await user.click(screen.getByRole('button', { name: 'Simpan perubahan' }));
@@ -232,7 +238,7 @@ describe('ItemEdit', () => {
         }));
         renderEdit();
 
-        await screen.findByRole('heading', { name: 'Ubah barang KAIN-00001' });
+        await screen.findByRole('heading', { name: 'Ubah barang' });
         await user.click(screen.getByRole('button', { name: 'Simpan perubahan' }));
 
         await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/items?'));

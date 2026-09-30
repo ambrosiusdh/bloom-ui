@@ -22,8 +22,22 @@ import {
 } from '@stores/index.js';
 
 const UNIT_OF_MEASURE_OPTIONS = [
-    { value: 'PIECE', label: 'Pcs (satuan)' }, { value: 'METER', label: 'Meter' },
-    { value: 'KILOGRAM', label: 'Kilogram' }, { value: 'LITER', label: 'Liter' }
+    {
+        value: 'PIECE',
+        label: 'Pcs (satuan)'
+    },
+    {
+        value: 'METER',
+        label: 'Meter'
+    },
+    {
+        value: 'KILOGRAM',
+        label: 'Kilogram'
+    },
+    {
+        value: 'LITER',
+        label: 'Liter'
+    }
 ];
 
 const EMPTY_FORM_DATA = {
@@ -43,12 +57,28 @@ const EMPTY_ERRORS = Object.fromEntries(
 );
 
 const FIELD_ORDER = [
-    'name', 'categoryCode', 'sku', 'price', 'baseUnitOfMeasure', 'stockStore', 'stockWarehouse'
+    'name',
+    'sku',
+    'categoryCode',
+    'price',
+    'description',
+    'baseUnitOfMeasure',
+    'fractionalQuantityAllowed',
+    'stockStore',
+    'stockWarehouse'
 ];
 
 const OPENING_FIELDS = [
-    { name: 'stockStore', label: 'Stok awal STORE' },
-    { name: 'stockWarehouse', label: 'Stok awal WAREHOUSE' }
+    {
+        name: 'stockStore',
+        locationName: 'Toko',
+        locationCode: 'STORE'
+    },
+    {
+        name: 'stockWarehouse',
+        locationName: 'Gudang',
+        locationCode: 'WAREHOUSE'
+    }
 ];
 
 const DECIMAL_PATTERN = /^\d+(?:[.,]\d+)?$/;
@@ -162,6 +192,7 @@ export default function ItemCreate() {
 
     const [formData, setFormData] = useState(EMPTY_FORM_DATA);
     const [errorData, setErrorData] = useState(EMPTY_ERRORS);
+    const [validationMessage, setValidationMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [isAutoSku, setIsAutoSku] = useState(true);
     const [isLoadingCategories, setIsLoadingCategories] = useState(true);
@@ -180,6 +211,7 @@ export default function ItemCreate() {
         const { name, value } = event.target;
         setFormData(previous => ({ ...previous, [name]: value }));
         setErrorData(previous => ({ ...previous, [name]: '' }));
+        setValidationMessage('');
         setErrorMessage('');
     };
 
@@ -200,6 +232,7 @@ export default function ItemCreate() {
                 fractionalQuantityAllowed
             )
         }));
+        setValidationMessage('');
         setErrorMessage('');
     };
 
@@ -207,6 +240,7 @@ export default function ItemCreate() {
         const nextIsAutoSku = event.target.checked;
         setIsAutoSku(nextIsAutoSku);
         setErrorData(previous => ({ ...previous, sku: '' }));
+        setValidationMessage('');
         setErrorMessage('');
     };
 
@@ -220,6 +254,9 @@ export default function ItemCreate() {
         setErrorData(nextErrors);
         const firstInvalidField = FIELD_ORDER.find(field => nextErrors[field]);
         if (firstInvalidField) {
+            setValidationMessage(
+                'Periksa data barang. Perbaiki kolom yang ditandai sebelum menyimpan.'
+            );
             fieldRefs.current[firstInvalidField]?.focus();
             return;
         }
@@ -230,6 +267,7 @@ export default function ItemCreate() {
 
         submitInProgressRef.current = true;
         setIsSubmitting(true);
+        setValidationMessage('');
         setErrorMessage('');
         pendingFieldFocusRef.current = '';
         const submittedFormData = { ...formData };
@@ -269,9 +307,20 @@ export default function ItemCreate() {
             }
 
             if (error?.category === 'conflict') {
+                const submittedSku = isAutoSku ? '' : submittedFormData.sku.trim();
+
+                if (submittedSku) {
+                    setErrorData(previous => ({
+                        ...previous,
+                        sku: `Kode ${ submittedSku } sudah digunakan. Gunakan kode lain.`
+                    }));
+                }
                 setErrorMessage(
-                    'Barang tidak dapat dibuat karena datanya berkonflik dengan data terbaru. '
-                    + 'Periksa SKU, lalu coba lagi.'
+                    submittedSku
+                        ? `Kode ${ submittedSku } sudah digunakan. Gunakan kode lain. `
+                            + 'Nilai lain yang sudah Anda isi tetap dipertahankan.'
+                        : 'Barang tidak dapat dibuat karena datanya berkonflik dengan data terbaru. '
+                            + 'Nilai yang sudah Anda isi tetap dipertahankan; periksa kembali lalu coba lagi.'
                 );
             } else if (error?.category === 'not_found') {
                 setErrorMessage(
@@ -355,9 +404,9 @@ export default function ItemCreate() {
     return (
         <div className="item-create">
             <div className="item-create__header mb-4">
-                <h2 className="font-bold text-2xl">Buat barang baru</h2>
+                <h1 className="font-bold text-2xl">Tambah barang</h1>
                 <p className="mt-1 text-slate-600">
-                    Barang dan stok awal STORE/WAREHOUSE akan disimpan dalam satu transaksi.
+                    Informasi barang dan stok awal disimpan sebagai satu proses.
                 </p>
             </div>
 
@@ -391,6 +440,15 @@ export default function ItemCreate() {
                 </Alert>
             ) }
 
+            { validationMessage && (
+                <Alert
+                    severity="error"
+                    className="mb-4 w-full max-w-4xl"
+                >
+                    { validationMessage }
+                </Alert>
+            ) }
+
             { isLoadingCategories && (
                 <Alert
                     severity="info"
@@ -416,195 +474,250 @@ export default function ItemCreate() {
             ) }
 
             <form
-                className="item-create__form card p-4 w-full max-w-4xl"
+                className="item-create__form card w-full max-w-4xl overflow-hidden"
                 onSubmit={ submitItem }
                 noValidate
             >
-                <div className="flex flex-wrap items-start gap-4 mb-4">
-                    <TextField
-                        label="Nama barang"
-                        name="name"
-                        value={ formData.name }
-                        inputRef={ element => { fieldRefs.current.name = element; } }
-                        autoFocus
-                        disabled={ isSubmitting }
-                        error={ !!errorData.name }
-                        helperText={ errorData.name }
-                        onChange={ handleFieldChange }
-                        onBlur={ () => handleFieldBlur('name') }
-                        size="small"
-                        className="flex-1 min-w-60"
-                    />
-                    <TextField
-                        select
-                        label="Kategori barang"
-                        name="categoryCode"
-                        value={ formData.categoryCode }
-                        inputRef={ element => { fieldRefs.current.categoryCode = element; } }
-                        disabled={ isSubmitting || isLoadingCategories || !!categoryError }
-                        error={ !!errorData.categoryCode }
-                        helperText={ isLoadingCategories
-                            ? 'Memuat kategori...'
-                            : errorData.categoryCode
-                                || (!itemCategoryList.length ? 'Belum ada kategori aktif.' : '') }
-                        onChange={ handleFieldChange }
-                        onBlur={ () => handleFieldBlur('categoryCode') }
-                        size="small"
-                        className="flex-1 min-w-60"
-                    >
-                        { itemCategoryList.map(category => (
-                            <MenuItem key={ category.code } value={ category.code }>
-                                [{ category.code }] { category.name }
-                            </MenuItem>
-                        )) }
-                    </TextField>
-                </div>
+                <section
+                    className="border-b border-slate-200 p-4 sm:p-5"
+                    aria-labelledby="item-create-identity-heading"
+                >
+                    <h2 id="item-create-identity-heading" className="text-lg font-semibold">
+                        Identitas dan penjualan
+                    </h2>
+                    <p className="mt-1 mb-4 text-sm text-slate-600">
+                        Gunakan nama yang mudah dikenali kasir. SKU dapat dibuat otomatis oleh server.
+                    </p>
 
-                <div className="mb-4">
-                    <FormControlLabel
-                        control={ (
-                            <Switch
-                                checked={ isAutoSku }
-                                onChange={ handleAutoSkuChange }
-                                disabled={ isSubmitting }
-                            />
-                        ) }
-                        label="Buat SKU otomatis"
-                    />
-                    { !isAutoSku && (
+                    <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
                         <TextField
-                            label="SKU"
-                            name="sku"
-                            value={ formData.sku }
-                            inputRef={ element => { fieldRefs.current.sku = element; } }
+                            label="Nama barang"
+                            name="name"
+                            value={ formData.name }
+                            inputRef={ element => { fieldRefs.current.name = element; } }
+                            autoFocus
                             disabled={ isSubmitting }
-                            error={ !!errorData.sku }
-                            helperText={ errorData.sku || 'Harus unik, maksimal 100 karakter.' }
+                            error={ !!errorData.name }
+                            helperText={ errorData.name }
                             onChange={ handleFieldChange }
-                            onBlur={ () => handleFieldBlur('sku') }
+                            onBlur={ () => handleFieldBlur('name') }
                             size="small"
-                            fullWidth
                         />
-                    ) }
-                </div>
 
-                <div className="flex flex-wrap items-start gap-4 mb-4">
-                    <TextField
-                        label="Harga jual"
-                        name="price"
-                        value={ formData.price }
-                        inputRef={ element => { fieldRefs.current.price = element; } }
-                        disabled={ isSubmitting }
-                        error={ !!errorData.price }
-                        helperText={ errorData.price || 'Tanpa pemisah ribuan; maksimal 4 desimal.' }
-                        onChange={ handleFieldChange }
-                        onBlur={ () => handleFieldBlur('price') }
-                        size="small"
-                        className="flex-1 min-w-60"
-                        slotProps={ {
-                            htmlInput: { inputMode: 'decimal' },
-                            input: {
-                                startAdornment: <InputAdornment position="start">Rp</InputAdornment>
-                            }
-                        } }
-                    />
-                    <TextField
-                        select
-                        label="Satuan dasar (UOM)"
-                        name="baseUnitOfMeasure"
-                        value={ formData.baseUnitOfMeasure }
-                        inputRef={ element => { fieldRefs.current.baseUnitOfMeasure = element; } }
-                        disabled={ isSubmitting }
-                        error={ !!errorData.baseUnitOfMeasure }
-                        helperText={ errorData.baseUnitOfMeasure
-                            || 'Semua stok barang ini dicatat dalam satuan ini.' }
-                        onChange={ handleFieldChange }
-                        onBlur={ () => handleFieldBlur('baseUnitOfMeasure') }
-                        size="small"
-                        className="flex-1 min-w-60"
-                    >
-                        { UNIT_OF_MEASURE_OPTIONS.map(option => (
-                            <MenuItem key={ option.value } value={ option.value }>
-                                { option.label }
-                            </MenuItem>
-                        )) }
-                    </TextField>
-                </div>
-
-                <div className="mb-4">
-                    <FormControlLabel
-                        control={ (
-                            <Switch
-                                checked={ formData.fractionalQuantityAllowed }
-                                onChange={ handleFractionalPolicyChange }
-                                disabled={ isSubmitting }
-                                name="fractionalQuantityAllowed"
+                        <div className="rounded-lg border border-slate-200 p-3">
+                            <FormControlLabel
+                                control={ (
+                                    <Switch
+                                        checked={ isAutoSku }
+                                        onChange={ handleAutoSkuChange }
+                                        disabled={ isSubmitting }
+                                    />
+                                ) }
+                                label="Buat SKU otomatis"
                             />
-                        ) }
-                        label="Izinkan jumlah pecahan"
-                    />
-                    <p className="text-sm text-slate-600">
-                        Aktifkan untuk jumlah seperti 0,5 meter atau 1,25 kilogram.
-                    </p>
-                </div>
+                            { isAutoSku ? (
+                                <p className="text-sm text-slate-600">
+                                    Kode barang dibuat server setelah data disimpan.
+                                </p>
+                            ) : (
+                                <TextField
+                                    label="Kode barang (SKU)"
+                                    name="sku"
+                                    value={ formData.sku }
+                                    inputRef={ element => { fieldRefs.current.sku = element; } }
+                                    disabled={ isSubmitting }
+                                    error={ !!errorData.sku }
+                                    helperText={ errorData.sku || 'Harus unik, maksimal 100 karakter.' }
+                                    onChange={ handleFieldChange }
+                                    onBlur={ () => handleFieldBlur('sku') }
+                                    size="small"
+                                    fullWidth
+                                />
+                            ) }
+                        </div>
 
-                <fieldset className="border border-slate-300 rounded p-4 mb-4">
-                    <legend className="px-2 font-semibold">Stok awal opsional</legend>
-                    <p className="text-sm text-slate-600 mb-4">
-                        Kosong berarti 0. Nilai yang diisi dibuat sebagai pergerakan OPENING_BALANCE.
+                        <TextField
+                            select
+                            label="Kategori barang"
+                            name="categoryCode"
+                            value={ formData.categoryCode }
+                            inputRef={ element => { fieldRefs.current.categoryCode = element; } }
+                            disabled={ isSubmitting || isLoadingCategories || !!categoryError }
+                            error={ !!errorData.categoryCode }
+                            helperText={ isLoadingCategories
+                                ? 'Memuat kategori...'
+                                : errorData.categoryCode
+                                    || (!itemCategoryList.length ? 'Belum ada kategori aktif.' : '') }
+                            onChange={ handleFieldChange }
+                            onBlur={ () => handleFieldBlur('categoryCode') }
+                            size="small"
+                        >
+                            { itemCategoryList.map(category => (
+                                <MenuItem key={ category.code } value={ category.code }>
+                                    [{ category.code }] { category.name }
+                                </MenuItem>
+                            )) }
+                        </TextField>
+
+                        <TextField
+                            label="Harga jual"
+                            name="price"
+                            value={ formData.price }
+                            inputRef={ element => { fieldRefs.current.price = element; } }
+                            disabled={ isSubmitting }
+                            error={ !!errorData.price }
+                            helperText={ errorData.price
+                                || 'Tanpa pemisah ribuan; maksimal 4 desimal dan tidak dibulatkan.' }
+                            onChange={ handleFieldChange }
+                            onBlur={ () => handleFieldBlur('price') }
+                            size="small"
+                            slotProps={ {
+                                htmlInput: { inputMode: 'decimal' },
+                                input: {
+                                    startAdornment: <InputAdornment position="start">Rp</InputAdornment>
+                                }
+                            } }
+                        />
+
+                        <TextField
+                            label="Deskripsi barang (opsional)"
+                            name="description"
+                            value={ formData.description }
+                            disabled={ isSubmitting }
+                            error={ !!errorData.description }
+                            helperText={ errorData.description || `${ formData.description.length }/255` }
+                            onChange={ handleFieldChange }
+                            onBlur={ () => handleFieldBlur('description') }
+                            multiline
+                            rows={ 3 }
+                            className="md:col-span-2"
+                        />
+                    </div>
+                </section>
+
+                <section
+                    className="border-b border-slate-200 p-4 sm:p-5"
+                    aria-labelledby="item-create-quantity-heading"
+                >
+                    <h2 id="item-create-quantity-heading" className="text-lg font-semibold">
+                        Aturan jumlah
+                    </h2>
+                    <p className="mt-1 mb-4 text-sm text-slate-600">
+                        Satuan dasar dan aturan pecahan akan terkunci setelah pergerakan stok pertama.
                     </p>
-                    <div className="flex flex-wrap items-start gap-4">
+
+                    <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
+                        <TextField
+                            select
+                            label="Satuan dasar (UOM)"
+                            name="baseUnitOfMeasure"
+                            value={ formData.baseUnitOfMeasure }
+                            inputRef={ element => {
+                                fieldRefs.current.baseUnitOfMeasure = element;
+                            } }
+                            disabled={ isSubmitting }
+                            error={ !!errorData.baseUnitOfMeasure }
+                            helperText={ errorData.baseUnitOfMeasure
+                                || 'Semua jumlah barang dicatat dalam satuan ini.' }
+                            onChange={ handleFieldChange }
+                            onBlur={ () => handleFieldBlur('baseUnitOfMeasure') }
+                            size="small"
+                        >
+                            { UNIT_OF_MEASURE_OPTIONS.map(option => (
+                                <MenuItem key={ option.value } value={ option.value }>
+                                    { option.label }
+                                </MenuItem>
+                            )) }
+                        </TextField>
+
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                            <FormControlLabel
+                                control={ (
+                                    <Switch
+                                        checked={ formData.fractionalQuantityAllowed }
+                                        onChange={ handleFractionalPolicyChange }
+                                        disabled={ isSubmitting }
+                                        name="fractionalQuantityAllowed"
+                                    />
+                                ) }
+                                label="Izinkan jumlah pecahan"
+                            />
+                            <p className="text-sm text-slate-600">
+                                { formData.fractionalQuantityAllowed
+                                    ? 'Jumlah boleh memakai koma atau titik, maksimal empat angka desimal.'
+                                    : 'Gunakan jumlah utuh tanpa angka pecahan.' }
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <section
+                    className="border-b border-slate-200 p-4 sm:p-5"
+                    aria-labelledby="item-create-opening-heading"
+                >
+                    <h2 id="item-create-opening-heading" className="text-lg font-semibold">
+                        Stok awal
+                    </h2>
+                    <p className="mt-1 mb-4 text-sm text-slate-600">
+                        Opsional. Kosong berarti 0. Nilai positif dicatat server sebagai
+                        { ' ' }OPENING_BALANCE pada lokasi masing-masing dalam transaksi yang sama.
+                    </p>
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         { OPENING_FIELDS.map(field => (
-                            <TextField
+                            <div
                                 key={ field.name }
-                                label={ field.label }
-                                name={ field.name }
-                                value={ formData[field.name] }
-                                inputRef={ element => { fieldRefs.current[field.name] = element; } }
-                                disabled={ isSubmitting }
-                                error={ !!errorData[field.name] }
-                                helperText={ errorData[field.name] || 'Maksimal 4 angka desimal.' }
-                                onChange={ handleFieldChange }
-                                onBlur={ () => handleFieldBlur(field.name) }
-                                size="small"
-                                className="flex-1 min-w-60"
-                                slotProps={ { htmlInput: { inputMode: 'decimal' } } }
-                            />
+                                className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+                            >
+                                <div className="mb-3">
+                                    <strong className="block">{ field.locationName }</strong>
+                                    <span className="text-sm text-slate-600">
+                                        { field.locationCode }
+                                    </span>
+                                </div>
+                                <TextField
+                                    label={ `Saldo awal ${ field.locationName } (${ field.locationCode })` }
+                                    name={ field.name }
+                                    value={ formData[field.name] }
+                                    inputRef={ element => {
+                                        fieldRefs.current[field.name] = element;
+                                    } }
+                                    disabled={ isSubmitting }
+                                    error={ !!errorData[field.name] }
+                                    helperText={ errorData[field.name] || (
+                                        formData.fractionalQuantityAllowed
+                                            ? 'Maksimal 4 angka desimal.'
+                                            : 'Gunakan jumlah utuh.'
+                                    ) }
+                                    onChange={ handleFieldChange }
+                                    onBlur={ () => handleFieldBlur(field.name) }
+                                    size="small"
+                                    fullWidth
+                                    slotProps={ {
+                                        htmlInput: { inputMode: 'decimal' }
+                                    } }
+                                />
+                            </div>
                         )) }
                     </div>
-                </fieldset>
+                </section>
 
-                <TextField
-                    label="Deskripsi barang (opsional)"
-                    name="description"
-                    value={ formData.description }
-                    disabled={ isSubmitting }
-                    error={ !!errorData.description }
-                    helperText={ errorData.description || `${ formData.description.length }/255` }
-                    onChange={ handleFieldChange }
-                    onBlur={ () => handleFieldBlur('description') }
-                    multiline
-                    rows={ 4 }
-                    fullWidth
-                    className="mb-4"
-                />
-
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 p-4 sm:p-5">
                     <Button type="submit" variant="contained" disabled={ isSubmitting }>
                         { isSubmitting ? (
                             <span className="flex items-center gap-2">
                                 <CircularProgress size={ 18 } color="inherit" />
                                 Menyimpan...
                             </span>
-                        ) : 'Buat barang' }
+                        ) : 'Tambah barang' }
                     </Button>
                     <Button
                         type="button"
                         variant="text"
                         disabled={ isSubmitting }
-                        onClick={ () => navigate(-1) }
+                        onClick={ () => navigate('/items') }
                     >
-                        Kembali
+                        Kembali ke daftar
                     </Button>
                 </div>
             </form>

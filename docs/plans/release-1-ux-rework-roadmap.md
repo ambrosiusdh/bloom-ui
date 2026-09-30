@@ -1,6 +1,6 @@
 # Bloom Release 1 UX Rework Roadmap
 
-Last updated: 2026-09-28
+Last updated: 2026-09-30
 
 ## 1. Purpose
 
@@ -1248,9 +1248,24 @@ history/barcode/edit paths; stock is never aggregated or recalculated.
 
 #### UXI-12 — Item creation, editing, and deactivation
 
+Status: `IMPLEMENTED`
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-item-master-review.html`; review create/opening, validation/conflict, edit/locks, deactivation, and narrow-form states.
 
 Decision/audit: `docs/ux/design/uxr-d04-item-master-decision.md`; `docs/ux/audits/uxr-a04-items.md`
+
+**Implementation note (2026-09-30):** Create and edit now use the approved identity-and-sales,
+quantity-rule, and location-stock hierarchy with one-column narrow reflow. Create retains comma/dot
+editing strings and sends canonical decimal strings in the existing atomic item/opening request;
+whole items reject fractional openings per location, while fractional items retain up to four decimal
+places. Validation focuses the first invalid field, manual-SKU conflict identifies the retained code,
+and pending submission stays duplicate-locked. Edit renders server STORE/WAREHOUSE balances as
+read-only facts, never sends stock, and omits backend-locked UOM/fraction fields from the update.
+Deactivation starts focus on cancel, states that history and balances remain, blocks duplicate requests,
+keeps a focused retryable error in the confirmation, restores trigger focus on cancel, and focuses the
+history-preserving success result. Five focused item files passed 28 tests; the full 68-file suite passed
+441 tests with one worker, followed by full lint and production build. The build retained the existing
+stale-Browserslist and large-chunk advisory warnings.
 
 > Implement only UXI-12, Bloom item creation, editing, and deactivation. Read the governing documents, `docs/ux/audits/uxr-a04-items.md`, `docs/ux/design/uxr-d04-item-master-decision.md`, and the relevant states in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-item-master-review.html`. Inspect `ItemCreate.jsx`, `ItemEdit.jsx`, item fields/utilities/store/API, and tests. Implement the approved field hierarchy, opening quantities by location, whole/fractional guidance, immutable/locked facts, retained server validation/conflict, and history-preserving deactivation confirmation/focus behavior. Preserve exact decimal inputs and backend authority. Add tests and run the full validation commands. Update plan status; do not commit or push.
 

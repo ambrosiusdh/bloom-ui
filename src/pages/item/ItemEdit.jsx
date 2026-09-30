@@ -20,12 +20,25 @@ import {
     useBreadcrumbStore,
     useItemStore
 } from '@stores/index.js';
+import { formatQuantity } from '@utils/quantity-utils.js';
 
 const UNIT_OF_MEASURE_OPTIONS = [
-    { value: 'PIECE', label: 'Pcs (satuan)' },
-    { value: 'METER', label: 'Meter' },
-    { value: 'KILOGRAM', label: 'Kilogram' },
-    { value: 'LITER', label: 'Liter' }
+    {
+        value: 'PIECE',
+        label: 'Pcs (satuan)'
+    },
+    {
+        value: 'METER',
+        label: 'Meter'
+    },
+    {
+        value: 'KILOGRAM',
+        label: 'Kilogram'
+    },
+    {
+        value: 'LITER',
+        label: 'Liter'
+    }
 ];
 
 const EMPTY_FORM_DATA = {
@@ -42,7 +55,12 @@ const EMPTY_ERRORS = Object.fromEntries(
 );
 
 const FIELD_ORDER = [
-    'name', 'sku', 'price', 'baseUnitOfMeasure', 'fractionalQuantityAllowed', 'description'
+    'name',
+    'sku',
+    'price',
+    'description',
+    'baseUnitOfMeasure',
+    'fractionalQuantityAllowed'
 ];
 
 const DECIMAL_PATTERN = /^\d+(?:[.,]\d+)?$/;
@@ -147,6 +165,7 @@ export default function ItemEdit() {
     const [item, setItem] = useState(null);
     const [formData, setFormData] = useState(EMPTY_FORM_DATA);
     const [errorData, setErrorData] = useState(EMPTY_ERRORS);
+    const [validationMessage, setValidationMessage] = useState('');
     const [loadError, setLoadError] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [refreshMessage, setRefreshMessage] = useState('');
@@ -174,6 +193,7 @@ export default function ItemEdit() {
             setIsLoading(true);
             setLoadError('');
         }
+        setValidationMessage('');
         setErrorMessage('');
         setRefreshMessage('');
 
@@ -214,6 +234,7 @@ export default function ItemEdit() {
         const { name, value } = event.target;
         setFormData(previous => ({ ...previous, [name]: value }));
         setErrorData(previous => ({ ...previous, [name]: '' }));
+        setValidationMessage('');
         setErrorMessage('');
         setRefreshMessage('');
     };
@@ -228,6 +249,7 @@ export default function ItemEdit() {
             ...previous,
             fractionalQuantityAllowed: event.target.checked
         }));
+        setValidationMessage('');
         setErrorMessage('');
         setRefreshMessage('');
     };
@@ -242,12 +264,16 @@ export default function ItemEdit() {
         setErrorData(nextErrors);
         const firstInvalidField = FIELD_ORDER.find(field => nextErrors[field]);
         if (firstInvalidField) {
+            setValidationMessage(
+                'Periksa data barang. Perbaiki kolom yang ditandai sebelum menyimpan.'
+            );
             fieldRefs.current[firstInvalidField]?.focus();
             return;
         }
 
         submitInProgressRef.current = true;
         setIsSubmitting(true);
+        setValidationMessage('');
         setErrorMessage('');
         setRefreshMessage('');
         pendingFieldFocusRef.current = '';
@@ -364,10 +390,9 @@ export default function ItemEdit() {
     return (
         <div className="item-edit">
             <div className="mb-4">
-                <h2 className="font-bold text-2xl">Ubah barang { item.sku }</h2>
+                <h1 className="font-bold text-2xl">Ubah barang</h1>
                 <p className="mt-1 text-slate-600">
-                    Halaman ini hanya mengubah informasi barang dan aturan satuannya.
-                    Stok STORE dan WAREHOUSE tidak dapat diedit di sini.
+                    Perbarui informasi { item.sku } tanpa mengubah stok.
                 </p>
             </div>
 
@@ -391,6 +416,15 @@ export default function ItemEdit() {
                 </Alert>
             ) }
 
+            { validationMessage && (
+                <Alert
+                    severity="error"
+                    className="mb-4 w-full max-w-4xl"
+                >
+                    { validationMessage }
+                </Alert>
+            ) }
+
             { refreshMessage && (
                 <Alert
                     ref={ refreshStatusRef }
@@ -404,13 +438,22 @@ export default function ItemEdit() {
             ) }
 
             <form
-                className="card p-4 w-full max-w-4xl"
+                className="card w-full max-w-4xl overflow-hidden"
                 onSubmit={ submitItem }
                 noValidate
             >
-                <fieldset className="border border-slate-300 rounded p-4 mb-4">
-                    <legend className="px-2 font-semibold">Informasi barang yang dapat diubah</legend>
-                    <div className="flex flex-wrap items-start gap-4 mb-4">
+                <section
+                    className="border-b border-slate-200 p-4 sm:p-5"
+                    aria-labelledby="item-edit-identity-heading"
+                >
+                    <h2 id="item-edit-identity-heading" className="text-lg font-semibold">
+                        Identitas dan penjualan
+                    </h2>
+                    <p className="mt-1 mb-4 text-sm text-slate-600">
+                        Nama, kode, harga, dan deskripsi dapat diperbarui tanpa mengubah saldo stok.
+                    </p>
+
+                    <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
                         <TextField
                             label="Nama barang"
                             name="name"
@@ -423,10 +466,9 @@ export default function ItemEdit() {
                             onChange={ handleFieldChange }
                             onBlur={ () => handleFieldBlur('name') }
                             size="small"
-                            className="flex-1 min-w-60"
                         />
                         <TextField
-                            label="SKU"
+                            label="Kode barang (SKU)"
                             name="sku"
                             value={ formData.sku }
                             inputRef={ element => { fieldRefs.current.sku = element; } }
@@ -436,29 +478,6 @@ export default function ItemEdit() {
                             onChange={ handleFieldChange }
                             onBlur={ () => handleFieldBlur('sku') }
                             size="small"
-                            className="flex-1 min-w-60"
-                        />
-                    </div>
-
-                    <div className="flex flex-wrap items-start gap-4 mb-4">
-                        <TextField
-                            label="Harga jual"
-                            name="price"
-                            value={ formData.price }
-                            inputRef={ element => { fieldRefs.current.price = element; } }
-                            disabled={ interactionDisabled }
-                            error={ !!errorData.price }
-                            helperText={ errorData.price || 'Tanpa pemisah ribuan; maksimal 4 desimal.' }
-                            onChange={ handleFieldChange }
-                            onBlur={ () => handleFieldBlur('price') }
-                            size="small"
-                            className="flex-1 min-w-60"
-                            slotProps={ {
-                                htmlInput: { inputMode: 'decimal' },
-                                input: {
-                                    startAdornment: <InputAdornment position="start">Rp</InputAdornment>
-                                }
-                            } }
                         />
                         <TextField
                             label="Kategori barang"
@@ -466,30 +485,57 @@ export default function ItemEdit() {
                                 ? `[${ item.category.code }] ${ item.category.name }`
                                 : 'Tidak tersedia' }
                             disabled
-                            helperText="Kategori tidak termasuk kontrak perubahan barang ini."
+                            helperText="Kategori merupakan fakta barang dan tidak diubah oleh formulir ini."
                             size="small"
-                            className="flex-1 min-w-60"
+                        />
+                        <TextField
+                            label="Harga jual"
+                            name="price"
+                            value={ formData.price }
+                            inputRef={ element => { fieldRefs.current.price = element; } }
+                            disabled={ interactionDisabled }
+                            error={ !!errorData.price }
+                            helperText={ errorData.price
+                                || 'Tanpa pemisah ribuan; maksimal 4 desimal dan tidak dibulatkan.' }
+                            onChange={ handleFieldChange }
+                            onBlur={ () => handleFieldBlur('price') }
+                            size="small"
+                            slotProps={ {
+                                htmlInput: { inputMode: 'decimal' },
+                                input: {
+                                    startAdornment: <InputAdornment position="start">Rp</InputAdornment>
+                                }
+                            } }
+                        />
+
+                        <TextField
+                            label="Deskripsi barang (opsional)"
+                            name="description"
+                            value={ formData.description }
+                            inputRef={ element => { fieldRefs.current.description = element; } }
+                            disabled={ interactionDisabled }
+                            error={ !!errorData.description }
+                            helperText={ errorData.description || `${ formData.description.length }/255` }
+                            onChange={ handleFieldChange }
+                            onBlur={ () => handleFieldBlur('description') }
+                            multiline
+                            rows={ 3 }
+                            className="md:col-span-2"
                         />
                     </div>
+                </section>
 
-                    <TextField
-                        label="Deskripsi barang (opsional)"
-                        name="description"
-                        value={ formData.description }
-                        inputRef={ element => { fieldRefs.current.description = element; } }
-                        disabled={ interactionDisabled }
-                        error={ !!errorData.description }
-                        helperText={ errorData.description || `${ formData.description.length }/255` }
-                        onChange={ handleFieldChange }
-                        onBlur={ () => handleFieldBlur('description') }
-                        multiline
-                        rows={ 4 }
-                        fullWidth
-                    />
-                </fieldset>
+                <section
+                    className="border-b border-slate-200 p-4 sm:p-5"
+                    aria-labelledby="item-edit-quantity-heading"
+                >
+                    <h2 id="item-edit-quantity-heading" className="text-lg font-semibold">
+                        Aturan jumlah
+                    </h2>
+                    <p className="mt-1 mb-4 text-sm text-slate-600">
+                        Aturan ini mengikuti satuan dasar barang dan riwayat pergerakan stoknya.
+                    </p>
 
-                <fieldset className="border border-slate-300 rounded p-4 mb-4">
-                    <legend className="px-2 font-semibold">Aturan satuan dan jumlah</legend>
                     { measurementRulesLocked && (
                         <Alert
                             id={ MEASUREMENT_LOCK_ID }
@@ -502,7 +548,7 @@ export default function ItemEdit() {
                         </Alert>
                     ) }
 
-                    <div className="flex flex-wrap items-start gap-4">
+                    <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
                         <TextField
                             select
                             label="Satuan dasar (UOM)"
@@ -519,7 +565,6 @@ export default function ItemEdit() {
                             onChange={ handleFieldChange }
                             onBlur={ () => handleFieldBlur('baseUnitOfMeasure') }
                             size="small"
-                            className="flex-1 min-w-60"
                             slotProps={ {
                                 htmlInput: item.baseUnitOfMeasureLocked
                                     ? { 'aria-describedby': MEASUREMENT_LOCK_ID }
@@ -533,7 +578,7 @@ export default function ItemEdit() {
                             )) }
                         </TextField>
 
-                        <div className="flex-1 min-w-60">
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                             <FormControlLabel
                                 control={ (
                                     <Switch
@@ -557,13 +602,42 @@ export default function ItemEdit() {
                             <p id={ FRACTIONAL_POLICY_HELP_ID } className="text-sm text-slate-600">
                                 { item.fractionalQuantityAllowedLocked
                                     ? 'Terkunci setelah pergerakan stok pertama.'
-                                    : 'Aktifkan untuk jumlah seperti 0,5 meter atau 1,25 kilogram.' }
+                                    : formData.fractionalQuantityAllowed
+                                        ? 'Jumlah boleh memakai koma atau titik, maksimal empat angka desimal.'
+                                        : 'Gunakan jumlah utuh tanpa angka pecahan.' }
                             </p>
                         </div>
                     </div>
-                </fieldset>
+                </section>
 
-                <div className="flex flex-wrap gap-2">
+                <section
+                    className="border-b border-slate-200 p-4 sm:p-5"
+                    aria-labelledby="item-edit-stock-heading"
+                >
+                    <h2 id="item-edit-stock-heading" className="text-lg font-semibold">
+                        Stok saat ini
+                    </h2>
+                    <p className="mt-1 mb-4 text-sm text-slate-600">
+                        Stok tidak diubah dari formulir data barang. Gunakan alur stok yang sesuai.
+                    </p>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                            <span className="block text-sm text-slate-600">Toko · STORE</span>
+                            <strong className="mt-1 block text-lg tabular-nums">
+                                { formatQuantity(item.stockStore, item.baseUnitOfMeasure) }
+                            </strong>
+                        </div>
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                            <span className="block text-sm text-slate-600">Gudang · WAREHOUSE</span>
+                            <strong className="mt-1 block text-lg tabular-nums">
+                                { formatQuantity(item.stockWarehouse, item.baseUnitOfMeasure) }
+                            </strong>
+                        </div>
+                    </div>
+                </section>
+
+                <div className="flex flex-wrap gap-2 p-4 sm:p-5">
                     <Button type="submit" variant="contained" disabled={ interactionDisabled }>
                         { isSubmitting ? (
                             <span className="flex items-center gap-2">
@@ -576,9 +650,9 @@ export default function ItemEdit() {
                         type="button"
                         variant="text"
                         disabled={ isSubmitting || isRefreshing }
-                        onClick={ () => navigate(-1) }
+                        onClick={ () => navigate('/items') }
                     >
-                        Kembali
+                        Kembali ke daftar
                     </Button>
                 </div>
             </form>

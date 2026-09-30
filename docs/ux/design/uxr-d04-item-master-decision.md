@@ -2,7 +2,7 @@
 
 Owner direction recorded: 2026-09-23  
 UXR-D04 status: `APPROVED`  
-Implementation status: UXI-11 implemented; UXI-12 not started
+Implementation status: UXI-11 and UXI-12 implemented
 
 ## Owner-approved direction
 
