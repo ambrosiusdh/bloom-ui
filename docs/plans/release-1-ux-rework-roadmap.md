@@ -1316,6 +1316,22 @@ Decision/audit: `docs/ux/design/uxr-d06-stock-adjustment-decision.md`; `docs/ux/
 
 #### UXI-15 — Stock transfer
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-01):** Stock transfer now discovers active items across every backend
+page and provides keyboard-searchable name/SKU selection with category, UOM, fraction policy, and
+advisory STORE/WAREHOUSE balances. The create form preserves explicit opposite source/destination
+selection, labelled swap, source availability, shared UOM-aware exact quantity controls, optional
+description counting, deliberate refresh, and a complete cancel-first confirmation. Pending locks all
+mutation, definitive rejection keeps the exact draft editable after refreshing item facts, and the
+existing persisted account-bound request/key recovery now renders as a dedicated locked summary,
+quarantines other-account facts, permits only same-request/key replay, and fails closed on key conflict.
+Success replaces the form with the server-returned reference, item/quantity, direction, description,
+and actor, plus the existing item-filtered stock-movement route; no stock calculation or transfer read
+endpoint was added. Focused validation passed 15 tests across 2 stock-transfer files; the full suite
+passed 453 tests across 68 files, full lint passed, and the production build passed with only the
+existing stale-Browserslist and large-chunk advisory warnings.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-stock-transfer-review.html`
 
 Decision/audit: `docs/ux/design/uxr-d07-stock-transfer-decision.md`; `docs/ux/audits/uxr-a07-stock-transfer.md`

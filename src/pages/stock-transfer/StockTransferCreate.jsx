@@ -4,7 +4,7 @@ import {
     useRef,
     useState
 } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
     Alert,
     Button,
@@ -13,10 +13,16 @@ import {
     Paper,
     TextField
 } from '@mui/material';
-import { ArrowLeftRightIcon } from 'lucide-react';
+import {
+    ArrowLeftRightIcon,
+    HistoryIcon
+} from 'lucide-react';
 
 import { API_ERROR_CATEGORY } from '@api/index.js';
+import itemApi from '@api/item.js';
 import BloomConfirmationModal from '@components/_ui/BloomConfirmationModal.jsx';
+import BloomQuantityField from '@components/_ui/BloomQuantityField.jsx';
+import StockTransferItemPicker from '@components/stock-transfer/StockTransferItemPicker.jsx';
 import {
     useAuthStore,
     useBreadcrumbStore,
@@ -52,9 +58,42 @@ const FIELD_ORDER = [
     'description'
 ];
 const DECIMAL_PATTERN = /^\d+(?:[.,]\d+)?$/;
+const ITEM_PAGE_SIZE = 100;
 
 const normalizeDecimal = value => value.trim().replace(',', '.');
 const getOppositeLocation = location => location === 'STORE' ? 'WAREHOUSE' : 'STORE';
+const isZeroQuantity = value => /^0+(?:[.,]0*)?$/.test(String(value || '').trim());
+
+const getItemPage = async (page, signal) => {
+    const response = await itemApi.getItemList({
+        signal,
+        params: {
+            page,
+            size: ITEM_PAGE_SIZE,
+            isRemoved: false
+        }
+    }, { useLoader: false });
+
+    return response.data?.data || {};
+};
+
+const loadAllActiveItems = async signal => {
+    const firstPage = await getItemPage(1, signal);
+    const items = Array.isArray(firstPage.content) ? [...firstPage.content] : [];
+    const totalPages = Math.max(1, Number(firstPage.totalPages) || 1);
+
+    for (let page = 2; page <= totalPages; page += 1) {
+        const nextPage = await getItemPage(page, signal);
+
+        if (Array.isArray(nextPage.content)) {
+            items.push(...nextPage.content);
+        }
+    }
+
+    return Array.from(new Map(items
+        .filter(item => item.active !== false && item.sku)
+        .map(item => [item.sku, item])).values());
+};
 
 const validateQuantity = (value, item) => {
     const trimmedValue = value.trim();
@@ -123,8 +162,6 @@ export default function StockTransferCreate() {
     const authStatus = useAuthStore(state => state.authStatus);
     const currentUser = useAuthStore(state => state.currentUser);
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
-    const itemList = useItemStore(state => state.itemList);
-    const getItemList = useItemStore(state => state.getItemList);
     const getItemDetails = useItemStore(state => state.getItemDetails);
     const createStockTransfer = useStockTransferStore(state => state.createStockTransfer);
     const selectStockTransfer = useStockTransferStore(state => state.selectStockTransfer);
@@ -138,6 +175,7 @@ export default function StockTransferCreate() {
         ...EMPTY_FORM,
         itemSku: searchParams.get('itemSku') || ''
     }));
+    const [activeItems, setActiveItems] = useState([]);
     const [errors, setErrors] = useState(EMPTY_ERRORS);
     const [isLoadingItems, setLoadingItems] = useState(true);
     const [itemsError, setItemsError] = useState('');
@@ -152,11 +190,10 @@ export default function StockTransferCreate() {
     const submitErrorRef = useRef(null);
     const mountedRef = useRef(true);
 
-    const activeItems = useMemo(
-        () => itemList.filter(item => item.active !== false),
-        [itemList]
+    const selectedItem = useMemo(
+        () => activeItems.find(item => item.sku === form.itemSku) || null,
+        [activeItems, form.itemSku]
     );
-    const selectedItem = activeItems.find(item => item.sku === form.itemSku) || null;
     const sourceStockField = form.sourceLocation === 'STORE'
         ? 'stockStore' : 'stockWarehouse';
     const recoveryBelongsToCurrentAccount = !!currentUser?.accountId
@@ -167,6 +204,11 @@ export default function StockTransferCreate() {
         && (!!transferAttempt || !!result);
     const isSubmitting = transferStatus === 'pending';
     const recoveryLocked = !!transferAttempt || !!result || isSubmitting;
+    const hasCurrentRecovery = recoveryBelongsToCurrentAccount
+        && !!transferAttempt
+        && !isSubmitting;
+    const recoveryLine = hasCurrentRecovery ? transferAttempt.request?.lines?.[0] : null;
+    const showTransferForm = !hasForeignRecovery && !result && !hasCurrentRecovery;
 
     useEffect(() => {
         setBreadcrumbs(['Persediaan', 'Transfer Stok']);
@@ -190,9 +232,10 @@ export default function StockTransferCreate() {
         setLoadingItems(true);
         setItemsError('');
 
-        getItemList({
-            signal: controller.signal,
-            params: { page: 1, size: 2000, isRemoved: false }
+        loadAllActiveItems(controller.signal).then(items => {
+            if (!controller.signal.aborted) {
+                setActiveItems(items);
+            }
         }).catch(error => {
             if (!controller.signal.aborted) {
                 setItemsError(error?.message || 'Daftar barang gagal dimuat.');
@@ -204,7 +247,7 @@ export default function StockTransferCreate() {
         });
 
         return () => controller.abort();
-    }, [getItemList, itemsRefreshVersion]);
+    }, [itemsRefreshVersion]);
 
     useEffect(() => {
         if (itemsError) {
@@ -213,10 +256,14 @@ export default function StockTransferCreate() {
     }, [itemsError]);
 
     useEffect(() => {
-        if (submitError) {
-            submitErrorRef.current?.focus();
+        if (submitError && !confirmationPayload) {
+            const focusTimer = window.setTimeout(() => {
+                submitErrorRef.current?.focus();
+            }, 0);
+
+            return () => window.clearTimeout(focusTimer);
         }
-    }, [submitError]);
+    }, [confirmationPayload, submitError]);
 
     useEffect(() => {
         if (!recoveryBelongsToCurrentAccount || !transferAttempt) {
@@ -252,6 +299,34 @@ export default function StockTransferCreate() {
         const { name, value } = event.target;
         setForm(previous => ({ ...previous, [name]: value }));
         setErrors(previous => ({ ...previous, [name]: '' }));
+        setSubmitError('');
+        setConflict(false);
+        setRefreshWarning('');
+    };
+
+    const changeQuantity = value => {
+        setForm(previous => ({
+            ...previous,
+            quantity: value
+        }));
+        setErrors(previous => ({
+            ...previous,
+            quantity: ''
+        }));
+        setSubmitError('');
+        setConflict(false);
+        setRefreshWarning('');
+    };
+
+    const selectItem = item => {
+        setForm(previous => ({
+            ...previous,
+            itemSku: item?.sku || ''
+        }));
+        setErrors(previous => ({
+            ...previous,
+            itemSku: ''
+        }));
         setSubmitError('');
         setConflict(false);
         setRefreshWarning('');
@@ -316,14 +391,24 @@ export default function StockTransferCreate() {
 
         setSubmitError('');
         setConflict(false);
-        setConfirmationPayload(createPayload(form, selectedItem));
+        setConfirmationPayload({
+            payload: createPayload(form, selectedItem),
+            item: selectedItem,
+            sourceAvailability: selectedItem[sourceStockField]
+        });
     };
 
     const refreshAffectedData = async itemSku => {
         const refreshResults = await Promise.allSettled([
             getItemDetails(itemSku),
-            getItemList({ params: { page: 1, size: 2000, isRemoved: false } })
+            loadAllActiveItems()
         ]);
+        const refreshedItems = refreshResults[1];
+
+        if (mountedRef.current && refreshedItems.status === 'fulfilled') {
+            setActiveItems(refreshedItems.value);
+        }
+
         return refreshResults.every(refreshResult => refreshResult.status === 'fulfilled');
     };
 
@@ -409,7 +494,7 @@ export default function StockTransferCreate() {
 
     const confirmTransfer = async () => {
         if (isSubmitting || !confirmationPayload) return;
-        await submitTransfer(confirmationPayload);
+        await submitTransfer(confirmationPayload.payload);
     };
 
     const retryTransfer = async () => {
@@ -447,19 +532,57 @@ export default function StockTransferCreate() {
                     isPending={ isSubmitting }
                     focusCancel
                 >
-                    <div className="space-y-2">
-                        <p>
-                            Pindahkan <strong>{ formatQuantity(
-                                confirmationPayload.data.lines[0].quantity,
-                                confirmationPayload.data.lines[0].unitOfMeasure
-                            ) }</strong> dari <strong>{ LOCATION_LABELS[
-                                confirmationPayload.data.sourceLocation
-                            ] }</strong> ke <strong>{ LOCATION_LABELS[
-                                confirmationPayload.data.destinationLocation
-                            ] }</strong>?
-                        </p>
-                        <p className="text-sm text-slate-600">
-                            Server akan memeriksa stok dan mencatat kedua pergerakan secara atomik.
+                    <div className="space-y-4">
+                        <div className="rounded-lg border bg-slate-50 p-3">
+                            <strong className="block break-words">
+                                { confirmationPayload.item.name }
+                            </strong>
+                            <span className="mt-1 block break-words text-sm text-slate-600">
+                                { confirmationPayload.item.sku } ·{ ' ' }
+                                { formatUnitOfMeasure(
+                                    confirmationPayload.item.baseUnitOfMeasure
+                                ) } · { confirmationPayload.item.fractionalQuantityAllowed
+                                    ? 'Pecahan sampai 4 desimal'
+                                    : 'Jumlah utuh' }
+                            </span>
+                        </div>
+                        <dl className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                                <dt className="text-sm text-slate-600">Lokasi asal</dt>
+                                <dd className="font-semibold">{ LOCATION_LABELS[
+                                    confirmationPayload.payload.data.sourceLocation
+                                ] }</dd>
+                            </div>
+                            <div>
+                                <dt className="text-sm text-slate-600">Lokasi tujuan</dt>
+                                <dd className="font-semibold">{ LOCATION_LABELS[
+                                    confirmationPayload.payload.data.destinationLocation
+                                ] }</dd>
+                            </div>
+                            <div>
+                                <dt className="text-sm text-slate-600">Jumlah dipindahkan</dt>
+                                <dd className="font-semibold">{ formatQuantity(
+                                    confirmationPayload.payload.data.lines[0].quantity,
+                                    confirmationPayload.payload.data.lines[0].unitOfMeasure
+                                ) }</dd>
+                            </div>
+                            <div>
+                                <dt className="text-sm text-slate-600">Stok asal saat dimuat</dt>
+                                <dd className="font-semibold">{ formatQuantity(
+                                    confirmationPayload.sourceAvailability,
+                                    confirmationPayload.item.baseUnitOfMeasure
+                                ) }</dd>
+                            </div>
+                            <div className="sm:col-span-2">
+                                <dt className="text-sm text-slate-600">Keterangan</dt>
+                                <dd className="break-words font-semibold">
+                                    { confirmationPayload.payload.data.description || 'Tidak ada' }
+                                </dd>
+                            </div>
+                        </dl>
+                        <p className="rounded-lg bg-blue-50 p-3 text-sm text-slate-700">
+                            Server akan memeriksa stok asal dan mencatat pergerakan keluar serta masuk
+                            sebagai satu transaksi atomik.
                         </p>
                     </div>
                 </BloomConfirmationModal>
@@ -515,40 +638,158 @@ export default function StockTransferCreate() {
                     className="mb-4"
                     tabIndex={ -1 }
                     ref={ submitErrorRef }
-                    action={ transferStatus === 'uncertain'
-                        && recoveryBelongsToCurrentAccount ? (
-                        <Button
-                            color="inherit"
-                            size="small"
-                            onClick={ retryTransfer }
-                            disabled={ isSubmitting }
-                        >
-                            Periksa hasil transfer
-                        </Button>
-                    ) : undefined }
                 >
                     { submitError }
                 </Alert>
             ) }
 
             { result && recoveryBelongsToCurrentAccount && (
-                <Alert severity="success" className="mb-4" role="status">
-                    <div className="font-semibold">Transfer { result.code } berhasil.</div>
-                    <div>
-                        { formatQuantity(result.lines?.[0]?.quantity, result.lines?.[0]?.unitOfMeasure) }
-                        { ' ' }{ result.lines?.[0]?.itemName || result.lines?.[0]?.itemSku }
-                        { ' ' }dipindahkan dari { LOCATION_LABELS[result.sourceLocation] }
-                        { ' ' }ke { LOCATION_LABELS[result.destinationLocation] }.
+                <Paper
+                    component="section"
+                    className="mb-4 overflow-hidden"
+                    aria-label="Hasil transfer stok"
+                >
+                    <Alert severity="success" role="status" className="rounded-none">
+                        <div className="font-semibold">Transfer { result.code } berhasil.</div>
+                        <div>
+                            Hasil ini berasal dari catatan transfer yang dikembalikan server.
+                        </div>
+                    </Alert>
+                    <div className="p-4 md:p-5">
+                        <dl className="grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <dt className="text-sm text-slate-600">Barang</dt>
+                                <dd className="break-words font-semibold">
+                                    { result.lines?.[0]?.itemName || '-' } ·{ ' ' }
+                                    { result.lines?.[0]?.itemSku || '-' }
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-sm text-slate-600">Jumlah dipindahkan</dt>
+                                <dd className="font-semibold">{ formatQuantity(
+                                    result.lines?.[0]?.quantity,
+                                    result.lines?.[0]?.unitOfMeasure
+                                ) }</dd>
+                            </div>
+                            <div>
+                                <dt className="text-sm text-slate-600">Lokasi asal</dt>
+                                <dd className="font-semibold">
+                                    { LOCATION_LABELS[result.sourceLocation] || '-' }
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-sm text-slate-600">Lokasi tujuan</dt>
+                                <dd className="font-semibold">
+                                    { LOCATION_LABELS[result.destinationLocation] || '-' }
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-sm text-slate-600">Dicatat oleh</dt>
+                                <dd className="break-words font-semibold">
+                                    { result.createdBy || '-' }
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-sm text-slate-600">Keterangan</dt>
+                                <dd className="break-words font-semibold">
+                                    { result.description || 'Tidak ada' }
+                                </dd>
+                            </div>
+                        </dl>
+                        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                            <Button
+                                variant="contained"
+                                onClick={ startAnotherTransfer }
+                            >
+                                Buat transfer baru
+                            </Button>
+                            <Button
+                                component={ Link }
+                                to={ `/stock-movements?itemSku=${ encodeURIComponent(
+                                    result.lines?.[0]?.itemSku || ''
+                                ) }` }
+                                variant="outlined"
+                                startIcon={ <HistoryIcon size={ 18 } aria-hidden="true" /> }
+                            >
+                                Buka pergerakan stok
+                            </Button>
+                        </div>
                     </div>
-                    <Button
-                        className="mt-2"
-                        color="inherit"
-                        size="small"
-                        onClick={ startAnotherTransfer }
-                    >
-                        Buat transfer baru
-                    </Button>
-                </Alert>
+                </Paper>
+            ) }
+
+            { hasCurrentRecovery && recoveryLine && (
+                <Paper
+                    component="section"
+                    className="mb-4 p-4 md:p-5"
+                    aria-label="Permintaan transfer yang dikunci"
+                >
+                    <h3 className="text-lg font-bold">Permintaan yang dipertahankan untuk akun ini</h3>
+                    <p className="mt-1 text-sm text-slate-600">
+                        Isi dan identitas permintaan tidak dapat diubah sampai hasilnya dipastikan.
+                    </p>
+                    <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <dt className="text-sm text-slate-600">Barang</dt>
+                            <dd className="break-words font-semibold">
+                                { selectedItem?.name || recoveryLine.itemSku } ·{ ' ' }
+                                { recoveryLine.itemSku }
+                            </dd>
+                        </div>
+                        <div>
+                            <dt className="text-sm text-slate-600">Jumlah dipindahkan</dt>
+                            <dd className="font-semibold">{ formatQuantity(
+                                recoveryLine.quantity,
+                                recoveryLine.unitOfMeasure
+                            ) }</dd>
+                        </div>
+                        <div>
+                            <dt className="text-sm text-slate-600">Lokasi asal</dt>
+                            <dd className="font-semibold">
+                                { LOCATION_LABELS[transferAttempt.request.sourceLocation] || '-' }
+                            </dd>
+                        </div>
+                        <div>
+                            <dt className="text-sm text-slate-600">Lokasi tujuan</dt>
+                            <dd className="font-semibold">
+                                { LOCATION_LABELS[transferAttempt.request.destinationLocation] || '-' }
+                            </dd>
+                        </div>
+                        <div className="sm:col-span-2">
+                            <dt className="text-sm text-slate-600">Keterangan</dt>
+                            <dd className="break-words font-semibold">
+                                { transferAttempt.request.description || 'Tidak ada' }
+                            </dd>
+                        </div>
+                    </dl>
+                    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                        { transferStatus === 'uncertain' && (
+                            <Button
+                                variant="contained"
+                                onClick={ retryTransfer }
+                                disabled={ isSubmitting }
+                            >
+                                Periksa hasil transfer
+                            </Button>
+                        ) }
+                        <Button
+                            component={ Link }
+                            to={ `/stock-movements?itemSku=${ encodeURIComponent(
+                                recoveryLine.itemSku
+                            ) }` }
+                            variant="outlined"
+                            startIcon={ <HistoryIcon size={ 18 } aria-hidden="true" /> }
+                        >
+                            Buka pergerakan stok
+                        </Button>
+                    </div>
+                    { transferStatus === 'uncertain' && (
+                        <p className="mt-3 text-sm text-slate-600">
+                            Periksa hasil mengirim ulang permintaan dan kunci yang sama; tindakan ini
+                            tidak membuat identitas transfer baru.
+                        </p>
+                    ) }
+                </Paper>
             ) }
 
             { refreshWarning && (
@@ -562,6 +803,7 @@ export default function StockTransferCreate() {
                 className="p-5 md:p-6"
                 onSubmit={ reviewTransfer }
                 noValidate
+                hidden={ !showTransferForm }
             >
                 <fieldset
                     disabled={ interactionDisabled || activeItems.length === 0 }
@@ -570,25 +812,15 @@ export default function StockTransferCreate() {
 
                     <div className="stock-transfer-create__fields flex flex-col gap-6">
 
-                        <TextField
-                            select
-                            fullWidth
-                            size="small"
-                            label="Barang"
-                            name="itemSku"
-                            value={ selectedItem ? form.itemSku : '' }
+                        <StockTransferItemPicker
+                            items={ activeItems }
+                            value={ selectedItem }
+                            disabled={ interactionDisabled }
+                            error={ errors.itemSku }
                             inputRef={ element => { fieldRefs.current.itemSku = element; } }
-                            error={ !!errors.itemSku }
-                            helperText={ errors.itemSku || 'Pilih satu barang aktif.' }
-                            onChange={ changeField }
+                            onChange={ selectItem }
                             onBlur={ () => blurField('itemSku') }
-                        >
-                            { activeItems.map(item => (
-                                <MenuItem key={ item.sku } value={ item.sku }>
-                                    [{ item.sku }] { item.name }
-                                </MenuItem>
-                            )) }
-                        </TextField>
+                        />
 
                     { selectedItem && (
                         <Alert severity="info">
@@ -671,20 +903,26 @@ export default function StockTransferCreate() {
                         </TextField>
                     </div>
 
-                    <TextField
+                    <BloomQuantityField
                         fullWidth
-                        size="small"
+                        required
                         label="Jumlah transfer"
-                        name="quantity"
                         value={ form.quantity }
+                        unitOfMeasure={ selectedItem?.baseUnitOfMeasure }
+                        disabled={ interactionDisabled }
                         inputRef={ element => { fieldRefs.current.quantity = element; } }
                         error={ !!errors.quantity }
                         helperText={ errors.quantity || (selectedItem
                             ? `Gunakan ${ formatUnitOfMeasure(selectedItem.baseUnitOfMeasure) }; maksimal 4 angka desimal.`
                             : 'Pilih barang untuk melihat aturan jumlah.') }
-                        onChange={ changeField }
+                        decrementDisabled={ !form.quantity || isZeroQuantity(form.quantity) }
+                        onChange={ changeQuantity }
                         onBlur={ () => blurField('quantity') }
-                        slotProps={ { htmlInput: { inputMode: 'decimal' } } }
+                        onStep={ value => {
+                            if (value !== null) {
+                                changeQuantity(value);
+                            }
+                        } }
                     />
 
                     <TextField
@@ -702,7 +940,7 @@ export default function StockTransferCreate() {
                         onBlur={ () => blurField('description') }
                     />
 
-                        <div className="flex flex-wrap gap-3 pt-1">
+                        <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap">
                             <Button
                                 type="submit"
                                 variant="contained"
