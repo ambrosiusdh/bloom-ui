@@ -1271,6 +1271,21 @@ stale-Browserslist and large-chunk advisory warnings.
 
 #### UXI-13 — Stock-movement history and detail
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-30):** The backend-paged ledger now keeps the approved exact SKU,
+direction, and location filters in the URL, resets them to page one, announces the settled result count,
+and returns focus to the item/SKU field. Wide presentation uses the approved `Barang`, `Pergerakan`,
+`Lokasi`, `Saldo`, and `Dibuat oleh & pada` grouping plus one named 44-pixel eye action; below the large
+breakpoint, the same facts become labelled grouped records without a minimum-width table or page-level
+horizontal panning. Direction uses localized text, sign, and icon, and the complete backend source map
+includes goods-receipt cancellation. The accessible in-context modal renders only selected-row facts,
+opens already-supported sale, goods-receipt, or stock-adjustment routes when available, and explicitly
+states when source detail is unavailable; it performs no row enrichment and adds no movement-detail
+endpoint. `Buat transfer stok` remains the primary action under `Pergerakan stok`. Two focused files
+passed 5 tests; the full 68-file suite passed 442 tests with one worker, followed by full lint and
+production build. The build retained the existing stale-Browserslist and large-chunk advisory warnings.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D05 Riwayat stok** and review list, filters/reset, empty, detail modal, and narrow states.
 
 Decision/audit: `docs/ux/design/uxr-d05-stock-movements-decision.md`; `docs/ux/audits/uxr-a05-stock-movements.md`

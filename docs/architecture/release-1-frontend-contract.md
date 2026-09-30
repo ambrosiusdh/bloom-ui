@@ -68,6 +68,14 @@ Bloom UI is currently a JavaScript React application:
   mutable metadata from backend-reported UOM/fraction locks and read-only STORE/WAREHOUSE balances.
   Deactivation uses cancel-first confirmation, retains history and balances, blocks duplicate requests,
   preserves retry context on failure, and focuses the returned result without implying deletion.
+- UXI-13 approved stock-movement history/detail UX is implemented: the backend-paged ledger retains
+  exact SKU, direction, and location filters with URL state, page-one reset, result announcements, and
+  focus recovery. Wide columns and labelled narrow records group item/SKU/UOM, direction/signed exact
+  quantity/source, location, before-to-after balance, and actor/time without page-level horizontal
+  panning. One named 44-pixel action opens an accessible in-context modal using only the selected row's
+  server-returned facts; it links only to already-supported source routes and never requests or invents
+  a stock-movement detail endpoint. `Buat transfer stok` remains the primary action under the combined
+  `Pergerakan stok` destination.
 - FE-07 backend receipt reprint is implemented: sale detail calls the backend print endpoint for the existing sale reference with pending, duplicate-click prevention, success, failure, and same-reference retry behavior.
 - FE-08 current dashboard reliability is implemented: the existing backend overview metrics have explicit accessible loading, error/retry, zero/empty, refresh, and last-successful-data behavior without frontend aggregation.
 - FE-10 item creation is implemented: `/items/new` sends item metadata, the Release 1 UOM/fractional policy, and optional decimal STORE/WAREHOUSE openings through the backend's single atomic create operation, with explicit category, validation, pending, conflict, failure-recovery, success, and focus behavior.
