@@ -77,10 +77,14 @@ describe('SupplierDetail', () => {
         supplierApi.getSupplierDetails.mockResolvedValue({ data: { data: supplier } });
         renderDetail();
 
-        expect(await screen.findByRole('heading', { name: 'Nusantara Tekstil' })).toBeInTheDocument();
-        expect(screen.getByText('Kode pemasok: SUP-001')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Detail pemasok' })).toBeInTheDocument();
+        expect(screen.getByText('Nusantara Tekstil')).toBeInTheDocument();
+        expect(screen.getAllByText('SUP-001').length).toBeGreaterThan(0);
         expect(screen.getByText('08123456789')).toBeInTheDocument();
         expect(screen.getByLabelText('Status pemasok: Tidak aktif')).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveTextContent('Pemasok tidak aktif');
+        expect(screen.getByText('Dibuat oleh & pada')).toBeInTheDocument();
+        expect(screen.getByText('Diperbarui oleh & pada')).toBeInTheDocument();
         expect(screen.getByText('admin')).toBeInTheDocument();
         expect(screen.getByText('manager')).toBeInTheDocument();
         expect(supplierApi.getSupplierDetails).toHaveBeenCalledWith(
@@ -97,7 +101,7 @@ describe('SupplierDetail', () => {
         expect(screen.getByText('Total penerimaan dibukukan').nextSibling).toHaveTextContent('Rp 150.000');
         expect(screen.getByText('Sudah dibayar').nextSibling).toHaveTextContent('Rp 50.000');
         expect(screen.getByText('Sisa utang').nextSibling).toHaveTextContent('Rp 100.000');
-        expect(screen.getByRole('link', { name: 'Lihat penerimaan pemasok' })).toHaveAttribute(
+        expect(screen.getByRole('link', { name: 'Buka utang pemasok' })).toHaveAttribute(
             'href', '/payables?key=supplierName&q=Nusantara+Tekstil'
         );
     });
@@ -115,7 +119,7 @@ describe('SupplierDetail', () => {
 
         supplierApi.getSupplierDetails.mockResolvedValueOnce({ data: { data: supplier } });
         fireEvent.click(screen.getByRole('button', { name: 'Coba lagi' }));
-        expect(await screen.findByRole('heading', { name: 'Nusantara Tekstil' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Detail pemasok' })).toBeInTheDocument();
 
         view.unmount();
     });
@@ -127,8 +131,8 @@ describe('SupplierDetail', () => {
             .mockResolvedValueOnce({ data: { data: { ...balance, outstandingAmount: '0.0000' } } });
         renderDetail();
 
-        expect(await screen.findByRole('heading', { name: 'Nusantara Tekstil' })).toBeInTheDocument();
-        expect(await screen.findByRole('alert')).toHaveTextContent('Saldo gagal dimuat.');
+        expect(await screen.findByRole('heading', { name: 'Detail pemasok' })).toBeInTheDocument();
+        expect(await screen.findByText('Saldo gagal dimuat.')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Coba lagi' }));
 
         expect(await screen.findByText('Sisa utang')).toBeInTheDocument();
@@ -166,7 +170,7 @@ describe('SupplierDetail', () => {
         resolveDeactivation({ data: { data: { ...activeSupplier, active: false } } });
 
         expect(await screen.findByText(/berhasil dinonaktifkan tanpa menghapus riwayatnya/i)).toBeInTheDocument();
-        expect(screen.getByText('Kode pemasok: SUP-001')).toBeInTheDocument();
+        expect(screen.getAllByText('SUP-001').length).toBeGreaterThan(0);
         expect(screen.getByLabelText('Status pemasok: Tidak aktif')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Nonaktifkan pemasok' })).not.toBeInTheDocument();
     });

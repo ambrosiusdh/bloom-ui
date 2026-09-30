@@ -1340,6 +1340,21 @@ Decision/audit: `docs/ux/design/uxr-d07-stock-transfer-decision.md`; `docs/ux/au
 
 #### UXI-16 — Supplier list and detail
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-01):** The supplier list now keeps supported search, active/inactive
+filtering, page size, visible range, current page, and previous/next controls in URL-backed server
+requests. One responsive table becomes labelled grouped records below `lg`, keeping the named
+44-pixel detail action visible and eliminating the audited 768-pixel page overflow. Identity,
+contact fallbacks, lifecycle state, updater/time, and each visible supplier's independently retryable
+existing server aggregate are rendered without receipt summation or inferred debt. Detail groups the
+immutable code, full contact and created/updated audit facts, explicit inactive meaning, and the
+server-returned total, paid, and outstanding amounts with separate loading/error retry. Focused
+validation passed 30 tests across 5 supplier files; the full suite passed 457 tests across 68 files
+when run with one worker after the default parallel run exhausted the environment's five-second test
+budgets. Full lint passed, and the production build passed with only the existing stale-Browserslist
+and large-chunk advisory warnings.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D12 Pemasok** and review list, paging, active/inactive, detail, error/empty, and narrow states.
 
 Decision/audit: `docs/ux/design/uxr-d12-suppliers-decision.md`; `docs/ux/audits/uxr-a12-suppliers.md`
