@@ -21,18 +21,20 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    TextField
+    TextField,
+    Tooltip
 } from '@mui/material';
 import {
+    BarcodeIcon,
+    CircleOff,
     HistoryIcon,
     PencilIcon,
-    Plus,
-    PrinterIcon,
-    TrashIcon
+    Plus
 } from 'lucide-react';
 import { enqueueSnackbar } from 'notistack';
 
 import BloomConfirmationModal from '@components/_ui/BloomConfirmationModal.jsx';
+import { formatRupiah } from '@components/cash-session/cash-session-money.js';
 import ItemBarcodeModal from '@components/item/ItemBarcodeModal.jsx';
 import ItemDetailModal from '@components/item/ItemDetailModal.jsx';
 import { GENERIC_ERR_MESSAGE } from '@constants/general.js';
@@ -42,32 +44,37 @@ import {
     useItemCategoryStore,
     useItemStore
 } from '@stores/index.js';
+import { formatDate } from '@utils/date-utils.js';
 import { formatQuantity, formatUnitOfMeasure } from '@utils/quantity-utils.js';
 
-const FILTER_KEY_DATA = {
-    name: 'Nama barang',
-    sku: 'Kode barang',
-    category: 'Kategori'
-};
 const ITEM_PER_PAGE_OPTIONS = [5, 10, 25, 50];
 
+const getUpdatedByLabel = updatedBy => updatedBy?.trim() || 'Belum tersedia';
+const getUpdatedAtLabel = updatedAt => updatedAt
+    ? formatDate(updatedAt)
+    : 'Belum diperbarui';
+const getFractionLabel = fractionalQuantityAllowed => fractionalQuantityAllowed
+    ? 'Pecahan diizinkan'
+    : 'Unit utuh';
+
 const getSearchState = searchParams => {
-    const requestedFilterKey = searchParams.get('key');
     const requestedSize = Number(searchParams.get('itemPerPage'));
 
     return {
-        filters: searchParams.get('q') || '',
-        selectedFilterKey: Object.hasOwn(FILTER_KEY_DATA, requestedFilterKey)
-            ? requestedFilterKey
-            : 'name',
+        searchQuery: searchParams.get('q') || '',
+        categoryCode: searchParams.get('category') || '',
         currentPage: Math.max(Number(searchParams.get('page')) || 1, 1),
         itemPerPage: ITEM_PER_PAGE_OPTIONS.includes(requestedSize) ? requestedSize : 10
     };
 };
 
-const getListQueryKey = ({ currentPage, itemPerPage, selectedFilterKey, filters, refreshVersion }) => (
-    JSON.stringify({ currentPage, itemPerPage, selectedFilterKey, filters, refreshVersion })
-);
+const getListQueryKey = ({ currentPage, itemPerPage, searchQuery, categoryCode, refreshVersion }) => JSON.stringify({
+    currentPage,
+    itemPerPage,
+    searchQuery,
+    categoryCode,
+    refreshVersion
+});
 
 const getErrorMessage = error => error?.message || GENERIC_ERR_MESSAGE;
 
@@ -85,10 +92,10 @@ export default function ItemList() {
 
     const [selectedItemDetailSku, setSelectedItemDetailSku] = useState('');
     const [selectedItemDetailData, setSelectedItemDetailData] = useState(null);
-    const [selectedDeleteTarget, setSelectedDeleteTarget] = useState({});
+    const [selectedDeactivateTarget, setSelectedDeactivateTarget] = useState({});
     const [selectedBarcodeItem, setSelectedBarcodeItem] = useState({});
-    const [filters, setFilters] = useState(initialSearchState.filters);
-    const [selectedFilterKey, setSelectedFilterKey] = useState(initialSearchState.selectedFilterKey);
+    const [searchQuery, setSearchQuery] = useState(initialSearchState.searchQuery);
+    const [categoryCode, setCategoryCode] = useState(initialSearchState.categoryCode);
     const [currentPage, setCurrentPage] = useState(initialSearchState.currentPage);
     const [itemPerPage, setItemPerPage] = useState(initialSearchState.itemPerPage);
     const [refreshVersion, setRefreshVersion] = useState(0);
@@ -109,24 +116,29 @@ export default function ItemList() {
     const queryKey = getListQueryKey({
         currentPage,
         itemPerPage,
-        selectedFilterKey,
-        filters,
+        searchQuery,
+        categoryCode,
         refreshVersion
     });
     const hasCurrentQueryData = loadedQueryKey === queryKey;
     const showTableLoading = isLoadingTable || (!listError && !hasCurrentQueryData);
+    const totalElements = hasCurrentQueryData
+        ? Number(itemPaging?.totalElements) || 0
+        : 0;
+    const totalPages = Math.max(Number(itemPaging?.totalPages) || 1, 1);
+    const firstVisibleItem = totalElements
+        ? ((currentPage - 1) * itemPerPage) + 1
+        : 0;
+    const lastVisibleItem = totalElements
+        ? Math.min(firstVisibleItem + itemList.length - 1, totalElements)
+        : 0;
+    const hasFilters = Boolean(searchQuery || categoryCode);
 
     const refreshItemList = () => setRefreshVersion(version => version + 1);
 
-    const handleFilterKeyChange = event => {
-        setSelectedFilterKey(event.target.value);
-        setFilters('');
-        setCurrentPage(1);
-    };
-
     const handleFilterClear = () => {
-        setFilters('');
-        setSelectedFilterKey('name');
+        setSearchQuery('');
+        setCategoryCode('');
         setCurrentPage(1);
     };
 
@@ -137,6 +149,17 @@ export default function ItemList() {
         setSelectedItemDetailData(null);
         setItemDetailError('');
         setLoadingItemDetail(false);
+    };
+
+    const handleOpenBarcodeFromDetail = () => {
+        if (!selectedItemDetailData?.sku) {
+            return;
+        }
+
+        const item = selectedItemDetailData;
+
+        handleCloseItemDetail();
+        setSelectedBarcodeItem(item);
     };
 
     const openItemDetail = async sku => {
@@ -164,14 +187,14 @@ export default function ItemList() {
         }
     };
 
-    const handleDeleteItem = async () => {
+    const handleDeactivateItem = async () => {
         try {
-            await deactivateItem(selectedDeleteTarget.sku, { useLoader: true });
+            await deactivateItem(selectedDeactivateTarget.sku, { useLoader: true });
             enqueueSnackbar(
-                ITEM_LIST_MESSAGES.deleteItemSuccess.message(selectedDeleteTarget.name),
-                ITEM_LIST_MESSAGES.deleteItemSuccess.options
+                ITEM_LIST_MESSAGES.deactivateItemSuccess.message(selectedDeactivateTarget.name),
+                ITEM_LIST_MESSAGES.deactivateItemSuccess.options
             );
-            setSelectedDeleteTarget({});
+            setSelectedDeactivateTarget({});
             setCurrentPage(1);
             refreshItemList();
         } catch (error) {
@@ -186,8 +209,8 @@ export default function ItemList() {
 
     useEffect(() => {
         const nextSearchState = getSearchState(searchParams);
-        const searchStateChanged = nextSearchState.filters !== filters
-            || nextSearchState.selectedFilterKey !== selectedFilterKey
+        const searchStateChanged = nextSearchState.searchQuery !== searchQuery
+            || nextSearchState.categoryCode !== categoryCode
             || nextSearchState.currentPage !== currentPage
             || nextSearchState.itemPerPage !== itemPerPage;
 
@@ -198,16 +221,16 @@ export default function ItemList() {
         // This update came from browser Back/Forward, not from a form control.
         // Skip the URL-writing effect once so it does not overwrite that history entry.
         syncingSearchParamsRef.current = true;
-        setFilters(nextSearchState.filters);
-        setSelectedFilterKey(nextSearchState.selectedFilterKey);
+        setSearchQuery(nextSearchState.searchQuery);
+        setCategoryCode(nextSearchState.categoryCode);
         setCurrentPage(nextSearchState.currentPage);
         setItemPerPage(nextSearchState.itemPerPage);
     }, [searchParamKey]);
 
     useEffect(() => {
         const currentSearchState = getSearchState(searchParams);
-        const searchParamsMatchLocalState = currentSearchState.filters === filters
-            && currentSearchState.selectedFilterKey === selectedFilterKey
+        const searchParamsMatchLocalState = currentSearchState.searchQuery === searchQuery
+            && currentSearchState.categoryCode === categoryCode
             && currentSearchState.currentPage === currentPage
             && currentSearchState.itemPerPage === itemPerPage;
 
@@ -223,10 +246,10 @@ export default function ItemList() {
         setSearchParams({
             page: String(currentPage),
             itemPerPage: String(itemPerPage),
-            q: filters,
-            key: selectedFilterKey
+            q: searchQuery,
+            category: categoryCode
         });
-    }, [currentPage, filters, itemPerPage, searchParamKey, selectedFilterKey, setSearchParams]);
+    }, [categoryCode, currentPage, itemPerPage, searchParamKey, searchQuery, setSearchParams]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -241,8 +264,8 @@ export default function ItemList() {
                     params: {
                         page: currentPage,
                         size: itemPerPage,
-                        [selectedFilterKey]: filters,
-                        isRemoved: false
+                        skuOrName: searchQuery,
+                        category: categoryCode
                     }
                 });
                 if (!controller.signal.aborted) {
@@ -282,23 +305,25 @@ export default function ItemList() {
                     isLoading={ isLoadingItemDetail }
                     error={ itemDetailError }
                     onClose={ handleCloseItemDetail }
+                    onOpenBarcode={ handleOpenBarcodeFromDetail }
                     onRetry={ () => openItemDetail(selectedItemDetailSku) }
                 />
             ) }
 
-            { selectedDeleteTarget?.sku && (
+            { selectedDeactivateTarget?.sku && (
                 <BloomConfirmationModal
-                    onCancel={ () => setSelectedDeleteTarget({}) }
-                    onConfirm={ handleDeleteItem }
-                    title={ `Hapus ${selectedDeleteTarget.name}?` }
-                    confirmButtonText="Hapus"
+                    onCancel={ () => setSelectedDeactivateTarget({}) }
+                    onConfirm={ handleDeactivateItem }
+                    title={ `Nonaktifkan ${ selectedDeactivateTarget.name }?` }
+                    confirmButtonText="Nonaktifkan"
+                    confirmButtonColor="error"
                 >
                     <div className="item-list__delete">
                         <div className="item-list__delete-description">
-                            Apakah Anda yakin ingin menghapus
-                            <span className="font-bold"> { selectedDeleteTarget.name }</span>?
+                            <span className="font-bold">{ selectedDeactivateTarget.name }</span> tidak lagi muncul
+                            dalam daftar barang aktif.
                         </div>
-                        Jika dihapus, data barang tidak bisa dikembalikan lagi.
+                        Riwayat dan saldo barang tidak dihapus. Tindakan ini hanya menandai barang sebagai nonaktif.
                     </div>
                 </BloomConfirmationModal>
             ) }
@@ -314,13 +339,22 @@ export default function ItemList() {
                 </Alert>
             ) }
 
-            <div className="item-list__header mb-4 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
-                <h2 className="item-list__header-title font-bold text-2xl">Daftar Barang</h2>
-                <Link to="/items/new" className="item-list__header-action-create self-start sm:self-auto">
-                    <Button variant="contained" endIcon={ <Plus className="w-5" /> }>
-                        Buat Barang
-                    </Button>
-                </Link>
+            <div className="item-list__header mb-4 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
+                <div>
+                    <h1 className="item-list__header-title font-bold text-2xl">Data Barang</h1>
+                    <p className="mt-1 text-sm text-gray-600">
+                        Kelola informasi barang serta stok toko dan gudang secara terpisah.
+                    </p>
+                </div>
+                <Button
+                    component={ Link }
+                    to="/items/new"
+                    variant="contained"
+                    startIcon={ <Plus className="w-5" aria-hidden="true" /> }
+                    className="item-list__header-action-create self-start sm:self-auto"
+                >
+                    Tambah barang
+                </Button>
             </div>
 
             { listError && (
@@ -333,197 +367,281 @@ export default function ItemList() {
                 </Alert>
             ) }
 
-            <div className="item-list__filter card mb-4 flex flex-col gap-2 md:flex-row md:items-center">
+            <div className="item-list__filter card mb-4 grid grid-cols-1 gap-3 md:grid-cols-[minmax(16rem,1fr)_minmax(12rem,0.45fr)_auto] md:items-end">
                 <TextField
-                    select
-                    className="item-list__filter-key md:basis-1/4"
-                    label="Cari berdasarkan"
+                    className="item-list__filter-search"
+                    label="Cari barang"
+                    placeholder="Nama atau kode barang"
                     variant="outlined"
                     size="small"
-                    value={ selectedFilterKey }
-                    onChange={ handleFilterKeyChange }
+                    type="search"
+                    value={ searchQuery }
+                    onChange={ event => {
+                        setSearchQuery(event.target.value);
+                        setCurrentPage(1);
+                    } }
+                />
+
+                <TextField
+                    select
+                    className="item-list__filter-category"
+                    label="Kategori"
+                    variant="outlined"
+                    size="small"
+                    value={ categoryCode }
+                    onChange={ event => {
+                        setCategoryCode(event.target.value);
+                        setCurrentPage(1);
+                    } }
                 >
-                    { Object.entries(FILTER_KEY_DATA).map(([filterKey, label]) => (
-                        <MenuItem key={ filterKey } value={ filterKey }>{ label }</MenuItem>
+                    <MenuItem value=""><em>Semua kategori</em></MenuItem>
+                    { itemCategoryList?.map(category => (
+                        <MenuItem key={ category.code } value={ category.code }>
+                            [{ category.code }] { category.name }
+                        </MenuItem>
                     )) }
                 </TextField>
 
-                { selectedFilterKey === 'category' ? (
-                    <TextField
-                        select
-                        className="item-list__filter-value md:basis-1/3"
-                        label="Cari berdasarkan Kategori"
-                        variant="outlined"
-                        size="small"
-                        value={ filters }
-                        onChange={ event => {
-                            setFilters(event.target.value);
-                            setCurrentPage(1);
-                        } }
-                    >
-                        <MenuItem value=""><em>Semua kategori</em></MenuItem>
-                        { itemCategoryList?.map(category => (
-                            <MenuItem key={ category.code } value={ category.code }>
-                                [{ category.code }] { category.name }
-                            </MenuItem>
-                        )) }
-                    </TextField>
-                ) : (
-                    <TextField
-                        className="item-list__filter-value md:basis-1/3"
-                        label={ `Cari berdasarkan ${FILTER_KEY_DATA[selectedFilterKey]}` }
-                        variant="outlined"
-                        size="small"
-                        value={ filters }
-                        onChange={ event => {
-                            setFilters(event.target.value);
-                            setCurrentPage(1);
-                        } }
-                    />
-                ) }
-
-                <Button className="item-list__filter-clear self-start" variant="text" onClick={ handleFilterClear }>
-                    Hapus filter
+                <Button className="item-list__filter-clear justify-self-start" variant="text" onClick={ handleFilterClear }>
+                    Reset filter
                 </Button>
             </div>
 
-            <div className="item-list__content bg-white rounded-lg shadow-lg pb-2">
-                <div className="item-list__content-pagination px-4 py-2 flex flex-col gap-2 lg:flex-row lg:justify-between lg:items-center">
-                    <h3 className="item-list__content-pagination-title text-xl font-bold">Daftar Barang</h3>
+            <div className="item-list__content bg-white rounded-lg shadow-lg pb-2 overflow-hidden">
+                <div className="item-list__content-pagination px-4 py-3 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
+                    <div>
+                        <h2 className="item-list__content-pagination-title font-semibold">
+                            { showTableLoading || listError
+                                ? 'Daftar barang aktif'
+                                : `${ totalElements } barang aktif` }
+                        </h2>
+                        <p className="text-sm text-gray-600" aria-live="polite">
+                            { showTableLoading
+                                ? 'Stok toko dan gudang sedang dimuat dari server.'
+                                : listError
+                                    ? 'Gunakan Coba lagi untuk memuat daftar barang.'
+                                    : totalElements
+                                        ? `Menampilkan ${ firstVisibleItem }–${ lastVisibleItem } dari ${ totalElements } barang aktif`
+                                        : 'Tidak ada barang aktif untuk ditampilkan' }
+                        </p>
+                    </div>
+
                     <div className="item-list__content-pagination-inputs flex flex-wrap gap-2 items-center">
-                        <span className="text-sm text-gray-700">Data per halaman:</span>
                         <TextField
                             select
+                            label="Data per halaman"
                             value={ itemPerPage }
                             onChange={ event => {
                                 setItemPerPage(Number(event.target.value));
                                 setCurrentPage(1);
                             } }
                             size="small"
-                            className="w-20 mr-2"
-                            aria-label="Data per halaman"
+                            className="w-36"
                         >
                             { ITEM_PER_PAGE_OPTIONS.map(option => (
                                 <MenuItem key={ option } value={ option }>{ option }</MenuItem>
                             )) }
                         </TextField>
+                        <span className="text-sm text-gray-600 whitespace-nowrap">
+                            Halaman { currentPage } dari { totalPages }
+                        </span>
                         <Pagination
                             page={ currentPage }
-                            count={ itemPaging?.totalPages || 1 }
+                            count={ totalPages }
                             onChange={ (_, value) => setCurrentPage(value) }
                             disabled={ showTableLoading || !hasCurrentQueryData || !itemPaging?.totalPages }
+                            aria-label="Halaman barang"
+                            getItemAriaLabel={ (type, page) => type === 'page'
+                                ? `Ke halaman ${ page }`
+                                : `${ type } halaman` }
                         />
                     </div>
                 </div>
 
-                <TableContainer component={ Paper } elevation={ 0 } className="item-list__content-table">
-                    <Table sx={ { minWidth: 1050 } } aria-label="Daftar barang">
-                        <TableHead className="item-list__content-table-header bg-gray-100">
+                <TableContainer
+                    component={ Paper }
+                    elevation={ 0 }
+                    className="item-list__content-table !overflow-x-hidden"
+                >
+                    <Table
+                        className="!block lg:!table lg:!table-fixed"
+                        aria-label="Daftar barang aktif dan stok per lokasi"
+                    >
+                        <caption className="sr-only">
+                            Barang aktif, aturan jumlah, harga jual, stok STORE dan WAREHOUSE, pembaruan, serta tindakan.
+                        </caption>
+                        <TableHead className="item-list__content-table-header bg-gray-100 hidden lg:!table-header-group">
                             <TableRow className="text-xs font-semibold tracking-wider">
-                                <TableCell>Nama barang</TableCell>
-                                <TableCell>Kategori</TableCell>
-                                <TableCell>Kode barang</TableCell>
-                                <TableCell>Satuan</TableCell>
-                                <TableCell align="right">Harga</TableCell>
-                                <TableCell align="right">Stok toko</TableCell>
-                                <TableCell align="right">Stok gudang</TableCell>
-                                <TableCell>Status</TableCell>
-                                <TableCell>Aksi</TableCell>
+                                <TableCell className="lg:!w-[30%]">Barang</TableCell>
+                                <TableCell className="lg:!w-[23%]">Stok per lokasi</TableCell>
+                                <TableCell className="lg:!w-[15%]">Harga jual</TableCell>
+                                <TableCell className="lg:!w-[15%]">Data barang diperbarui</TableCell>
+                                <TableCell className="lg:!w-[11.5rem]" align="right">Aksi</TableCell>
                             </TableRow>
                         </TableHead>
-                        <TableBody>
+                        <TableBody className="!block lg:!table-row-group">
                             { showTableLoading ? (
-                                <TableRow>
-                                    <TableCell colSpan="9" className="!border-b-0 !text-center italic !text-gray-500">
+                                <TableRow className="!block lg:!table-row">
+                                    <TableCell colSpan="5" className="!block lg:!table-cell !border-b-0 !text-center italic !text-gray-500">
                                         <span className="inline-flex items-center gap-2" role="status">
                                             <CircularProgress size={ 18 } /> Memuat barang...
                                         </span>
                                     </TableCell>
                                 </TableRow>
                             ) : listError ? (
-                                <TableRow>
-                                    <TableCell colSpan="9" className="!border-b-0 !text-center !text-gray-500">
+                                <TableRow className="!block lg:!table-row">
+                                    <TableCell colSpan="5" className="!block lg:!table-cell !border-b-0 !text-center !text-gray-500">
                                         Data barang belum dapat ditampilkan.
                                     </TableCell>
                                 </TableRow>
                             ) : hasCurrentQueryData && itemList?.length ? itemList.map((item, index) => {
                                 const isLastRow = index === itemList.length - 1;
+                                const rowBorderClass = isLastRow ? '' : 'border-b border-gray-200';
                                 const tableCellClass = isLastRow ? '!border-b-0' : '';
-                                const openDetailFromKeyboard = event => {
-                                    if (event.key === 'Enter' || event.key === ' ') {
-                                        event.preventDefault();
-                                        openItemDetail(item.sku);
-                                    }
-                                };
+                                const unitLabel = formatUnitOfMeasure(item.baseUnitOfMeasure);
 
                                 return (
                                     <TableRow
                                         key={ item.sku }
-                                        className="item-list__content-table-row hover:bg-gray-50 cursor-pointer"
-                                        tabIndex={ 0 }
-                                        aria-label={ `Lihat detail ${item.name}` }
-                                        onClick={ event => {
-                                            if (!event.target.closest('button') && !event.target.closest('a')) {
-                                                openItemDetail(item.sku);
-                                            }
-                                        } }
-                                        onKeyDown={ openDetailFromKeyboard }
+                                        className={ `item-list__content-table-row !grid grid-cols-1 gap-y-4 px-4 py-4 sm:grid-cols-2 sm:gap-x-5 lg:!table-row lg:p-0 ${ rowBorderClass } lg:border-b-0` }
                                     >
-                                        <TableCell className={ `${tableCellClass} whitespace-nowrap w-full` }>{ item.name }</TableCell>
-                                        <TableCell className={ `${tableCellClass} whitespace-nowrap` }>{ item.category?.name || '-' }</TableCell>
-                                        <TableCell className={ `${tableCellClass} whitespace-nowrap` }>{ item.sku }</TableCell>
-                                        <TableCell className={ `${tableCellClass} whitespace-nowrap` }>{ formatUnitOfMeasure(item.baseUnitOfMeasure) }</TableCell>
-                                        <TableCell className={ `${tableCellClass} whitespace-nowrap` } align="right">
-                                            { new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(item.price || 0) }
+                                        <TableCell className={ `${ tableCellClass } !block !border-b-0 !p-0 sm:col-span-2 lg:!table-cell lg:!border-b lg:!p-4` }>
+                                            <button
+                                                type="button"
+                                                className="text-left text-base font-semibold text-primary-main hover:underline focus-visible:rounded-sm"
+                                                onClick={ () => openItemDetail(item.sku) }
+                                            >
+                                                { item.name }
+                                            </button>
+                                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600">
+                                                <span className="break-all">{ item.sku }</span>
+                                                <span aria-hidden="true">•</span>
+                                                <span className="break-words">{ item.category?.name || 'Tanpa kategori' }</span>
+                                            </div>
+                                            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                                                <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-800">
+                                                    { unitLabel }
+                                                </span>
+                                                <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-800">
+                                                    { getFractionLabel(item.fractionalQuantityAllowed) }
+                                                </span>
+                                            </div>
                                         </TableCell>
-                                        <TableCell className={ `${tableCellClass} whitespace-nowrap` } align="right">
-                                            { formatQuantity(item.stockStore, item.baseUnitOfMeasure) }
+
+                                        <TableCell className={ `${ tableCellClass } !block !border-b-0 !p-0 lg:!table-cell lg:!border-b lg:!p-4` }>
+                                            <span className="mb-2 block text-xs font-medium text-gray-600 lg:hidden">
+                                                Stok per lokasi
+                                            </span>
+                                            <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
+                                                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 lg:border-0 lg:bg-transparent lg:p-0">
+                                                    <span className="block text-xs text-gray-600">Toko · STORE</span>
+                                                    <strong className="mt-1 block text-right font-semibold tabular-nums lg:text-left">
+                                                        { formatQuantity(item.stockStore, item.baseUnitOfMeasure) }
+                                                    </strong>
+                                                </div>
+                                                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 lg:border-0 lg:bg-transparent lg:p-0">
+                                                    <span className="block text-xs text-gray-600">Gudang · WAREHOUSE</span>
+                                                    <strong className="mt-1 block text-right font-semibold tabular-nums lg:text-left">
+                                                        { formatQuantity(item.stockWarehouse, item.baseUnitOfMeasure) }
+                                                    </strong>
+                                                </div>
+                                            </div>
                                         </TableCell>
-                                        <TableCell className={ `${tableCellClass} whitespace-nowrap` } align="right">
-                                            { formatQuantity(item.stockWarehouse, item.baseUnitOfMeasure) }
+
+                                        <TableCell className={ `${ tableCellClass } !block !border-b-0 !p-0 lg:!table-cell lg:!border-b lg:!p-4` }>
+                                            <span className="block text-xs font-medium text-gray-600 lg:hidden">Harga jual</span>
+                                            <strong className="mt-1 block font-semibold tabular-nums lg:mt-0">
+                                                { formatRupiah(item.price) }
+                                            </strong>
+                                            <span className="mt-1 block text-xs text-gray-600">per { unitLabel }</span>
                                         </TableCell>
-                                        <TableCell className={ `${tableCellClass} whitespace-nowrap` }>
-                                            { item.active ? 'Aktif' : 'Nonaktif' }
+
+                                        <TableCell className={ `${ tableCellClass } !block !border-b-0 !p-0 lg:!table-cell lg:!border-b lg:!p-4` }>
+                                            <span className="block text-xs font-medium text-gray-600 lg:hidden">
+                                                Data barang diperbarui
+                                            </span>
+                                            <strong className="mt-1 block font-medium break-words lg:mt-0">
+                                                { getUpdatedByLabel(item.updatedBy) }
+                                            </strong>
+                                            <span className="mt-1 block text-xs text-gray-600">
+                                                { getUpdatedAtLabel(item.updatedAt) }
+                                            </span>
                                         </TableCell>
-                                        <TableCell className={ `${tableCellClass} whitespace-nowrap` }>
-                                            <div className="flex gap-2">
-                                                <IconButton component={ Link } to={ `/items/${item.sku}/edit` } size="small" aria-label={ `Ubah barang ${item.name}` }>
-                                                    <PencilIcon className="text-gray-500" />
-                                                </IconButton>
-                                                <IconButton
-                                                    component={ Link }
-                                                    to={ `/stock-movements?itemSku=${ encodeURIComponent(item.sku) }` }
-                                                    size="small"
-                                                    aria-label={ `Riwayat stok ${item.name}` }
-                                                >
-                                                    <HistoryIcon className="text-blue-500 w-5 h-5" />
-                                                </IconButton>
-                                                <IconButton size="small" aria-label={ `Cetak barcode ${item.name}` } onClick={ () => setSelectedBarcodeItem(item) }>
-                                                    <PrinterIcon className="text-gray-700 w-5 h-5" />
-                                                </IconButton>
-                                                <IconButton size="small" color="error" aria-label={ `Hapus barang ${item.name}` } onClick={ () => setSelectedDeleteTarget(item) }>
-                                                    <TrashIcon className="table-action__delete" />
-                                                </IconButton>
+
+                                        <TableCell className={ `${ tableCellClass } !block !border-b-0 !p-0 sm:col-span-2 lg:!table-cell lg:!border-b lg:!p-4` }>
+                                            <span className="mb-1 block text-xs font-medium text-gray-600 lg:hidden">Aksi</span>
+                                            <div className="flex items-center justify-start gap-0 lg:justify-end">
+                                                <Tooltip title="Riwayat stok" arrow>
+                                                    <IconButton
+                                                        component={ Link }
+                                                        to={ `/stock-movements?itemSku=${ encodeURIComponent(item.sku) }` }
+                                                        aria-label={ `Riwayat stok ${ item.name }` }
+                                                        sx={ {
+                                                            width: 44,
+                                                            height: 44
+                                                        } }
+                                                    >
+                                                        <HistoryIcon className="text-blue-500" size={ 19 } aria-hidden="true" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                                <Tooltip title="Cetak barcode" arrow>
+                                                    <IconButton
+                                                        aria-label={ `Cetak barcode ${ item.name }` }
+                                                        onClick={ () => setSelectedBarcodeItem(item) }
+                                                        sx={ {
+                                                            width: 44,
+                                                            height: 44
+                                                        } }
+                                                    >
+                                                        <BarcodeIcon className="text-gray-700" size={ 19 } aria-hidden="true" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                                <Tooltip title="Ubah barang" arrow>
+                                                    <IconButton
+                                                        component={ Link }
+                                                        to={ `/items/${ item.sku }/edit` }
+                                                        aria-label={ `Ubah barang ${ item.name }` }
+                                                        sx={ {
+                                                            width: 44,
+                                                            height: 44
+                                                        } }
+                                                    >
+                                                        <PencilIcon className="text-gray-500" size={ 19 } aria-hidden="true" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                                <Tooltip title="Nonaktifkan barang" arrow>
+                                                    <IconButton
+                                                        color="error"
+                                                        aria-label={ `Nonaktifkan barang ${ item.name }` }
+                                                        onClick={ () => setSelectedDeactivateTarget(item) }
+                                                        sx={ {
+                                                            width: 44,
+                                                            height: 44
+                                                        } }
+                                                    >
+                                                        <CircleOff size={ 19 } aria-hidden="true" />
+                                                    </IconButton>
+                                                </Tooltip>
                                             </div>
                                         </TableCell>
                                     </TableRow>
                                 );
                             }) : (
-                                <TableRow>
-                                    <TableCell colSpan="9" className="!border-b-0 !text-center italic !text-gray-500">
+                                <TableRow className="!block lg:!table-row">
+                                    <TableCell colSpan="5" className="!block lg:!table-cell !border-b-0 !text-center italic !text-gray-500">
                                         <div className="py-6">
                                             <div className="font-semibold not-italic text-gray-700">
-                                                { filters ? 'Barang tidak ditemukan' : 'Belum ada barang aktif' }
+                                                { hasFilters ? 'Barang tidak ditemukan' : 'Belum ada barang aktif' }
                                             </div>
                                             <div className="mt-1 mb-3">
-                                                { filters
-                                                    ? 'Ubah atau hapus filter untuk mencoba lagi.'
-                                                    : 'Buat barang agar stok dapat dicatat per lokasi.' }
+                                                { hasFilters
+                                                    ? 'Ubah kata pencarian atau reset filter untuk mencoba lagi.'
+                                                    : 'Tambah barang agar stok dapat dicatat per lokasi.' }
                                             </div>
-                                            { filters ? (
-                                                <Button onClick={ handleFilterClear }>Hapus filter</Button>
+                                            { hasFilters ? (
+                                                <Button onClick={ handleFilterClear }>Reset filter</Button>
                                             ) : (
-                                                <Button component={ Link } to="/items/new" variant="contained">Buat barang</Button>
+                                                <Button component={ Link } to="/items/new" variant="contained">Tambah barang</Button>
                                             ) }
                                         </div>
                                     </TableCell>

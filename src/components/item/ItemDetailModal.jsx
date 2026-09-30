@@ -1,15 +1,23 @@
+import { Link } from 'react-router-dom';
 import {
+    Alert,
+    Button,
     Dialog,
+    DialogActions,
     DialogContent,
     DialogTitle,
     IconButton,
-    Alert,
-    Button,
     CircularProgress
 } from "@mui/material";
-import { XIcon } from "lucide-react";
+import {
+    BarcodeIcon,
+    HistoryIcon,
+    PencilIcon,
+    XIcon
+} from "lucide-react";
 import PropTypes from "prop-types";
 
+import { formatRupiah } from '@components/cash-session/cash-session-money.js';
 import { formatDate } from "@utils/date-utils.js";
 import { formatQuantity, formatUnitOfMeasure } from "@utils/quantity-utils.js";
 
@@ -19,6 +27,7 @@ const propTypes = {
     itemData: PropTypes.object,
     isLoading: PropTypes.bool,
     error: PropTypes.string,
+    onOpenBarcode: PropTypes.func,
     onRetry: PropTypes.func
 }
 
@@ -28,6 +37,7 @@ export default function ItemDetailModal(props) {
         itemData,
         isLoading = false,
         error = '',
+        onOpenBarcode,
         onRetry
     } = props;
 
@@ -36,11 +46,18 @@ export default function ItemDetailModal(props) {
             className="item-detail"
             open
             onClose={ onClose }
+            maxWidth="md"
             fullWidth
             aria-labelledby="item-detail-title"
+            aria-describedby="item-detail-description"
         >
-            <DialogTitle id="item-detail-title" className="item-detail__header flex justify-between items-center">
-                <div className="item-detail__header-title font-bold">{ itemData?.sku || 'Detail barang' }</div>
+            <DialogTitle className="item-detail__header flex justify-between items-start gap-3">
+                <div>
+                    <div id="item-detail-title" className="item-detail__header-title font-bold">Detail barang</div>
+                    <div id="item-detail-description" className="mt-1 text-sm font-normal text-gray-600">
+                        Identitas, aturan jumlah, dan stok per lokasi dari server.
+                    </div>
+                </div>
 
                 <IconButton
                     className="item-detail__header-close"
@@ -94,16 +111,13 @@ export default function ItemDetailModal(props) {
                     </div>
 
                     <div className="item-detail__content-item-value font-bold text-right">
-                        { new Intl.NumberFormat('id-ID', {
-                            style: 'currency',
-                            currency: 'IDR'
-                        }).format(itemData?.price || 0) }
+                        { formatRupiah(itemData?.price) }
                     </div>
                 </div>
 
                 <div className="item-detail__content-item flex justify-between items-start border-b border-dashed border-gray-600 pb-4">
                     <div className="item-detail__content-item-name">
-                        Stok toko
+                        Toko · STORE
                     </div>
 
                     <div className="item-detail__content-item-value font-bold text-right">
@@ -113,7 +127,7 @@ export default function ItemDetailModal(props) {
 
                 <div className="item-detail__content-item flex justify-between items-start border-b border-dashed border-gray-600 pb-4">
                     <div className="item-detail__content-item-name">
-                        Stok gudang
+                        Gudang · WAREHOUSE
                     </div>
 
                     <div className="item-detail__content-item-value font-bold text-right">
@@ -244,6 +258,33 @@ export default function ItemDetailModal(props) {
                 </div>
                 </> }
             </DialogContent>
+            { !isLoading && !error && itemData?.sku && (
+                <DialogActions className="item-detail__actions flex-wrap p-4 pt-2">
+                    <Button
+                        component={ Link }
+                        to={ `/stock-movements?itemSku=${ encodeURIComponent(itemData.sku) }` }
+                        variant="outlined"
+                        startIcon={ <HistoryIcon size={ 18 } aria-hidden="true" /> }
+                    >
+                        Riwayat stok
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        startIcon={ <BarcodeIcon size={ 18 } aria-hidden="true" /> }
+                        onClick={ onOpenBarcode }
+                    >
+                        Barcode
+                    </Button>
+                    <Button
+                        component={ Link }
+                        to={ `/items/${ itemData.sku }/edit` }
+                        variant="contained"
+                        startIcon={ <PencilIcon size={ 18 } aria-hidden="true" /> }
+                    >
+                        Ubah barang
+                    </Button>
+                </DialogActions>
+            ) }
         </Dialog>
     )
 }

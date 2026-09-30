@@ -1230,9 +1230,19 @@ Decision/audit: `docs/ux/design/uxr-d11-sales-history-decision.md`; `docs/ux/aud
 
 #### UXI-11 — Item list, detail, and location inventory
 
+Status: `IMPLEMENTED`
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-item-master-review.html`
 
 Decision/audit: `docs/ux/design/uxr-d04-item-master-decision.md`; `docs/ux/audits/uxr-a04-items.md`
+
+**Implementation note (2026-09-30):** The active item list now uses the backend's combined
+name-or-SKU search and category filter, explicit server range/page/page-size context, grouped identity,
+exact decimal price display, UOM/fraction facts, separate STORE/WAREHOUSE balances, and item-update
+audit metadata. Compact 44-pixel named actions retain detail, item-scoped stock history, barcode,
+edit, and deactivation access. At narrow desktop widths, each row becomes a labelled record with no
+minimum-width table or page-level horizontal panning. Detail exposes the same backend facts and direct
+history/barcode/edit paths; stock is never aggregated or recalculated.
 
 > Implement only UXI-11, Bloom item list, detail, and location inventory. Read the governing documents, `docs/ux/audits/uxr-a04-items.md`, `docs/ux/design/uxr-d04-item-master-decision.md`, and `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-item-master-review.html`. Inspect `ItemList.jsx`, item detail/barcode/audit modals, item store/API/constants, and tests. Implement grouped identity, exact server prices, UOM/fraction facts, separate STORE/WAREHOUSE quantities, compact accessible row actions, full detail/audit/barcode access, filters/paging, and labelled narrow records without horizontal page overflow. Do not aggregate stock or change item rules. Add tests and run the full validation commands. Update plan status; do not commit or push.
 
