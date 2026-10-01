@@ -1363,6 +1363,20 @@ Decision/audit: `docs/ux/design/uxr-d12-suppliers-decision.md`; `docs/ux/audits/
 
 #### UXI-17 — Supplier creation, editing, and deactivation
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-01):** Supplier creation now explains the backend's surrounding-
+whitespace removal and locale-independent uppercase normalization before the permanent code is
+submitted, including the case-insensitive identity boundary and prohibition on later reuse. Duplicate
+conflicts keep every entered value, focus the code, and explain that inactive suppliers retain their
+codes. Edit keeps code disabled and outside keyboard order while submitting only name, contact, and
+address. The form switches to one complete column through 820 pixels with full-width narrow actions.
+Deactivation remains a separate duplicate-locked state change that preserves identity, receipt/payment
+history, and server-owned debt; confirmation starts on `Batal`, Escape restores the trigger, and the
+backend-confirmed inactive result receives focus. Focused validation passed 31 tests across 5 supplier
+files; the full suite passed 458 tests across 68 files with one worker. Full lint passed, and the
+production build passed with only the existing stale-Browserslist and large-chunk advisory warnings.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D12 Pemasok** and review create, normalization guidance, immutable-code edit, duplicate conflict, deactivation confirmation, inactive result, and narrow form.
 
 Decision/audit: `docs/ux/design/uxr-d12-suppliers-decision.md`; `docs/ux/audits/uxr-a12-suppliers.md`

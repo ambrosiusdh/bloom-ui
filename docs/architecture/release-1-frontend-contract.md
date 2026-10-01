@@ -101,6 +101,13 @@ Bloom UI is currently a JavaScript React application:
   44-pixel detail action, and an independently recoverable balance read returned by the existing
   server aggregate. Detail groups immutable identity, complete contact and audit facts, explicit
   inactive meaning, and the server-returned total/paid/outstanding summary without calculating debt.
+- UXI-17 approved supplier maintenance UX is implemented: create explains the backend's trim-and-
+  uppercase code normalization before the permanent identity is committed, retains every field on a
+  duplicate conflict, and explains that inactive suppliers continue to reserve their codes. Edit
+  keeps the code disabled and outside keyboard order while changing only supported master data.
+  Deactivation remains a separate duplicate-locked, history-preserving lifecycle action with
+  cancel-first focus, Escape restoration, retryable failure, and a focused backend-confirmed inactive
+  result. The complete form stays single-column through the approved narrow-desktop boundary.
 - FE-07 backend receipt reprint is implemented: sale detail calls the backend print endpoint for the existing sale reference with pending, duplicate-click prevention, success, failure, and same-reference retry behavior.
 - FE-08 current dashboard reliability is implemented: the existing backend overview metrics have explicit accessible loading, error/retry, zero/empty, refresh, and last-successful-data behavior without frontend aggregation.
 - FE-10 item creation is implemented: `/items/new` sends item metadata, the Release 1 UOM/fractional policy, and optional decimal STORE/WAREHOUSE openings through the backend's single atomic create operation, with explicit category, validation, pending, conflict, failure-recovery, success, and focus behavior.

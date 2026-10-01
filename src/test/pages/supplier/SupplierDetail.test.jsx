@@ -2,6 +2,7 @@ import {
     Route,
     Routes
 } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
 import {
     beforeEach,
     describe,
@@ -142,6 +143,7 @@ describe('SupplierDetail', () => {
     });
 
     it('confirms deactivation accessibly, blocks duplicates, and preserves stable identity', async () => {
+        const user = userEvent.setup();
         const activeSupplier = { ...supplier, active: true };
         let resolveDeactivation;
         supplierApi.getSupplierDetails.mockResolvedValue({ data: { data: activeSupplier } });
@@ -155,7 +157,9 @@ describe('SupplierDetail', () => {
         expect(screen.getByRole('dialog', { name: 'Nonaktifkan Nusantara Tekstil?' })).toBeInTheDocument();
         const cancel = screen.getByRole('button', { name: 'Batal' });
         await waitFor(() => expect(cancel).toHaveFocus());
-        fireEvent.click(cancel);
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('dialog', { name: 'Nonaktifkan Nusantara Tekstil?' }))
+            .not.toBeInTheDocument();
         await waitFor(() => expect(trigger).toHaveFocus());
 
         fireEvent.click(trigger);
@@ -169,7 +173,9 @@ describe('SupplierDetail', () => {
 
         resolveDeactivation({ data: { data: { ...activeSupplier, active: false } } });
 
-        expect(await screen.findByText(/berhasil dinonaktifkan tanpa menghapus riwayatnya/i)).toBeInTheDocument();
+        const success = await screen.findByText(/berhasil dinonaktifkan tanpa menghapus riwayatnya/i);
+        expect(success).toBeInTheDocument();
+        expect(success.closest('[role="status"]')).toHaveFocus();
         expect(screen.getAllByText('SUP-001').length).toBeGreaterThan(0);
         expect(screen.getByLabelText('Status pemasok: Tidak aktif')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Nonaktifkan pemasok' })).not.toBeInTheDocument();

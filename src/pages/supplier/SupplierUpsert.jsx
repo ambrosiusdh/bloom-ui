@@ -19,6 +19,8 @@ const FIELD_LABELS = {
     contactNumber: 'Nomor kontak',
     address: 'Alamat'
 };
+const DUPLICATE_CODE_MESSAGE = 'Kode pemasok sudah digunakan. Pemasok tidak aktif tetap '
+    + 'menyimpan kodenya; semua masukan Anda dipertahankan.';
 
 const validateField = (field, value, isEdit) => {
     if ((field === 'name' || (field === 'code' && !isEdit)) && !value.trim()) {
@@ -176,7 +178,7 @@ export default function SupplierUpsert() {
             if (backendField) {
                 pendingFieldFocusRef.current = backendField;
                 setSubmitError(!isEdit && error?.category === 'conflict'
-                    ? 'Kode pemasok harus unik. Gunakan kode lain.'
+                    ? DUPLICATE_CODE_MESSAGE
                     : 'Periksa kembali kolom yang ditandai.');
             } else if (error?.category === 'not_found') {
                 setSubmitError('Pemasok ini tidak lagi tersedia. Kembali ke daftar dan muat ulang data.');
@@ -279,7 +281,7 @@ export default function SupplierUpsert() {
                 <p className="text-gray-600 mt-1">
                     { isEdit
                         ? 'Kode pemasok adalah identitas tetap dan tidak dapat diubah.'
-                        : 'Kode akan disimpan sebagai identitas tetap dan harus unik.' }
+                        : 'Kode dinormalkan sebelum disimpan sebagai identitas tetap yang unik.' }
                 </p>
             </header>
 
@@ -290,7 +292,7 @@ export default function SupplierUpsert() {
             ) }
 
             <Paper component="form" onSubmit={ handleSubmit } noValidate className="p-4 md:p-5 max-w-3xl space-y-4">
-                <fieldset disabled={ interactionDisabled } className="grid gap-4 sm:grid-cols-2">
+                <fieldset disabled={ interactionDisabled } className="grid gap-4 min-[821px]:grid-cols-2">
                     <legend className="sr-only">Informasi pemasok</legend>
                     <TextField
                         label="Nama pemasok"
@@ -303,6 +305,7 @@ export default function SupplierUpsert() {
                         onChange={ handleChange }
                         onBlur={ () => handleBlur('name') }
                         slotProps={ { htmlInput: { maxLength: MAX_LENGTH } } }
+                        required
                         fullWidth
                     />
 
@@ -321,10 +324,22 @@ export default function SupplierUpsert() {
                             value={ form.code }
                             inputRef={ element => { fieldRefs.current.code = element; } }
                             error={ Boolean(errors.code) }
-                            helperText={ errors.code || `Unik, maksimal ${ MAX_LENGTH } karakter.` }
+                            helperText={ (
+                                <>
+                                    <span className="block">
+                                        { errors.code || `${ form.code.length }/${ MAX_LENGTH }` }
+                                    </span>
+                                    <span className="mt-1 block">
+                                        Sistem menghapus spasi di awal/akhir dan menyimpan kode dengan huruf besar.
+                                        Perbedaan huruf besar/kecil tidak membuat identitas baru. Setelah dibuat,
+                                        kode tidak dapat diubah atau digunakan ulang.
+                                    </span>
+                                </>
+                            ) }
                             onChange={ handleChange }
                             onBlur={ () => handleBlur('code') }
                             slotProps={ { htmlInput: { maxLength: MAX_LENGTH } } }
+                            required
                             fullWidth
                         />
                     ) }
@@ -355,12 +370,18 @@ export default function SupplierUpsert() {
                         multiline
                         minRows={ 3 }
                         fullWidth
-                        className="sm:col-span-2"
+                        className="min-[821px]:col-span-2"
                     />
                 </fieldset>
 
-                <div className="flex flex-wrap gap-2">
-                    <Button type="submit" variant="contained" disabled={ interactionDisabled } aria-busy={ isSubmitting }>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                        type="submit"
+                        variant="contained"
+                        disabled={ interactionDisabled }
+                        aria-busy={ isSubmitting }
+                        className="w-full sm:w-auto"
+                    >
                         { isSubmitting ? 'Menyimpan...' : isEdit ? 'Simpan perubahan' : 'Buat pemasok' }
                     </Button>
                     <Button
@@ -368,6 +389,7 @@ export default function SupplierUpsert() {
                         to={ cancelTo }
                         state={ detailPath ? { from: listReturnTo } : undefined }
                         disabled={ interactionDisabled }
+                        className="w-full sm:w-auto"
                     >
                         Batal
                     </Button>
