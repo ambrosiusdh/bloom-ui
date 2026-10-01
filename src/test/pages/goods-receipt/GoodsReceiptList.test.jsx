@@ -10,6 +10,27 @@ import { act, render, screen, waitFor } from '@/test/render.jsx';
 vi.mock('@api/goods-receipt.js', () => ({ default: {
     getGoodsReceiptList: vi.fn(), getGoodsReceiptDetails: vi.fn(), createGoodsReceipt: vi.fn()
 } }));
+vi.mock('@components/_ui/BloomDateRangePicker.jsx', () => ({
+    default: ({
+        endDate,
+        label,
+        onChange,
+        startDate
+    }) => (
+        <div>
+            <span aria-label={ label }>{ startDate }|{ endDate }</span>
+            <button
+                type="button"
+                onClick={ () => onChange({
+                    startDate: '2026-09-03',
+                    endDate: '2026-09-05'
+                }) }
+            >
+                Pilih rentang penerimaan uji
+            </button>
+        </div>
+    )
+}));
 
 const receipt = {
     code: 'GR/IX-2026/0025', supplierId: 7, supplierCode: 'SUP-007',
@@ -69,8 +90,8 @@ describe('GoodsReceiptList UXI-18 read workflow', () => {
             'href', `/goods-receipts/${ encodeURIComponent(receipt.code) }`
         );
         expect(screen.getByRole('link', { name: /buat penerimaan/i })).toHaveAttribute('href', '/goods-receipts/new');
-        expect(screen.getByRole('textbox', { name: 'Tanggal mulai' })).toHaveValue('01-09-2026');
-        expect(screen.getByRole('textbox', { name: 'Tanggal akhir' })).toHaveValue('03-09-2026');
+        expect(screen.getByLabelText('Rentang tanggal penerimaan'))
+            .toHaveTextContent('2026-09-01|2026-09-03');
 
         const [params, config, options] = goodsReceiptApi.getGoodsReceiptList.mock.calls[0];
         expect(params).toMatchObject({ page: 2, size: 5, supplierName: 'Bloom' });
@@ -167,24 +188,14 @@ describe('GoodsReceiptList UXI-18 read workflow', () => {
             .not.toHaveProperty('paymentStatus');
     });
 
-    it('validates Indonesian date input and keeps the canonical dates in the URL request', async () => {
+    it('applies one selected range as canonical calendar dates', async () => {
         const user = userEvent.setup();
         goodsReceiptApi.getGoodsReceiptList.mockResolvedValue(response());
 
         render(<GoodsReceiptList />, { route: '/goods-receipts' });
 
         await screen.findByText('Tidak ada penerimaan barang');
-        await user.type(screen.getByRole('textbox', { name: 'Tanggal mulai' }), '03-09-2026');
-        await user.type(screen.getByRole('textbox', { name: 'Tanggal akhir' }), '01-09-2026');
-        await user.click(screen.getByRole('button', { name: 'Terapkan filter' }));
-
-        expect(screen.getByRole('alert')).toHaveTextContent(
-            'Tanggal mulai tidak boleh setelah tanggal akhir.'
-        );
-        expect(goodsReceiptApi.getGoodsReceiptList).toHaveBeenCalledTimes(1);
-
-        await user.clear(screen.getByRole('textbox', { name: 'Tanggal akhir' }));
-        await user.type(screen.getByRole('textbox', { name: 'Tanggal akhir' }), '05-09-2026');
+        await user.click(screen.getByRole('button', { name: 'Pilih rentang penerimaan uji' }));
         await user.click(screen.getByRole('button', { name: 'Terapkan filter' }));
 
         await waitFor(() => expect(goodsReceiptApi.getGoodsReceiptList).toHaveBeenCalledTimes(2));

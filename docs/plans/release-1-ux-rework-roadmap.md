@@ -1401,6 +1401,16 @@ supplier-payment integration passed 33 tests. The full single-worker suite passe
 files; full lint and the production build passed. Build output retained only the existing stale-
 Browserslist-data and large-chunk advisory warnings.
 
+**Shared history date-range follow-up (2026-10-02):** UXI-10 sales history, UXI-14 stock-adjustment
+history, and UXI-18 goods-receipt history now use one controlled date-range field instead of two
+manual/native inputs. The Indonesian calendar uses Bloom light/dark primary, surface, text, border,
+focus, and selected-text colors; provides explicit `Batal`, `Pilih rentang`, and `Hapus tanggal`
+actions; and stacks actions at narrow widths. Existing URL names, one-sided deep links, canonical
+calendar dates, sale Instant boundaries, and backend request contracts remain unchanged. Focused
+component/history validation passed 24 tests across 4 files; full lint and the production build
+passed. The full single-worker suite passed 475 of 476 tests, with one unrelated existing five-second
+stock-adjustment-create interaction timeout; that exact test passed immediately in isolation.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D13 Penerimaan barang** and review list, payment-state filters, detail, error/empty, and narrow states.
 
 Decision/audits: `docs/ux/design/uxr-d13-goods-receipts-decision.md`; `docs/ux/audits/uxr-a13-goods-receipt-history.md`; `docs/ux/audits/uxr-a14-goods-receipt-create.md`
@@ -1433,6 +1443,25 @@ Decision/audits: `docs/ux/design/uxr-d13-goods-receipts-decision.md`; UXR-A13/A1
 
 #### UXI-20 — Payable discovery and receipt debt detail
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-01):** Payable discovery now keeps receipt-reference or supplier-name
+search, page, and page-size state in the URL and exposes explicit range, current-page, previous, and
+next context. It renders the receipt/payment statuses and total, paid, and outstanding values returned
+on each backend row; the payable list does not aggregate or infer debt. The approved payable surface
+does not silently add the optional supplier-code refinement. Wide rows become labelled grouped
+records below the extra-large breakpoint, keeping supplier, receipt/time, status, exact values, and
+the named 44-pixel detail action together without page-level horizontal panning. Payable-context
+receipt detail has its own level-one heading and return path, followed by receipt/financial facts,
+received lines, and a paged server payment history before the separately owned payment mutation.
+History uses the corrected slash-safe `GET /api/goods-receipts/payments?code={receiptCode}` contract,
+shows active and voided audit facts, and reloads after a confirmed receipt refresh. Focused payable,
+payment, receipt, API, and store coverage passed 54 tests across 7 files. The parallel full suite
+passed 471 tests and hit one unrelated stock-adjustment timeout; that test passed in isolation, then
+the full single-worker suite passed 472 tests across 69 files. Full lint and the production build
+passed. Build output retained only the existing stale-Browserslist-data and large-chunk advisory
+warnings.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D14 Utang pemasok** and review list, search/paging, receipt detail, payment history, error/empty, and narrow states.
 
 Decision/audit: `docs/ux/design/uxr-d14-payables-payment-decision.md`; `docs/ux/audits/uxr-a15-payables-payment.md`
@@ -1440,6 +1469,24 @@ Decision/audit: `docs/ux/design/uxr-d14-payables-payment-decision.md`; `docs/ux/
 > Implement only UXI-20, Bloom payable discovery and receipt debt detail. Read the governing documents, `docs/ux/audits/uxr-a15-payables-payment.md`, `docs/ux/design/uxr-d14-payables-payment-decision.md`, and D14 in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `SupplierPayableList.jsx`, receipt detail/payment components, supplier-payment API/store/utilities, and tests. Implement only supported receipt/supplier-name discovery and paging, receipt-first debt detail, received lines and payment history before mutation, exact backend balances/payment states, and grouped narrow records. Optional supplier-code filtering must remain gated until the backend contract exists. Add tests and run the full validation commands. Update plan status; do not commit or push.
 
 #### UXI-21 — Supplier payment and recovery
+
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-01):** The one-receipt form preserves exact decimal amount, backend
+method vocabulary, optional reference/note, full-outstanding assistance, and explicit CASH versus
+non-cash drawer meaning. Cancel-first confirmation repeats receipt, supplier, amount, method,
+last-known outstanding, reference, note, confirmation-time payment timestamp, and session meaning;
+pending then locks and displays the exact durable request. The corrected
+`POST /api/goods-receipts/payments?code={receiptCode}` transport retains its idempotency key and exact
+authenticated `accountId` owner. CASH additionally persists the originally reviewed session ID as
+recovery metadata and freshly verifies that exact open session before initial submission and every
+retry; a newer session is never substituted, and legacy CASH attempts without this identity remain
+quarantined. Definitive rejection explicitly confirms that no payment was accepted and refreshes
+receipt facts while preserving editable input. Success separately displays the returned payment
+record and backend-refreshed paid, outstanding, payment-status, and payment-history facts. No browser
+balance or status calculation was added. The focused supplier-payment suite passed 35 tests; the full
+single-worker suite passed 474 tests across 69 files. Full lint and the production build passed. Build
+output retained only the existing stale-Browserslist-data and large-chunk advisory warnings.
 
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D14 Utang pemasok** and review amount/method/reference/note form, CASH/non-cash meaning, confirmation, pending, rejection, exact recovery, refreshed success, and narrow states.
 

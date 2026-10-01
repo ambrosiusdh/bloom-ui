@@ -37,15 +37,18 @@ import {
     SUPPLIER_PAYMENT_METHODS,
     validatePayment
 } from '@utils/supplier-payment-utils.js';
+import { formatDate } from '@utils/date-utils.js';
 
 const messages = {
+    checkingSession: 'Memastikan sesi kas yang dipilih masih terbuka sebelum mengirim pembayaran.',
     pending: 'Menyimpan pembayaran. Tunggu hasilnya sebelum membayar lagi.',
     uncertain: 'Hasil pembayaran belum pasti. Periksa koneksi, lalu pulihkan pembayaran yang sama. Jangan membuat pembayaran baru.',
+    cashRecoveryBlocked: 'Pembayaran tunai belum dipulihkan. Sesi kas asal tidak tersedia atau bukan lagi sesi aktif. Permintaan tetap dikunci ke sesi asal dan tidak akan dialihkan ke sesi lain.',
     keyConflict: 'Identitas pembayaran ditolak server. Minta petugas memeriksa transaksi ini sebelum membayar lagi.',
-    conflict: 'Pembayaran ditolak: nominal mungkin melebihi sisa tagihan atau penerimaan sudah berubah. Periksa nilai terbaru, lalu konfirmasi kembali.',
-    sessionConflict: 'Pembayaran tunai belum dapat dicatat. Sesi kas mungkin sudah ditutup atau waktu pembayaran berada di luar sesi. Periksa sesi dan tanggal/jam perangkat, lalu konfirmasi kembali.',
-    clockInvalid: 'Waktu pembayaran ditolak server. Sinkronkan tanggal/jam perangkat, lalu buka konfirmasi pembayaran kembali.',
-    rejected: 'Pembayaran ditolak. Periksa nominal, metode, waktu, referensi, catatan, dan izin Anda sebelum mencoba kembali.',
+    conflict: 'Tidak ada pembayaran yang dikonfirmasi server. Nominal mungkin melebihi sisa tagihan atau penerimaan sudah berubah. Periksa nilai terbaru, lalu konfirmasi kembali.',
+    sessionConflict: 'Tidak ada pembayaran yang dikonfirmasi server. Sesi kas mungkin sudah ditutup, berubah, atau waktu pembayaran berada di luar sesi. Periksa sesi dan tanggal/jam perangkat, lalu konfirmasi kembali.',
+    clockInvalid: 'Tidak ada pembayaran yang dikonfirmasi server. Waktu pembayaran ditolak. Sinkronkan tanggal/jam perangkat, lalu buka konfirmasi kembali.',
+    rejected: 'Tidak ada pembayaran yang dikonfirmasi server. Periksa nominal, metode, waktu, referensi, catatan, dan izin Anda sebelum mencoba kembali.',
     storageUnavailable: 'Pemulihan pembayaran tidak dapat disimpan di tab ini. Izinkan penyimpanan browser sebelum mengirim pembayaran.'
 };
 
@@ -58,7 +61,16 @@ export default function SupplierPayment({ receipt }) {
     const feedbackRef = useRef(null);
     const focusNextRef = useRef(false);
     const headingRef = useRef(null);
-    const { code, draft, attempt, result, pending, outcome, refreshStatus } = state;
+    const {
+        code,
+        draft,
+        attempt,
+        result,
+        pending,
+        checkingCashSession,
+        outcome,
+        refreshStatus
+    } = state;
     const current = code === receipt.code;
     const authAccountId = auth.authStatus === 'authenticated' ? auth.currentUser?.accountId : null;
     const accessible = canUsePayment(state, authAccountId);
@@ -121,10 +133,15 @@ export default function SupplierPayment({ receipt }) {
             code,
             ownerAccountId: state.ownerAccountId,
             request: paymentRequest(draft, new Date().toISOString()),
-            supplierName: receipt.supplierName, outstandingAmount: receipt.outstandingAmount
+            expectedCashSessionId: draft.paymentMethod === 'CASH' ? cash.currentSession?.id : null,
+            supplierName: receipt.supplierName,
+            outstandingAmount: receipt.outstandingAmount
         });
     };
-    const edit = (field, value) => state.edit({ ...draft, [field]: value });
+    const edit = (field, value) => state.edit({
+        ...draft,
+        [field]: value
+    });
 
     return (
         <Card className="print:hidden">
@@ -139,8 +156,6 @@ export default function SupplierPayment({ receipt }) {
                                tabIndex={ -1 }
                                ref={ feedbackRef }>
                             { result.voided ? 'Pembayaran yang dipulihkan sudah dibatalkan.' : 'Pembayaran tercatat.' }
-                            { ` #${ result.id } · ${ result.receiptCode } · ${ formatRupiah(result.amount) } · ${ SUPPLIER_PAYMENT_METHODS[result.paymentMethod] }` }
-                            { result.cashSessionId && ` · Sesi kas #${ result.cashSessionId }` }
                         </Alert>
                     ) : messages[outcome] && (
                         <Alert severity={ pending ? 'info' : 'warning' }
@@ -150,8 +165,27 @@ export default function SupplierPayment({ receipt }) {
                             { messages[outcome] }
                         </Alert>
                     ) }
-                    { attempt && <Typography variant="body2" sx={ { overflowWrap: 'anywhere' } }>Referensi
-                        pemulihan: { attempt.key }</Typography> }
+                    { result && (
+                        <Stack spacing={ 0.5 } aria-label="Catatan pembayaran dari server">
+                            <Typography variant="subtitle2">Catatan pembayaran dari server</Typography>
+                            <Typography variant="body2">Pembayaran #{ result.id } · Penerimaan { result.receiptCode }</Typography>
+                            <Typography variant="body2">{ formatRupiah(result.amount) } · { SUPPLIER_PAYMENT_METHODS[result.paymentMethod] || result.paymentMethod }</Typography>
+                            <Typography variant="body2">Waktu pembayaran: { formatDate(result.paidAt) || 'Tidak tersedia' }</Typography>
+                            <Typography variant="body2">Referensi: { result.reference || 'Tidak ada' }</Typography>
+                            <Typography variant="body2">Catatan: { result.note || 'Tidak ada' }</Typography>
+                            <Typography variant="body2">Pelaku: { result.actor || 'Tidak tersedia' }</Typography>
+                            { result.cashSessionId && <Typography variant="body2">Sesi kas #{ result.cashSessionId }</Typography> }
+                        </Stack>
+                    ) }
+                    { attempt && (
+                        <Stack spacing={ 0.5 } sx={ { overflowWrap: 'anywhere' } } aria-label="Permintaan pembayaran yang dikunci">
+                            <Typography variant="subtitle2">Permintaan yang dikunci untuk pemulihan</Typography>
+                            <Typography variant="body2">Penerimaan { attempt.code } · { formatRupiah(attempt.request.amount) } · { SUPPLIER_PAYMENT_METHODS[attempt.request.paymentMethod] || attempt.request.paymentMethod }</Typography>
+                            <Typography variant="body2">Waktu pembayaran: { formatDate(attempt.request.paidAt) || 'Tidak tersedia' }</Typography>
+                            { attempt.expectedCashSessionId && <Typography variant="body2">Sesi kas asal #{ attempt.expectedCashSessionId }</Typography> }
+                            <Typography variant="body2">Referensi pemulihan: { attempt.key }</Typography>
+                        </Stack>
+                    ) }
                     { refreshStatus === 'loading' &&
                         <Typography role="status">Memuat ulang nilai dan status penerimaan...</Typography> }
                     { refreshStatus === 'error' && (
@@ -160,19 +194,30 @@ export default function SupplierPayment({ receipt }) {
                             <Button onClick={ state.refresh }>Muat ulang nilai penerimaan</Button>
                         </Alert>
                     ) }
+                    { result && refreshStatus === 'ready' && (
+                        <Stack spacing={ 0.5 } aria-label="Nilai penerimaan terbaru dari server">
+                            <Typography variant="subtitle2">Nilai penerimaan terbaru dari server</Typography>
+                            <Typography variant="body2">Total dibayar: { formatRupiah(receipt.paidAmount) }</Typography>
+                            <Typography variant="body2">Sisa utang: { formatRupiah(receipt.outstandingAmount) }</Typography>
+                            <Typography variant="body2">Status pembayaran: { receipt.paymentStatus }</Typography>
+                        </Stack>
+                    ) }
                     { result && refreshStatus === 'ready' && <Button disabled={ pending }
                                                                      onClick={ () => {
                                                                          focusNextRef.current = true;
                                                                          state.next();
                                                                      } }>{ payable ? 'Catat pembayaran berikutnya' : 'Selesai' }</Button> }
                     { attempt && outcome !== 'keyConflict' &&
-                        <Button disabled={ pending } onClick={ () => state.submit() }>Pulihkan pembayaran yang
-                            sama</Button> }
+                        <Button disabled={ pending || checkingCashSession } onClick={ () => state.submit() }>
+                            { attempt.request.paymentMethod === 'CASH'
+                                ? 'Periksa sesi asal dan pulihkan pembayaran yang sama'
+                                : 'Pulihkan pembayaran yang sama' }
+                        </Button> }
                     { !attempt && !result && !payable &&
                         <Alert severity="info">Penerimaan ini tidak memiliki tagihan yang dapat dibayar.</Alert> }
                     { !result && (payable || attempt) && (
                         <Stack component="form" spacing={ 2 } onSubmit={ review } aria-busy={ pending }>
-                            <Stack direction={ { xs: 'column', sm: 'row' } } spacing={ 2 }>
+                            <Stack direction={ { xs: 'column', lg: 'row' } } spacing={ 2 }>
                                 <BloomMoneyField label="Nominal pembayaran"
                                                  groupSeparator="."
                                                  decimalSeparator=","
@@ -198,7 +243,9 @@ export default function SupplierPayment({ receipt }) {
                                 tagihan: { formatRupiah(receipt.outstandingAmount) }</Button>
                             { draft.paymentMethod === 'CASH' ? (
                                 <Alert severity={ cashBlocked ? 'warning' : 'info' }>
-                                    { cash.currentStatus === 'loading' ? 'Memeriksa sesi kas...'
+                                    { attempt?.expectedCashSessionId
+                                        ? `Pemulihan ini tetap terikat ke sesi kas asal #${ attempt.expectedCashSessionId }; sesi baru tidak akan menggantikannya.`
+                                        : cash.currentStatus === 'loading' ? 'Memeriksa sesi kas...'
                                         : cash.currentStatus === 'error' ? 'Sesi kas gagal diperiksa.'
                                             : cashBlocked ? 'Pembayaran tunai memerlukan sesi kas terbuka.'
                                                 : `Tunai mengurangi uang laci sesi #${ cash.currentSession?.id }.` }
@@ -235,12 +282,16 @@ export default function SupplierPayment({ receipt }) {
                     <p>{ confirmation?.supplierName } · { confirmation?.code }</p>
                     <p>{ formatRupiah(confirmation?.request.amount) } · { SUPPLIER_PAYMENT_METHODS[confirmation?.request.paymentMethod] }</p>
                     <p>Sisa tagihan terakhir: { formatRupiah(confirmation?.outstandingAmount) }.</p>
-                    { confirmation?.request.reference && <p>Referensi: { confirmation.request.reference }</p> }
-                    { confirmation?.request.note && <p>Catatan: { confirmation.request.note }</p> }
+                    <p>Referensi: { confirmation?.request.reference || 'Tidak ada' }</p>
+                    <p>Catatan: { confirmation?.request.note || 'Tidak ada' }</p>
+                    <p>Waktu pembayaran: { formatDate(confirmation?.request.paidAt) || 'Tidak tersedia' }</p>
                     <p>Pastikan pembayaran sudah dilakukan. Waktu pembayaran dicatat saat konfirmasi ini dibuka. Server
                         akan memeriksa sisa tagihan sebelum menyimpan.</p>
-                    { confirmation?.request.paymentMethod === 'CASH' &&
-                        <p>Pembayaran ini mengurangi uang laci sesi kas terbuka.</p> }
+                    { confirmation?.request.paymentMethod === 'CASH' ? (
+                        <p>Pembayaran ini mengurangi uang laci sesi kas #{ confirmation?.expectedCashSessionId } dan tetap terikat ke sesi tersebut saat dipulihkan.</p>
+                    ) : (
+                        <p>Pembayaran ini tidak memakai sesi kas dan tidak mengubah uang laci.</p>
+                    ) }
                 </DialogContent>
                 <DialogActions>
                     <Button autoFocus onClick={ () => setConfirmation(null) }>Kembali</Button>
@@ -258,8 +309,11 @@ export default function SupplierPayment({ receipt }) {
 
 SupplierPayment.propTypes = {
     receipt: PropTypes.shape({
-        code: PropTypes.string.isRequired, supplierName: PropTypes.string,
-        status: PropTypes.string, paymentStatus: PropTypes.string,
+        code: PropTypes.string.isRequired,
+        supplierName: PropTypes.string,
+        status: PropTypes.string,
+        paymentStatus: PropTypes.string,
+        paidAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
         outstandingAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
     }).isRequired
 };

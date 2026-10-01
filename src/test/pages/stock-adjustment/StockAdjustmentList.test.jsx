@@ -21,6 +21,27 @@ vi.mock('@api/stock-adjustment.js', () => ({ default: {
     getStockAdjustmentDetails: vi.fn(),
     getStockAdjustmentList: vi.fn()
 } }));
+vi.mock('@components/_ui/BloomDateRangePicker.jsx', () => ({
+    default: ({
+        endDate,
+        label,
+        onChange,
+        startDate
+    }) => (
+        <div>
+            <span aria-label={ label }>{ startDate }|{ endDate }</span>
+            <button
+                type="button"
+                onClick={ () => onChange({
+                    startDate: '2026-09-03',
+                    endDate: '2026-09-05'
+                }) }
+            >
+                Pilih rentang penyesuaian uji
+            </button>
+        </div>
+    )
+}));
 
 const adjustment = {
     stockAdjustmentCode: 'ADJ/IX-2026/0001',
@@ -128,7 +149,7 @@ describe('StockAdjustmentList FE-13 read workflow', () => {
         });
     });
 
-    it('applies the supported date range from progressive filters and rejects an inverted draft', async () => {
+    it('applies one selected date range from progressive filters', async () => {
         const user = userEvent.setup();
         stockAdjustmentApi.getStockAdjustmentList.mockResolvedValue(response([adjustment]));
 
@@ -136,8 +157,8 @@ describe('StockAdjustmentList FE-13 read workflow', () => {
             route: '/stock-adjustments?startDate=2026-09-01&endDate=2026-09-12'
         });
 
-        expect(await screen.findByLabelText('Dari tanggal')).toHaveValue('2026-09-01');
-        expect(screen.getByLabelText('Sampai tanggal')).toHaveValue('2026-09-12');
+        expect(await screen.findByLabelText('Rentang tanggal penyesuaian'))
+            .toHaveTextContent('2026-09-01|2026-09-12');
         expect(stockAdjustmentApi.getStockAdjustmentList).toHaveBeenCalledWith({
             page: 1,
             size: 10,
@@ -145,14 +166,15 @@ describe('StockAdjustmentList FE-13 read workflow', () => {
             endDate: expect.any(String)
         }, { signal: expect.any(AbortSignal) }, { useLoader: false });
 
-        await user.clear(screen.getByLabelText('Dari tanggal'));
-        await user.type(screen.getByLabelText('Dari tanggal'), '2026-09-20');
+        await user.click(screen.getByRole('button', { name: 'Pilih rentang penyesuaian uji' }));
         await user.click(screen.getByRole('button', { name: 'Terapkan' }));
 
-        expect(await screen.findByRole('alert')).toHaveTextContent(
-            'Tanggal mulai tidak boleh setelah tanggal akhir.'
-        );
-        expect(stockAdjustmentApi.getStockAdjustmentList).toHaveBeenCalledTimes(1);
+        await waitFor(() => expect(stockAdjustmentApi.getStockAdjustmentList).toHaveBeenCalledTimes(2));
+        expect(stockAdjustmentApi.getStockAdjustmentList.mock.calls[1][0]).toMatchObject({
+            startDate: expect.any(String),
+            endDate: expect.any(String),
+            page: 1
+        });
     });
 
     it('moves an out-of-range page to the final server page', async () => {

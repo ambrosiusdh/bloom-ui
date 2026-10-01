@@ -83,7 +83,8 @@ const EXPENSE = {
 }
 
 const SUPPLIER_PAYMENT = {
-    create: '/api/goods-receipts/payments'
+    create: '/api/goods-receipts/payments',
+    history: '/api/goods-receipts/payments'
 }
 
 export {

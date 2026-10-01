@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import { SlidersHorizontalIcon } from 'lucide-react';
 
+import BloomDateRangePicker from '@components/_ui/BloomDateRangePicker.jsx';
 import {
     useBreadcrumbStore,
     useStockAdjustmentStore
@@ -117,7 +118,6 @@ export default function StockAdjustmentList() {
     const [showMoreFilters, setShowMoreFilters] = useState(
         Boolean(state.startDate || state.endDate)
     );
-    const [filterError, setFilterError] = useState('');
     const [retry, setRetry] = useState(0);
     const totalPages = Number(paging.totalPages) || 0;
     const totalElements = Number.isFinite(Number(paging.totalElements))
@@ -190,13 +190,6 @@ export default function StockAdjustmentList() {
 
     const applyFilters = event => {
         event.preventDefault();
-
-        if (draftStartDate && draftEndDate && draftStartDate > draftEndDate) {
-            setFilterError('Tanggal mulai tidak boleh setelah tanggal akhir.');
-            return;
-        }
-
-        setFilterError('');
         updateQuery({
             q: draftQuery.trim(),
             startDate: draftStartDate,
@@ -209,7 +202,6 @@ export default function StockAdjustmentList() {
         setDraftQuery('');
         setDraftStartDate('');
         setDraftEndDate('');
-        setFilterError('');
         updateQuery({
             q: '',
             startDate: '',
@@ -262,44 +254,15 @@ export default function StockAdjustmentList() {
                 <Collapse in={ showMoreFilters }>
                     <div
                         id="stock-adjustment-more-filters"
-                        className="grid gap-3 border-t pt-3 md:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_auto] md:items-start"
+                        className="grid gap-3 border-t pt-3 md:grid-cols-[minmax(18rem,1fr)_auto] md:items-start"
                     >
-                        <TextField
-                            size="small"
-                            type="date"
-                            label="Dari tanggal"
-                            value={ draftStartDate }
-                            error={ !!filterError }
-                            slotProps={ {
-                                inputLabel: { shrink: true },
-                                htmlInput: {
-                                    'aria-describedby': filterError
-                                        ? 'stock-adjustment-filter-error'
-                                        : undefined
-                                }
-                            } }
-                            onChange={ event => {
-                                setDraftStartDate(event.target.value);
-                                setFilterError('');
-                            } }
-                        />
-                        <TextField
-                            size="small"
-                            type="date"
-                            label="Sampai tanggal"
-                            value={ draftEndDate }
-                            error={ !!filterError }
-                            slotProps={ {
-                                inputLabel: { shrink: true },
-                                htmlInput: {
-                                    'aria-describedby': filterError
-                                        ? 'stock-adjustment-filter-error'
-                                        : undefined
-                                }
-                            } }
-                            onChange={ event => {
-                                setDraftEndDate(event.target.value);
-                                setFilterError('');
+                        <BloomDateRangePicker
+                            label="Rentang tanggal penyesuaian"
+                            startDate={ draftStartDate }
+                            endDate={ draftEndDate }
+                            onChange={ range => {
+                                setDraftStartDate(range.startDate);
+                                setDraftEndDate(range.endDate);
                             } }
                         />
                         <Button
@@ -312,11 +275,6 @@ export default function StockAdjustmentList() {
                     </div>
                 </Collapse>
 
-                { filterError && (
-                    <Alert id="stock-adjustment-filter-error" severity="error">
-                        <strong>Rentang tanggal belum benar.</strong> { filterError }
-                    </Alert>
-                ) }
             </Paper>
 
             { error && (

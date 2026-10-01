@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import PropTypes from 'prop-types';
 
+import BloomDateRangePicker from '@components/_ui/BloomDateRangePicker.jsx';
 import { formatRupiah } from '@components/cash-session/cash-session-money.js';
 import { useBreadcrumbStore, useSaleStore } from '@stores/index.js';
 import { formatDate, isValidDateInput } from '@utils/date-utils.js';
@@ -33,29 +34,7 @@ const PAYMENT_LABELS = {
 const SALE_STATUS_LABELS = { COMPLETED: 'Selesai' };
 const PAYMENT_STATUS_LABELS = { PAID: 'Lunas' };
 const CORRECTION_STATUS_LABELS = { NONE: 'Tanpa pembatalan/retur' };
-const INDONESIAN_DATE_PATTERN = /^(\d{2})-(\d{2})-(\d{4})$/;
-
 const getStatusLabel = (labels, value) => labels[value] || value || '-';
-
-const parseIndonesianDate = value => {
-    const trimmedValue = value.trim();
-    if (!trimmedValue) return '';
-
-    const match = INDONESIAN_DATE_PATTERN.exec(trimmedValue);
-    if (!match) return null;
-
-    const [, day, month, year] = match;
-    const canonicalDate = `${ year }-${ month }-${ day }`;
-
-    return isValidDateInput(canonicalDate) ? canonicalDate : null;
-};
-
-const formatIndonesianDateInput = value => {
-    if (!isValidDateInput(value)) return '';
-
-    const [year, month, day] = value.split('-');
-    return `${ day }-${ month }-${ year }`;
-};
 
 const getQueryState = params => {
     const next = new URLSearchParams(params);
@@ -223,10 +202,9 @@ export default function SaleList() {
     const [draft, setDraft] = useState({
         filterKey: queryState.filterKey,
         query: queryState.query,
-        startDate: formatIndonesianDateInput(queryState.startDate),
-        endDate: formatIndonesianDateInput(queryState.endDate)
+        startDate: queryState.startDate,
+        endDate: queryState.endDate
     });
-    const [filterError, setFilterError] = useState('');
     const returnTo = `${ location.pathname }${ location.search }`;
     const totalElements = Number.isInteger(salePaging.totalElements)
         ? salePaging.totalElements
@@ -275,8 +253,8 @@ export default function SaleList() {
         setDraft({
             filterKey: queryState.filterKey,
             query: queryState.query,
-            startDate: formatIndonesianDateInput(queryState.startDate),
-            endDate: formatIndonesianDateInput(queryState.endDate)
+            startDate: queryState.startDate,
+            endDate: queryState.endDate
         });
     }, [queryState.filterKey, queryState.query, queryState.startDate, queryState.endDate]);
 
@@ -313,7 +291,6 @@ export default function SaleList() {
     }, [isPageOutOfRange, setSearchParams, totalPages]);
 
     const updateDraft = updates => {
-        setFilterError('');
         setDraft(current => ({
             ...current,
             ...updates
@@ -322,32 +299,16 @@ export default function SaleList() {
 
     const applyFilters = event => {
         event.preventDefault();
-
-        const startDate = parseIndonesianDate(draft.startDate);
-        const endDate = parseIndonesianDate(draft.endDate);
-
-        if (startDate === null || endDate === null) {
-            setFilterError('Gunakan format tanggal DD-MM-YYYY yang valid.');
-            return;
-        }
-
-        if (startDate && endDate && startDate > endDate) {
-            setFilterError('Tanggal mulai tidak boleh setelah tanggal akhir.');
-            return;
-        }
-
-        setFilterError('');
         updateQuery({
             key: draft.filterKey,
             q: draft.query.trim(),
-            startDate,
-            endDate,
+            startDate: draft.startDate,
+            endDate: draft.endDate,
             page: 1
         });
     };
 
     const clearFilters = () => {
-        setFilterError('');
         setDraft({
             filterKey: 'code',
             query: '',
@@ -377,7 +338,7 @@ export default function SaleList() {
                 aria-label="Filter riwayat penjualan"
                 onSubmit={ applyFilters }
             >
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(10rem,0.75fr)_minmax(13rem,1fr)_minmax(18rem,1.25fr)]">
                     <TextField
                         select
                         label="Cari berdasarkan"
@@ -396,40 +357,13 @@ export default function SaleList() {
                             : 'Contoh: admin' }
                         onChange={ event => updateDraft({ query: event.target.value }) }
                     />
-                    <TextField
-                        label="Tanggal mulai"
-                        value={ draft.startDate }
-                        placeholder="DD-MM-YYYY"
-                        error={ Boolean(filterError) }
-                        helperText="Hari-bulan-tahun"
-                        slotProps={ {
-                            htmlInput: {
-                                inputMode: 'numeric',
-                                'aria-describedby': filterError ? 'sale-date-error' : undefined
-                            }
-                        } }
-                        onChange={ event => updateDraft({ startDate: event.target.value }) }
-                    />
-                    <TextField
-                        label="Tanggal akhir"
-                        value={ draft.endDate }
-                        placeholder="DD-MM-YYYY"
-                        error={ Boolean(filterError) }
-                        helperText="Hari-bulan-tahun"
-                        slotProps={ {
-                            htmlInput: {
-                                inputMode: 'numeric',
-                                'aria-describedby': filterError ? 'sale-date-error' : undefined
-                            }
-                        } }
-                        onChange={ event => updateDraft({ endDate: event.target.value }) }
+                    <BloomDateRangePicker
+                        label="Rentang tanggal penjualan"
+                        startDate={ draft.startDate }
+                        endDate={ draft.endDate }
+                        onChange={ updateDraft }
                     />
                 </div>
-                { filterError && (
-                    <Alert id="sale-date-error" severity="error">
-                        <strong>Rentang tanggal belum benar.</strong> { filterError }
-                    </Alert>
-                ) }
                 <div className="flex flex-wrap gap-2">
                     <Button type="submit" variant="contained">Terapkan filter</Button>
                     <Button

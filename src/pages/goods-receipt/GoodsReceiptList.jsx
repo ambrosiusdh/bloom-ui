@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 
+import BloomDateRangePicker from '@components/_ui/BloomDateRangePicker.jsx';
 import { formatRupiah } from '@components/cash-session/cash-session-money.js';
 import { useBreadcrumbStore, useGoodsReceiptStore } from '@stores/index.js';
 import { formatDate, isValidDateInput } from '@utils/date-utils.js';
@@ -43,31 +44,6 @@ const FILTER_PLACEHOLDERS = {
     supplierCode: 'Contoh: SUP-BANGUN-01',
     supplierName: 'Contoh: CV Bangun Jaya'
 };
-const INDONESIAN_DATE_PATTERN = /^(\d{2})-(\d{2})-(\d{4})$/;
-
-const parseIndonesianDate = value => {
-    const trimmedValue = value.trim();
-
-    if (!trimmedValue) return '';
-
-    const match = INDONESIAN_DATE_PATTERN.exec(trimmedValue);
-
-    if (!match) return null;
-
-    const [, day, month, year] = match;
-    const canonicalDate = `${ year }-${ month }-${ day }`;
-
-    return isValidDateInput(canonicalDate) ? canonicalDate : null;
-};
-
-const formatIndonesianDateInput = value => {
-    if (!isValidDateInput(value)) return '';
-
-    const [year, month, day] = value.split('-');
-
-    return `${ day }-${ month }-${ year }`;
-};
-
 const getQueryState = params => {
     const next = new URLSearchParams(params);
     const requestedPage = Number(params.get('page'));
@@ -208,10 +184,9 @@ export default function GoodsReceiptList() {
     const [draft, setDraft] = useState({
         filterKey: queryState.filterKey,
         query: queryState.query,
-        startDate: formatIndonesianDateInput(queryState.startDate),
-        endDate: formatIndonesianDateInput(queryState.endDate)
+        startDate: queryState.startDate,
+        endDate: queryState.endDate
     });
-    const [filterError, setFilterError] = useState('');
     const returnTo = `${ location.pathname }${ location.search }`;
     const totalElements = Number.isFinite(Number(paging.totalElements))
         ? Number(paging.totalElements)
@@ -254,7 +229,6 @@ export default function GoodsReceiptList() {
     };
 
     const updateDraft = updates => {
-        setFilterError('');
         setDraft(current => ({
             ...current,
             ...updates
@@ -275,8 +249,8 @@ export default function GoodsReceiptList() {
         setDraft({
             filterKey: queryState.filterKey,
             query: queryState.query,
-            startDate: formatIndonesianDateInput(queryState.startDate),
-            endDate: formatIndonesianDateInput(queryState.endDate)
+            startDate: queryState.startDate,
+            endDate: queryState.endDate
         });
     }, [queryState.filterKey, queryState.query, queryState.startDate, queryState.endDate]);
 
@@ -323,31 +297,16 @@ export default function GoodsReceiptList() {
 
     const applyFilters = event => {
         event.preventDefault();
-
-        const startDate = parseIndonesianDate(draft.startDate);
-        const endDate = parseIndonesianDate(draft.endDate);
-
-        if (startDate === null || endDate === null) {
-            setFilterError('Gunakan format tanggal DD-MM-YYYY yang valid.');
-            return;
-        }
-        if (startDate && endDate && startDate > endDate) {
-            setFilterError('Tanggal mulai tidak boleh setelah tanggal akhir.');
-            return;
-        }
-
-        setFilterError('');
         updateQuery({
             key: draft.filterKey,
             q: draft.query.trim(),
-            receivedDateFrom: startDate,
-            receivedDateTo: endDate,
+            receivedDateFrom: draft.startDate,
+            receivedDateTo: draft.endDate,
             page: 1
         });
     };
 
     const clearFilters = () => {
-        setFilterError('');
         setDraft({
             filterKey: 'code',
             query: '',
@@ -388,7 +347,7 @@ export default function GoodsReceiptList() {
                 aria-label="Filter riwayat penerimaan barang"
                 onSubmit={ applyFilters }
             >
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(10rem,0.7fr)_minmax(13rem,1fr)_minmax(11rem,0.75fr)_minmax(11rem,0.75fr)]">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(10rem,0.7fr)_minmax(13rem,1fr)_minmax(18rem,1.25fr)]">
                     <TextField
                         select
                         label="Cari berdasarkan"
@@ -405,40 +364,13 @@ export default function GoodsReceiptList() {
                         placeholder={ FILTER_PLACEHOLDERS[draft.filterKey] }
                         onChange={ event => updateDraft({ query: event.target.value }) }
                     />
-                    <TextField
-                        label="Tanggal mulai"
-                        value={ draft.startDate }
-                        placeholder="DD-MM-YYYY"
-                        error={ Boolean(filterError) }
-                        helperText="Hari-bulan-tahun"
-                        slotProps={ {
-                            htmlInput: {
-                                inputMode: 'numeric',
-                                'aria-describedby': filterError ? 'goods-receipt-date-error' : undefined
-                            }
-                        } }
-                        onChange={ event => updateDraft({ startDate: event.target.value }) }
-                    />
-                    <TextField
-                        label="Tanggal akhir"
-                        value={ draft.endDate }
-                        placeholder="DD-MM-YYYY"
-                        error={ Boolean(filterError) }
-                        helperText="Hari-bulan-tahun"
-                        slotProps={ {
-                            htmlInput: {
-                                inputMode: 'numeric',
-                                'aria-describedby': filterError ? 'goods-receipt-date-error' : undefined
-                            }
-                        } }
-                        onChange={ event => updateDraft({ endDate: event.target.value }) }
+                    <BloomDateRangePicker
+                        label="Rentang tanggal penerimaan"
+                        startDate={ draft.startDate }
+                        endDate={ draft.endDate }
+                        onChange={ updateDraft }
                     />
                 </div>
-                { filterError && (
-                    <Alert id="goods-receipt-date-error" severity="error">
-                        <strong>Rentang tanggal belum benar.</strong> { filterError }
-                    </Alert>
-                ) }
                 <div className="flex flex-wrap gap-2">
                     <Button type="submit" variant="contained">Terapkan filter</Button>
                     <Button
