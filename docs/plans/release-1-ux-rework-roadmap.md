@@ -1385,6 +1385,22 @@ Decision/audit: `docs/ux/design/uxr-d12-suppliers-decision.md`; `docs/ux/audits/
 
 #### UXI-18 — Goods-receipt history and detail
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-01):** Goods-receipt history now retains backend-supported receipt
+code, exact supplier code, supplier name, received-date, page, and page-size state in the URL. Date
+fields use explicit Indonesian `DD-MM-YYYY` entry while requests keep canonical `YYYY-MM-DD` calendar
+dates. The backend exposes no payment-status list filter, so the UI does not create an incorrect
+client-only filter across paged results; it renders `UNPAID`, `PARTIALLY_PAID`, and `PAID` plus exact
+total, paid, and outstanding values directly from each server row. The wide list becomes labelled,
+grouped records below the extra-large breakpoint, and item lines use the same no-overflow narrow
+pattern. Detail now has one page heading, sequential receipt and financial sections, complete audit
+facts, and localized item/UOM/location/price/subtotal lines before the secondary supplier-payment
+workflow. Focused receipt read/API/store coverage passed 22 tests across 4 files, and the affected
+supplier-payment integration passed 33 tests. The full single-worker suite passed 461 tests across 68
+files; full lint and the production build passed. Build output retained only the existing stale-
+Browserslist-data and large-chunk advisory warnings.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D13 Penerimaan barang** and review list, payment-state filters, detail, error/empty, and narrow states.
 
 Decision/audits: `docs/ux/design/uxr-d13-goods-receipts-decision.md`; `docs/ux/audits/uxr-a13-goods-receipt-history.md`; `docs/ux/audits/uxr-a14-goods-receipt-create.md`
@@ -1392,6 +1408,22 @@ Decision/audits: `docs/ux/design/uxr-d13-goods-receipts-decision.md`; `docs/ux/a
 > Implement only UXI-18, Bloom goods-receipt history and detail. Read the governing documents, both UXR-A13/A14 audits, `docs/ux/design/uxr-d13-goods-receipts-decision.md`, and D13 in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect receipt list/detail pages, info/items components, receipt store/API, and tests. Implement URL-backed supported filters/paging, UNPAID/PARTIALLY_PAID/PAID states from the server, labelled/grouped narrow records, and receipt-first detail with audit/payment facts and received item/location lines before the secondary payment action. Do not infer payment status, debt, or totals. Add tests and run the full validation commands. Update plan status; do not commit or push.
 
 #### UXI-19 — Goods-receipt creation and recovery
+
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-01):** Goods-receipt creation now uses explicit Indonesian
+`DD-MM-YYYY`, 24-hour time, and WIB/WITA/WIT guidance while preserving the backend Instant request.
+Repeated SKUs remain independent compact item/location lines; the editor changes from two columns to
+one column at the small breakpoint without horizontal page overflow. Exact decimal-string helpers
+provide only a labelled input estimate and line comparison values, while the completed screen renders
+official total, paid, outstanding, payment status, and posted item facts exclusively from the complete
+server response. The localized review keeps `Kembali` first and focused, locks duplicate submission,
+and states that no initial payment is recorded. Known server rejection unlocks the retained draft;
+ambiguous outcomes keep the exact payload and idempotency key durably locked for an explicit same-
+request replay, including migration of the earlier combined local date/time draft shape. Focused
+creation/API coverage passed 33 tests across 2 files. The full single-worker suite passed 466 tests
+across 68 files; full lint and the production build passed. Build output retained only the existing
+stale-Browserslist-data and large-chunk advisory warnings.
 
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D13 Penerimaan barang** and review create, per-location lines, repeated SKU, validation, confirmation, pending, rejection, exact-request recovery, success, and narrow states.
 

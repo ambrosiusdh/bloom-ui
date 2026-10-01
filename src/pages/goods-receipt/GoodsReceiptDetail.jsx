@@ -70,7 +70,8 @@ const GoodsReceiptDetail = () => {
 
     if (!isValidReference) {
         return (
-            <div className="space-y-4">
+            <div className="space-y-4 pb-8">
+                <h1 className="text-2xl font-bold">Detail penerimaan</h1>
                 <Alert severity="error">Nomor penerimaan barang tidak valid.</Alert>
                 <Button component={ Link } to={ backTo } startIcon={ <ArrowLeft /> }>Kembali ke daftar</Button>
             </div>
@@ -88,7 +89,8 @@ const GoodsReceiptDetail = () => {
 
     if (detailStatus === 'error' || !isCurrentReceipt) {
         return (
-            <div className="space-y-4">
+            <div className="space-y-4 pb-8">
+                <h1 className="text-2xl font-bold">Detail penerimaan</h1>
                 <Alert
                     severity="error"
                     action={ (
@@ -108,23 +110,36 @@ const GoodsReceiptDetail = () => {
 
     return (
         <div className="goods-receipt-detail space-y-6 pb-8">
-            <div className="flex justify-between items-center print:hidden">
+            <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold">Detail penerimaan</h1>
+                    <p className="mt-1 break-all text-gray-600">{ receiptReference }</p>
+                </div>
                 <Button
                     component={ Link }
                     to={ backTo }
                     startIcon={ <ArrowLeft /> }
-                    variant="text"
-                    color="inherit"
+                    className="self-start print:hidden"
                 >
-                    Kembali
+                    Kembali ke daftar
                 </Button>
-            </div>
+            </header>
 
             <GoodsReceiptInfoCard receipt={ goodsReceiptDetails } />
 
-            <SupplierPayment key={ receiptReference } receipt={ goodsReceiptDetails } />
-
             <GoodsReceiptItemsTable goodsReceiptItems={ goodsReceiptDetails?.items || [] } />
+
+            <section className="space-y-3 print:hidden" aria-labelledby="goods-receipt-payment-heading">
+                <div>
+                    <h2 id="goods-receipt-payment-heading" className="text-xl font-bold">
+                        Pembayaran pemasok
+                    </h2>
+                    <p className="mt-1 text-gray-600">
+                        Pembayaran adalah tugas terpisah setelah isi penerimaan selesai diperiksa.
+                    </p>
+                </div>
+                <SupplierPayment key={ receiptReference } receipt={ goodsReceiptDetails } />
+            </section>
         </div>
     );
 };

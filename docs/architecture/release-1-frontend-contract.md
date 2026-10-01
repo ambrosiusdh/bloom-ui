@@ -108,6 +108,22 @@ Bloom UI is currently a JavaScript React application:
   Deactivation remains a separate duplicate-locked, history-preserving lifecycle action with
   cancel-first focus, Escape restoration, retryable failure, and a focused backend-confirmed inactive
   result. The complete form stays single-column through the approved narrow-desktop boundary.
+- UXI-18 approved goods-receipt history/detail UX is implemented: receipt code, exact supplier code,
+  supplier name, received-date range, page, and page size remain URL-backed and map only to supported
+  backend filters. History renders backend-returned `UNPAID`, `PARTIALLY_PAID`, and `PAID` states plus
+  total, paid, and outstanding values without client inference; no unsupported cross-page payment-
+  status filter is added. Wide rows become labelled grouped records before the audited narrow-
+  desktop overflow boundary. Detail presents one page heading, receipt/audit and financial facts,
+  then exact received item/UOM/location/price/subtotal lines before the separately owned supplier-
+  payment action.
+- UXI-19 approved goods-receipt creation/recovery UX is implemented: explicit Indonesian
+  `DD-MM-YYYY`, 24-hour time, and WIB/WITA/WIT inputs map to the existing receipt Instant contract;
+  compact two-column-to-single-column lines preserve repeated SKU/location entries and exact decimal
+  strings. The browser presents only a clearly advisory input estimate. Cancel-first review, one
+  locked pending request, definitive rejection, and tab-durable ambiguous recovery retain the exact
+  payload and idempotency key. Success renders only backend-confirmed receipt, item, total, paid,
+  outstanding, and payment-status facts; no initial payment or client-authoritative financial state
+  is introduced.
 - FE-07 backend receipt reprint is implemented: sale detail calls the backend print endpoint for the existing sale reference with pending, duplicate-click prevention, success, failure, and same-reference retry behavior.
 - FE-08 current dashboard reliability is implemented: the existing backend overview metrics have explicit accessible loading, error/retry, zero/empty, refresh, and last-successful-data behavior without frontend aggregation.
 - FE-10 item creation is implemented: `/items/new` sends item metadata, the Release 1 UOM/fractional policy, and optional decimal STORE/WAREHOUSE openings through the backend's single atomic create operation, with explicit category, validation, pending, conflict, failure-recovery, success, and focus behavior.

@@ -72,7 +72,7 @@ describe('FE-28 receipt payment', () => {
         await confirm(user);
         const saved = await screen.findByText(/Pembayaran tercatat/);
         await waitFor(() => expect(saved.closest('[role="status"]')).toHaveFocus());
-        expect(screen.getByText('Belum dibayar').nextSibling).toHaveTextContent('Rp 65');
+        expect(screen.getByText('Sisa utang').nextSibling).toHaveTextContent('Rp 65');
         expect(screen.getByLabelText('Status pembayaran: Dibayar sebagian')).toBeInTheDocument();
         expect(supplierPaymentApi.createSupplierPayment).toHaveBeenCalledWith('GR-28', {
             amount: '20.125', paymentMethod: ({ 'Transfer bank': 'BANK_TRANSFER', QRIS: 'QRIS', 'Tunai (CASH)': 'CASH' })[method],
@@ -150,7 +150,7 @@ describe('FE-28 receipt payment', () => {
         expect(await screen.findByText(message)).toBeInTheDocument();
         await waitFor(() => expect(screen.getByLabelText('Nominal pembayaran')).toBeEnabled());
         expect(screen.getByLabelText('Nominal pembayaran')).toHaveValue('101');
-        expect(screen.getByText('Belum dibayar').nextSibling).toHaveTextContent('Rp 65');
+        expect(screen.getByText('Sisa utang').nextSibling).toHaveTextContent('Rp 65');
         expect(paymentStore.getState().attempt).toBeNull();
         if (domainCode === 'cash_session_conflict') {
             expect(cashStore.getState().drawerActionsEnabled).toBe(false);

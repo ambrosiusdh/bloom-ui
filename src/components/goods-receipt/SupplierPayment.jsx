@@ -130,8 +130,9 @@ export default function SupplierPayment({ receipt }) {
         <Card className="print:hidden">
             <CardContent>
                 <Stack spacing={ 2 }>
-                    <Typography variant="h6" tabIndex={ -1 } ref={ headingRef }>Bayar pemasok untuk penerimaan
-                        ini</Typography>
+                    <Typography component="h3" variant="h6" tabIndex={ -1 } ref={ headingRef }>
+                        Bayar pemasok untuk penerimaan ini
+                    </Typography>
                     { result ? (
                         <Alert severity={ result.voided ? 'warning' : 'success' }
                                role="status"

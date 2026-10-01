@@ -28,7 +28,7 @@ const renderDetail = (reference = receipt.code) => render(
     { route: `/goods-receipts/${ encodeURIComponent(reference) }` }
 );
 
-describe('GoodsReceiptDetail FE-25 read workflow', () => {
+describe('GoodsReceiptDetail UXI-18 read workflow', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         useSupplierPaymentStore.setState(useSupplierPaymentStore.getInitialState());
@@ -49,15 +49,34 @@ describe('GoodsReceiptDetail FE-25 read workflow', () => {
         renderDetail();
 
         expect(await screen.findByText('Kain datang lengkap')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Detail penerimaan', level: 1 }))
+            .toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Informasi penerimaan', level: 2 }))
+            .toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Nilai penerimaan', level: 2 }))
+            .toBeInTheDocument();
         expect(screen.getByLabelText('Status penerimaan: Dibukukan')).toBeInTheDocument();
         expect(screen.getByLabelText('Status pembayaran: Dibayar sebagian')).toBeInTheDocument();
         expect(screen.getByText('ID pemasok').nextSibling).toHaveTextContent('7');
         expect(screen.getByText('Kode pemasok').nextSibling).toHaveTextContent('SUP-007');
         expect(screen.getByText('Total').nextSibling).toHaveTextContent('Rp 12.500');
         expect(screen.getByText('Sudah dibayar').nextSibling).toHaveTextContent('Rp 2.500');
-        expect(screen.getByText('Belum dibayar').nextSibling).toHaveTextContent('Rp 10.000');
+        expect(screen.getByText('Sisa utang').nextSibling).toHaveTextContent('Rp 10.000');
         expect(screen.getAllByText('1,25 meter').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Gudang').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('WAREHOUSE').length).toBeGreaterThan(0);
+
+        const itemsHeading = screen.getByRole('heading', {
+            name: 'Barang yang diterima',
+            level: 2
+        });
+        const paymentHeading = screen.getByRole('heading', {
+            name: 'Pembayaran pemasok',
+            level: 2
+        });
+
+        expect(itemsHeading.compareDocumentPosition(paymentHeading)
+            & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(goodsReceiptApi.getGoodsReceiptDetails).toHaveBeenCalledWith(
             receipt.code, { signal: expect.any(AbortSignal) }, { useLoader: false }
         );
@@ -93,7 +112,7 @@ describe('GoodsReceiptDetail FE-25 read workflow', () => {
             .mockResolvedValue({ data: { data: { ...receipt, paidAmount: '12500', outstandingAmount: '0', paymentStatus: 'PAID' } } });
         renderDetail();
         expect(await screen.findByLabelText('Status pembayaran: Lunas')).toBeInTheDocument();
-        expect(screen.getByText('Belum dibayar').nextSibling).toHaveTextContent('Rp 0');
+        expect(screen.getByText('Sisa utang').nextSibling).toHaveTextContent('Rp 0');
         expect(goodsReceiptApi.getGoodsReceiptDetails).toHaveBeenCalledTimes(2);
     });
 });
