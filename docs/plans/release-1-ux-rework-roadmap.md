@@ -1568,6 +1568,40 @@ Decision/audit/backend gate: `docs/ux/design/uxr-d02-dashboard-decision.md`; `do
 
 #### UXI-25 — Cross-domain verification
 
+Status: `VERIFIED`
+
+**Verification note (2026-10-02):** The final `origin/release/1.0.0...HEAD` rework diff was inspected
+across 117 files and passed `git diff --check`; the worktree was clean before verification. The
+approved decisions and five primary prototypes were reconciled with the current frontend and the
+authoritative backend controllers, request/response DTOs, validation, and services. Deterministic
+interaction coverage exercises protected return, cash-session open/close, cashier search/cart,
+CASH and QRIS checkout, account-bound ambiguous recovery, sale-first printing and sales reprint,
+item and stock operations, receipt creation, supplier payment, expense creation/void, dashboard
+drill-downs, appearance modes, and keyboard/focus behavior. The CI-defined command
+`npm test -- --maxWorkers=1` passed all 483 tests across 70 files; `npm run lint`, `npm run build`,
+and the final diff check passed. The literal default parallel `npm test` command was also run and
+reported 33 cross-domain five-second timeout failures under local contention (450 tests passed);
+the same suite is green with the repository's checked-in one-worker CI setting. The production
+build retains the existing stale-Browserslist-data and large-chunk advisory warnings.
+
+Read-only headless browser verification confirmed that a protected sale-detail URL with query
+context first renders the session-check gate and then the login return-context notice. Explicit
+light and dark preferences resolved correctly, while `Ikuti sistem` resolved to dark under an
+emulated dark system preference. At 760 CSS pixels, document `clientWidth` and `scrollWidth` were
+both 760. A 1440-pixel display modeled at 200% zoom reflowed to a 720-CSS-pixel viewport; the
+document measured 705 CSS pixels for both client and scroll width, retained every login action,
+and used vertical scrolling without horizontal page overflow. No UX-rework regression required a
+runtime-code change.
+
+Remaining hardware-only verification is explicit: run the E81W keyboard-wedge focus, terminator,
+feedback, and rapid-scan sequence on the deployed store laptop; and verify the configured receipt
+printer's physical target, paper output, feed, and cut behavior. Software coverage verifies only
+the scanner adapter behavior and print-service acknowledgement/retry boundaries. No dashboard
+backend work remains gated: the current operational response and service provide authoritative
+`salesLast7Days`, STORE `stockAttention`, freshness, and semantic drill-down metadata. Older
+prototype/register wording that calls those fields backend-gated describes the pre-implementation
+design snapshot rather than the current contract.
+
 Primary prototypes: `bloom-appearance-modes-final-review.html`, `bloom-navigation-shell-review.html`, `bloom-cashier-workspace-rework.html`, `bloom-design-review-suite.html`, and `bloom-dashboard-rework.html` in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61`.
 
 > Verify the completed Bloom UX rework without adding features or broad refactors. Read `AGENTS.md`, the frontend contract, both roadmaps, `docs/ux/design/design-review-register.md`, every approved decision record, and the five primary prototypes in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61`. Inspect the final diff and exercise authentication/protected return, cash-session open/close, cashier search/cart, CASH and QRIS checkout, ambiguous recovery, printing, sales reprint, item/stock operations, receipt creation, supplier payment, expense creation/void, dashboard drill-downs, light/dark/system modes, keyboard/focus order, 200% zoom, and 760-pixel narrow desktop. Run `npm test`, `npm run lint`, and `npm run build`. Record remaining hardware-only scanner/printer checks and any backend-gated dashboard work explicitly. Fix only regressions introduced by the rework; do not commit or push.

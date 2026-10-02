@@ -170,6 +170,15 @@ Bloom UI is currently a JavaScript React application:
   exposes every chart day and a shell-level content bypass to keyboard users, and reflows through
   one-, two-, and three-column layouts. It neither aggregates sales/stock nor ships placeholder
   business data, unsupported filters, or legacy overview values.
+- UXI-25 cross-domain verification is complete for the implemented UX rework. The CI-defined
+  single-worker suite passes all 483 tests across 70 files; lint, production build, and diff checks
+  pass. Read-only browser checks confirm protected-entry context, explicit light/dark/system
+  resolution, and no page-level horizontal overflow at 760 CSS pixels or the 720-CSS-pixel reflow
+  equivalent of 200% zoom on a 1440-pixel display. No dashboard backend gate remains. Physical
+  E81W scanner behavior on the store laptop and physical printer paper/feed/cut output remain
+  hardware-only checks; a print-service acknowledgement is not evidence that paper was produced.
+  The literal default parallel `npm test` command can still hit cross-domain five-second timeouts
+  under local contention, so CI remains pinned to `npm test -- --maxWorkers=1`.
 - FE-07 backend receipt reprint is implemented: sale detail calls the backend print endpoint for the existing sale reference with pending, duplicate-click prevention, success, failure, and same-reference retry behavior.
 - FE-08 current dashboard reliability is implemented: the existing backend overview metrics have explicit accessible loading, error/retry, zero/empty, refresh, and last-successful-data behavior without frontend aggregation.
 - FE-10 item creation is implemented: `/items/new` sends item metadata, the Release 1 UOM/fractional policy, and optional decimal STORE/WAREHOUSE openings through the backend's single atomic create operation, with explicit category, validation, pending, conflict, failure-recovery, success, and focus behavior.
