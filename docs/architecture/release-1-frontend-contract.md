@@ -34,10 +34,13 @@ Bloom UI is currently a JavaScript React application:
   application paint; system mode follows later operating-system changes; and shared Operational Blue,
   semantic state, focus, surface, text, border, and disabled tokens drive both MUI and existing shell
   styles without an account preference or backend endpoint.
+- The Bloom brand mark is implemented as a calm blue flower in the browser tab and the back-office
+  sidebar brand slot, replacing the Vite placeholder and the temporary letter mark without changing
+  navigation or business-domain behavior.
 - FE-04 cashier-focused layout is implemented: `/cashier` uses a focused shell with a clear back-office escape while preserving the route and shared theme.
 - FE-05 back-office navigation accessibility is implemented: current destinations are semantically grouped, route-active, keyboard accessible, and usable as a responsive drawer without adding or changing routes.
 - FE-06 item-category reliability is implemented: active-category list/create/edit/deactivate flows match the current backend contract and cover explicit async, validation, conflict, pending, success, confirmation, and focus behavior.
-- UXI-04 approved item-category UX is implemented: the paged active list groups name, code, and description; presents separate update actor/time facts with explicit fallbacks; provides 44-pixel named icon actions and labelled narrow records; links create/edit breadcrumbs back to the list; and preserves validated input, conflict recovery, safe cascade-aware deactivation, and deliberate result focus.
+- UXI-04 approved item-category UX is implemented: the paged active list groups name, code, and description; presents separate update actor/time facts with explicit fallbacks; provides 44-pixel named icon actions and labelled narrow records; links create/edit breadcrumbs back to the list; and preserves validated input, conflict recovery, safe cascade-aware deactivation, and deliberate result focus. Category barcode printing resolves up to 100 active items through the backend-supported category filter before sending their SKUs to the existing bulk-barcode PDF endpoint; empty, loading, failed, and over-limit results stay explicit without inventing a category-print contract.
 - UXI-05 approved cash-session current/history/opening UX is implemented: `/cash-sessions` is the single `Sesi kas` destination, composes the separately verified current-session read above the separately requested server-paged history, preserves the backend-confirmed no-session meaning, accepts Indonesian-formatted opening cash while sending only canonical `openingCash`, exposes explicit range/total/page/navigation context, and keeps every history fact available in labelled narrow records without predicting reconciliation.
 - UXI-06 approved cash-session close/reconciliation/detail UX is implemented: expected cash is requested only after closing starts; Indonesian actual-cash input is frozen into a cancel-first review before one locked close; uncertain outcomes require status recovery; final expected cash, actual cash, variance, audit facts, and conflict replacement come from server responses; and a fresh current-session read must verify no open session before the next open action appears. Current, history, and detail use one Jakarta/WIB timestamp pattern, while narrow actions and detail sections preserve an explicit non-wrapping hierarchy.
 - UXI-07 approved cashier discovery/cart UX is implemented: the session-gated workspace uses the approved continuous catalog/transaction split, moves full session management behind a compact header control, keeps category-aware manual/scanner discovery beside one persistent transaction panel, uses compact UOM-aware quantity rows and advisory STORE checks, and offers one-step undo after removing a line. Exact-decimal line/subtotal/discount/estimated-total and live cash-change hints remain non-authoritative; existing sale fields prepare CASH/QRIS tender with practical cash shortcuts, cart cancellation stays confirmed, and narrow desktop stacks into one document flow while keeping stock visible. Scanner wording reports capability without claiming a connected device; FE-19 physical store-laptop verification remains outstanding.
@@ -61,7 +64,9 @@ Bloom UI is currently a JavaScript React application:
   exact server price precision, explicit UOM/fraction policy, and separate STORE/WAREHOUSE balances.
   Detail preserves the server-reported movement locks and exposes item-scoped stock history, barcode,
   and edit access. Compact named 44-pixel actions and labelled narrow records retain every fact without
-  page-level horizontal panning or frontend stock aggregation.
+  page-level horizontal panning or frontend stock aggregation. Bulk barcode selection is opt-in so
+  checkboxes appear only after `Pilih untuk cetak`; selected rows may request per-item copies while
+  enforcing the backend's 100-label PDF limit and preserving pending, failure, and success feedback.
 - UXI-12 approved item-create/edit/deactivation UX is implemented: create groups identity and sales,
   quantity rules, and optional location-specific opening balances while preserving exact decimal edit
   strings for the backend's atomic request. Whole/fractional guidance, first-invalid-field focus,
@@ -118,7 +123,8 @@ Bloom UI is currently a JavaScript React application:
   status filter is added. Wide rows become labelled grouped records before the audited narrow-
   desktop overflow boundary. Detail presents one page heading, receipt/audit and financial facts,
   then exact received item/UOM/location/price/subtotal lines before the separately owned supplier-
-  payment action.
+  payment action. History paging uses the same numbered control with icon-only previous/next actions
+  as the item and item-category lists.
 - UXI-19 approved goods-receipt creation/recovery UX is implemented: explicit Indonesian
   `DD-MM-YYYY`, 24-hour time, and WIB/WITA/WIT inputs map to the existing receipt Instant contract;
   compact two-column-to-single-column lines preserve repeated SKU/location entries and exact decimal

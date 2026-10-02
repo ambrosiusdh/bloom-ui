@@ -72,6 +72,10 @@ describe('back-office navigation', () => {
         expect(within(navigation).getByRole('heading', { name: 'Pembelian' })).toBeInTheDocument();
         expect(within(navigation).getByRole('heading', { name: 'Penjualan' })).toBeInTheDocument();
         expect(within(navigation).getByRole('heading', { name: 'Kas' })).toBeInTheDocument();
+        expect(document.querySelector('.bloom__sidebar-mark img')).toHaveAttribute(
+            'src',
+            '/bloom-mark.png'
+        );
 
         expect(within(navigation).getAllByRole('link').map(link => link.getAttribute('href'))).toEqual([
             '/dashboard',

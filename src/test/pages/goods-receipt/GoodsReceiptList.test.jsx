@@ -103,6 +103,25 @@ describe('GoodsReceiptList UXI-18 read workflow', () => {
         expect(goodsReceiptApi.getGoodsReceiptDetails).not.toHaveBeenCalled();
     });
 
+    it('uses icon and numbered pagination instead of text navigation buttons', async () => {
+        const user = userEvent.setup();
+        goodsReceiptApi.getGoodsReceiptList.mockResolvedValue(response([receipt], 3, 11));
+        render(<GoodsReceiptList />, {
+            route: '/goods-receipts?page=2&size=5'
+        });
+
+        expect(await screen.findByText(receipt.code)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Sebelumnya' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Berikutnya' })).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Ke halaman 3' }));
+        await waitFor(() => expect(goodsReceiptApi.getGoodsReceiptList).toHaveBeenCalledTimes(2));
+        expect(goodsReceiptApi.getGoodsReceiptList.mock.calls[1][0]).toMatchObject({
+            page: 3,
+            size: 5
+        });
+    });
+
     it('announces loading, retries an error with the same filter, then shows empty', async () => {
         const user = userEvent.setup();
         const request = deferred();

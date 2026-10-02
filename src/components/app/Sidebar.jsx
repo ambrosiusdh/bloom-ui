@@ -129,7 +129,14 @@ export default function Sidebar({ navigationToggleRef = null }) {
                 onKeyDown={ handleKeyDown }
             >
                 <div className="bloom__sidebar-brand">
-                    <div className="bloom__sidebar-mark" aria-hidden="true">B</div>
+                    <div className="bloom__sidebar-mark" aria-hidden="true">
+                        <img
+                            src="/bloom-mark.png"
+                            alt=""
+                            width="42"
+                            height="42"
+                        />
+                    </div>
                     <div className={ isExpanded ? 'bloom__sidebar-brand-copy' : 'sr-only' }>
                         <span className="bloom__sidebar-brand-name">Bloom</span>
                     </div>

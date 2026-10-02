@@ -11,6 +11,7 @@ const ITEM = {
     detail: sku => `/api/items/${sku}`,
     deactivate: sku => `/api/items/${sku}`,
     auditLog: sku => `/api/items/${sku}/audit-log`,
+    bulkBarcode: '/api/items/barcode/bulk',
 }
 
 const ITEM_CATEGORY = {

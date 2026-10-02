@@ -10,6 +10,7 @@ import {
 import {
     Alert,
     Button,
+    Checkbox,
     CircularProgress,
     IconButton,
     MenuItem,
@@ -26,15 +27,18 @@ import {
 } from '@mui/material';
 import {
     BarcodeIcon,
+    CheckSquare2,
     CircleOff,
     HistoryIcon,
     PencilIcon,
-    Plus
+    Plus,
+    X
 } from 'lucide-react';
 
 import BloomConfirmationModal from '@components/_ui/BloomConfirmationModal.jsx';
 import { formatRupiah } from '@components/cash-session/cash-session-money.js';
 import ItemBarcodeModal from '@components/item/ItemBarcodeModal.jsx';
+import ItemBulkBarcodeDialog from '@components/item/ItemBulkBarcodeDialog.jsx';
 import ItemDetailModal from '@components/item/ItemDetailModal.jsx';
 import { GENERIC_ERR_MESSAGE } from '@constants/general.js';
 import { ITEM_LIST_MESSAGES } from '@constants/item.jsx';
@@ -93,6 +97,9 @@ export default function ItemList() {
     const [selectedItemDetailData, setSelectedItemDetailData] = useState(null);
     const [selectedDeactivateTarget, setSelectedDeactivateTarget] = useState({});
     const [selectedBarcodeItem, setSelectedBarcodeItem] = useState({});
+    const [bulkSelectionMode, setBulkSelectionMode] = useState(false);
+    const [selectedBulkSkus, setSelectedBulkSkus] = useState([]);
+    const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState(initialSearchState.searchQuery);
     const [categoryCode, setCategoryCode] = useState(initialSearchState.categoryCode);
     const [currentPage, setCurrentPage] = useState(initialSearchState.currentPage);
@@ -138,6 +145,10 @@ export default function ItemList() {
         ? Math.min(firstVisibleItem + itemList.length - 1, totalElements)
         : 0;
     const hasFilters = Boolean(searchQuery || categoryCode);
+    const selectedBulkItems = itemList.filter(item => selectedBulkSkus.includes(item.sku));
+    const allVisibleItemsSelected = Boolean(itemList.length)
+        && itemList.every(item => selectedBulkSkus.includes(item.sku));
+    const someVisibleItemsSelected = itemList.some(item => selectedBulkSkus.includes(item.sku));
 
     const refreshItemList = () => setRefreshVersion(version => version + 1);
 
@@ -145,6 +156,25 @@ export default function ItemList() {
         setSearchQuery('');
         setCategoryCode('');
         setCurrentPage(1);
+    };
+
+    const toggleBulkSelectionMode = () => {
+        if (bulkSelectionMode) {
+            setSelectedBulkSkus([]);
+            setBulkDialogOpen(false);
+        }
+
+        setBulkSelectionMode(!bulkSelectionMode);
+    };
+
+    const toggleBulkItem = sku => {
+        setSelectedBulkSkus(current => current.includes(sku)
+            ? current.filter(selectedSku => selectedSku !== sku)
+            : [...current, sku]);
+    };
+
+    const toggleAllVisibleItems = checked => {
+        setSelectedBulkSkus(checked ? itemList.map(item => item.sku) : []);
     };
 
     const handleCloseItemDetail = () => {
@@ -332,6 +362,11 @@ export default function ItemList() {
     useEffect(() => () => detailRequestRef.current?.abort(), []);
 
     useEffect(() => {
+        setSelectedBulkSkus([]);
+        setBulkDialogOpen(false);
+    }, [queryKey]);
+
+    useEffect(() => {
         if (deactivationError) {
             deactivationErrorRef.current?.focus();
         }
@@ -351,6 +386,13 @@ export default function ItemList() {
                     onClose={ () => setSelectedBarcodeItem({}) }
                 />
             ) }
+
+            <ItemBulkBarcodeDialog
+                open={ bulkDialogOpen }
+                items={ selectedBulkItems }
+                contextLabel={ `${ selectedBulkItems.length } barang dipilih` }
+                onClose={ () => setBulkDialogOpen(false) }
+            />
 
             { selectedItemDetailSku && (
                 <ItemDetailModal
@@ -413,15 +455,28 @@ export default function ItemList() {
                         Kelola informasi barang serta stok toko dan gudang secara terpisah.
                     </p>
                 </div>
-                <Button
-                    component={ Link }
-                    to="/items/new"
-                    variant="contained"
-                    startIcon={ <Plus className="w-5" aria-hidden="true" /> }
-                    className="item-list__header-action-create self-start sm:self-auto"
-                >
-                    Tambah barang
-                </Button>
+                <div className="flex flex-wrap gap-2 self-start sm:justify-end">
+                    <Button
+                        variant="outlined"
+                        aria-pressed={ bulkSelectionMode }
+                        startIcon={ bulkSelectionMode
+                            ? <X className="w-5" aria-hidden="true" />
+                            : <CheckSquare2 className="w-5" aria-hidden="true" /> }
+                        disabled={ showTableLoading || Boolean(listError) || !itemList.length }
+                        onClick={ toggleBulkSelectionMode }
+                    >
+                        { bulkSelectionMode ? 'Batal memilih' : 'Pilih untuk cetak' }
+                    </Button>
+                    <Button
+                        component={ Link }
+                        to="/items/new"
+                        variant="contained"
+                        startIcon={ <Plus className="w-5" aria-hidden="true" /> }
+                        className="item-list__header-action-create"
+                    >
+                        Tambah barang
+                    </Button>
+                </div>
             </div>
 
             { listError && (
@@ -525,6 +580,31 @@ export default function ItemList() {
                     </div>
                 </div>
 
+                { bulkSelectionMode && (
+                    <div
+                        className="flex flex-col gap-3 border-y border-blue-100 bg-blue-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                        aria-live="polite"
+                    >
+                        <div className="flex items-center gap-2">
+                            <CheckSquare2 className="text-primary-main" size={ 19 } aria-hidden="true" />
+                            <span>
+                                <strong className="font-semibold text-primary-main">
+                                    { selectedBulkItems.length } barang dipilih
+                                </strong>{ ' ' }
+                                dari halaman ini
+                            </span>
+                        </div>
+                        <Button
+                            variant="contained"
+                            startIcon={ <BarcodeIcon aria-hidden="true" /> }
+                            disabled={ !selectedBulkItems.length }
+                            onClick={ () => setBulkDialogOpen(true) }
+                        >
+                            Cetak barcode ({ selectedBulkItems.length })
+                        </Button>
+                    </div>
+                ) }
+
                 <TableContainer
                     component={ Paper }
                     elevation={ 0 }
@@ -539,6 +619,21 @@ export default function ItemList() {
                         </caption>
                         <TableHead className="item-list__content-table-header bg-gray-100 hidden lg:!table-header-group">
                             <TableRow className="text-xs font-semibold tracking-wider">
+                                { bulkSelectionMode && (
+                                    <TableCell className="lg:!w-[4rem]" padding="checkbox">
+                                        <Checkbox
+                                            checked={ allVisibleItemsSelected }
+                                            indeterminate={ someVisibleItemsSelected
+                                                && !allVisibleItemsSelected }
+                                            inputProps={ {
+                                                'aria-label': 'Pilih semua barang pada halaman ini'
+                                            } }
+                                            onChange={ event => toggleAllVisibleItems(
+                                                event.target.checked
+                                            ) }
+                                        />
+                                    </TableCell>
+                                ) }
                                 <TableCell className="lg:!w-[30%]">Barang</TableCell>
                                 <TableCell className="lg:!w-[23%]">Stok per lokasi</TableCell>
                                 <TableCell className="lg:!w-[15%]">Harga jual</TableCell>
@@ -549,7 +644,7 @@ export default function ItemList() {
                         <TableBody className="!block lg:!table-row-group">
                             { showTableLoading ? (
                                 <TableRow className="!block lg:!table-row">
-                                    <TableCell colSpan="5" className="!block lg:!table-cell !border-b-0 !text-center italic !text-gray-500">
+                                    <TableCell colSpan={ bulkSelectionMode ? 6 : 5 } className="!block lg:!table-cell !border-b-0 !text-center italic !text-gray-500">
                                         <span className="inline-flex items-center gap-2" role="status">
                                             <CircularProgress size={ 18 } /> Memuat barang...
                                         </span>
@@ -557,7 +652,7 @@ export default function ItemList() {
                                 </TableRow>
                             ) : listError ? (
                                 <TableRow className="!block lg:!table-row">
-                                    <TableCell colSpan="5" className="!block lg:!table-cell !border-b-0 !text-center !text-gray-500">
+                                    <TableCell colSpan={ bulkSelectionMode ? 6 : 5 } className="!block lg:!table-cell !border-b-0 !text-center !text-gray-500">
                                         Data barang belum dapat ditampilkan.
                                     </TableCell>
                                 </TableRow>
@@ -572,6 +667,20 @@ export default function ItemList() {
                                         key={ item.sku }
                                         className={ `item-list__content-table-row !grid grid-cols-1 gap-y-4 px-4 py-4 sm:grid-cols-2 sm:gap-x-5 lg:!table-row lg:p-0 ${ rowBorderClass } lg:border-b-0` }
                                     >
+                                        { bulkSelectionMode && (
+                                            <TableCell
+                                                padding="checkbox"
+                                                className={ `${ tableCellClass } !block !border-b-0 !p-0 sm:col-span-2 lg:!table-cell lg:!border-b lg:!p-2` }
+                                            >
+                                                <Checkbox
+                                                    checked={ selectedBulkSkus.includes(item.sku) }
+                                                    inputProps={ {
+                                                        'aria-label': `Pilih ${ item.name } untuk cetak barcode`
+                                                    } }
+                                                    onChange={ () => toggleBulkItem(item.sku) }
+                                                />
+                                            </TableCell>
+                                        ) }
                                         <TableCell className={ `${ tableCellClass } !block !border-b-0 !p-0 sm:col-span-2 lg:!table-cell lg:!border-b lg:!p-4` }>
                                             <button
                                                 type="button"
@@ -698,7 +807,7 @@ export default function ItemList() {
                                 );
                             }) : (
                                 <TableRow className="!block lg:!table-row">
-                                    <TableCell colSpan="5" className="!block lg:!table-cell !border-b-0 !text-center italic !text-gray-500">
+                                    <TableCell colSpan={ bulkSelectionMode ? 6 : 5 } className="!block lg:!table-cell !border-b-0 !text-center italic !text-gray-500">
                                         <div className="py-6">
                                             <div className="font-semibold not-italic text-gray-700">
                                                 { hasFilters ? 'Barang tidak ditemukan' : 'Belum ada barang aktif' }

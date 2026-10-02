@@ -8,6 +8,7 @@ import { act, fireEvent, render, screen, waitFor } from '@/test/render.jsx';
 const itemApi = vi.hoisted(() => ({
     createItem: vi.fn(),
     deactivateItem: vi.fn(),
+    downloadBulkBarcodes: vi.fn(),
     getItemAuditLog: vi.fn(),
     getItemDetails: vi.fn(),
     getItemList: vi.fn(),
@@ -82,6 +83,48 @@ describe('ItemList', () => {
                 expect.objectContaining({ href: expect.stringContaining('/items/new') })
             ])
         );
+    });
+
+    it('shows barcode checkboxes only after entering selection mode', async () => {
+        const item = {
+            name: 'Kain katun',
+            sku: 'KAIN-00001',
+            price: '15000',
+            stockStore: '2',
+            stockWarehouse: '3',
+            baseUnitOfMeasure: 'METER',
+            fractionalQuantityAllowed: false,
+            category: {
+                code: 'KAIN',
+                name: 'Kain'
+            }
+        };
+        itemApi.getItemList.mockResolvedValue(listResponse([item]));
+        render(<ItemList />, { route: '/items' });
+
+        const selectionButton = await screen.findByRole('button', {
+            name: 'Pilih untuk cetak'
+        });
+        await screen.findByText('Kain katun');
+        await waitFor(() => expect(selectionButton).toBeEnabled());
+        expect(screen.queryByRole('checkbox', {
+            name: 'Pilih Kain katun untuk cetak barcode'
+        })).not.toBeInTheDocument();
+
+        fireEvent.click(selectionButton);
+        const itemCheckbox = screen.getByRole('checkbox', {
+            name: 'Pilih Kain katun untuk cetak barcode'
+        });
+        expect(itemCheckbox).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Cetak barcode (0)' })).toBeDisabled();
+
+        fireEvent.click(itemCheckbox);
+        expect(screen.getByRole('button', { name: 'Cetak barcode (1)' })).toBeEnabled();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Batal memilih' }));
+        expect(screen.queryByRole('checkbox', {
+            name: 'Pilih Kain katun untuk cetak barcode'
+        })).not.toBeInTheDocument();
     });
 
     it('shows an actionable error instead of stale item rows when the list read fails', async () => {

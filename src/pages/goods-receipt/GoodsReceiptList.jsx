@@ -7,6 +7,7 @@ import {
     CircularProgress,
     IconButton,
     MenuItem,
+    Pagination,
     Table,
     TableBody,
     TableCell,
@@ -420,31 +421,21 @@ export default function GoodsReceiptList() {
                                 <MenuItem key={ value } value={ value }>{ value }</MenuItem>
                             )) }
                         </TextField>
-                        <Button
-                            type="button"
-                            size="small"
-                            disabled={ status === 'loading'
-                                || queryState.page <= 1
-                                || !totalPages }
-                            onClick={ () => updateQuery({ page: queryState.page - 1 }) }
-                        >
-                            Sebelumnya
-                        </Button>
                         <span className="min-w-24 text-center text-sm text-gray-600" aria-current="page">
                             Halaman { totalPages
                                 ? Math.min(queryState.page, totalPages)
                                 : 1 } dari { totalPages || 1 }
                         </span>
-                        <Button
-                            type="button"
-                            size="small"
-                            disabled={ status === 'loading'
-                                || !totalPages
-                                || queryState.page >= totalPages }
-                            onClick={ () => updateQuery({ page: queryState.page + 1 }) }
-                        >
-                            Berikutnya
-                        </Button>
+                        <Pagination
+                            page={ totalPages ? Math.min(queryState.page, totalPages) : 1 }
+                            count={ totalPages || 1 }
+                            onChange={ (_, value) => updateQuery({ page: value }) }
+                            disabled={ status === 'loading' || !totalPages }
+                            aria-label="Halaman penerimaan barang"
+                            getItemAriaLabel={ (type, page) => type === 'page'
+                                ? `Ke halaman ${ page }`
+                                : `${ type } halaman` }
+                        />
                     </div>
                 </div>
 
