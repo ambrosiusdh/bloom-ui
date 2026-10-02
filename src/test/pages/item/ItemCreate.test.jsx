@@ -141,28 +141,36 @@ describe('ItemCreate', () => {
         const user = userEvent.setup();
         render(<ItemCreate />, { route: '/items/new' });
 
-        await user.click(screen.getByRole('button', { name: 'Buat barang' }));
+        expect(screen.getByRole('heading', { name: 'Identitas dan penjualan' }))
+            .toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Aturan jumlah' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Stok awal' })).toBeInTheDocument();
+        expect(screen.getByText('Gunakan jumlah utuh tanpa angka pecahan.'))
+            .toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Tambah barang' }));
         expect(screen.getByLabelText('Nama barang')).toHaveFocus();
+        expect(screen.getByRole('alert')).toHaveTextContent('Periksa data barang');
         expect(screen.getByText('Nama barang wajib diisi.')).toBeInTheDocument();
         expect(screen.getByText('Kategori barang wajib dipilih.')).toBeInTheDocument();
         expect(screen.getByText('Nilai wajib diisi.')).toBeInTheDocument();
 
         await fillRequiredFields(user);
-        fireEvent.change(screen.getByLabelText('Stok awal STORE'), {
+        fireEvent.change(screen.getByLabelText('Saldo awal Toko (STORE)'), {
             target: { value: '1,5' }
         });
-        await user.click(screen.getByRole('button', { name: 'Buat barang' }));
+        await user.click(screen.getByRole('button', { name: 'Tambah barang' }));
 
         expect(screen.getByText('Barang satuan utuh hanya menerima jumlah tanpa pecahan.'))
             .toBeInTheDocument();
-        expect(screen.getByLabelText('Stok awal STORE')).toHaveFocus();
+        expect(screen.getByLabelText('Saldo awal Toko (STORE)')).toHaveFocus();
         expect(itemApi.createItem).not.toHaveBeenCalled();
 
         await user.click(screen.getByRole('checkbox', { name: 'Izinkan jumlah pecahan' }));
-        fireEvent.change(screen.getByLabelText('Stok awal STORE'), {
+        fireEvent.change(screen.getByLabelText('Saldo awal Toko (STORE)'), {
             target: { value: '1,25000' }
         });
-        await user.click(screen.getByRole('button', { name: 'Buat barang' }));
+        await user.click(screen.getByRole('button', { name: 'Tambah barang' }));
         expect(screen.getByText('Maksimal 4 angka di belakang tanda desimal.'))
             .toBeInTheDocument();
         expect(itemApi.createItem).not.toHaveBeenCalled();
@@ -178,13 +186,13 @@ describe('ItemCreate', () => {
         await user.click(screen.getByRole('combobox', { name: 'Satuan dasar (UOM)' }));
         await user.click(screen.getByRole('option', { name: 'Meter' }));
         await user.click(screen.getByRole('checkbox', { name: 'Izinkan jumlah pecahan' }));
-        fireEvent.change(screen.getByLabelText('Stok awal STORE'), {
+        fireEvent.change(screen.getByLabelText('Saldo awal Toko (STORE)'), {
             target: { value: '1,2500' }
         });
-        fireEvent.change(screen.getByLabelText('Stok awal WAREHOUSE'), {
+        fireEvent.change(screen.getByLabelText('Saldo awal Gudang (WAREHOUSE)'), {
             target: { value: '2.0001' }
         });
-        await user.dblClick(screen.getByRole('button', { name: 'Buat barang' }));
+        await user.dblClick(screen.getByRole('button', { name: 'Tambah barang' }));
 
         expect(itemApi.createItem).toHaveBeenCalledTimes(1);
         expect(itemApi.createItem).toHaveBeenCalledWith({
@@ -218,20 +226,23 @@ describe('ItemCreate', () => {
 
         await fillRequiredFields(user);
         await user.click(screen.getByLabelText('Buat SKU otomatis'));
-        await waitFor(() => expect(screen.getByLabelText('SKU')).toHaveFocus());
-        fireEvent.change(screen.getByLabelText('SKU'), {
+        await waitFor(() => expect(screen.getByLabelText('Kode barang (SKU)')).toHaveFocus());
+        fireEvent.change(screen.getByLabelText('Kode barang (SKU)'), {
             target: { value: 'KAIN-MANUAL' }
         });
         fireEvent.change(screen.getByLabelText('Deskripsi barang (opsional)'), {
             target: { value: 'Input tetap ada' }
         });
-        await user.click(screen.getByRole('button', { name: 'Buat barang' }));
+        await user.click(screen.getByRole('button', { name: 'Tambah barang' }));
 
         const alert = await screen.findByRole('alert');
-        expect(alert).toHaveTextContent('datanya berkonflik');
+        expect(alert).toHaveTextContent('Kode KAIN-MANUAL sudah digunakan');
+        expect(alert).toHaveTextContent('Nilai lain yang sudah Anda isi tetap dipertahankan');
         await waitFor(() => expect(alert).toHaveFocus());
         expect(screen.getByLabelText('Nama barang')).toHaveValue('Kain katun');
-        expect(screen.getByLabelText('SKU')).toHaveValue('KAIN-MANUAL');
+        expect(screen.getByLabelText('Kode barang (SKU)')).toHaveValue('KAIN-MANUAL');
+        expect(screen.getByText('Kode KAIN-MANUAL sudah digunakan. Gunakan kode lain.'))
+            .toBeInTheDocument();
         expect(screen.getByLabelText('Deskripsi barang (opsional)')).toHaveValue('Input tetap ada');
     });
 
@@ -244,15 +255,14 @@ describe('ItemCreate', () => {
         render(<ItemCreate />, { route: '/items/new' });
 
         await fillRequiredFields(user);
-        fireEvent.change(screen.getByLabelText('Stok awal STORE'), {
+        fireEvent.change(screen.getByLabelText('Saldo awal Toko (STORE)'), {
             target: { value: '2' }
         });
-        await user.click(screen.getByRole('button', { name: 'Buat barang' }));
+        await user.click(screen.getByRole('button', { name: 'Tambah barang' }));
 
         expect(await screen.findByText('Jumlah stok tidak valid.')).toBeInTheDocument();
-        await waitFor(() => expect(screen.getByLabelText('Stok awal STORE')).toHaveFocus());
-        expect(screen.getByLabelText('Stok awal STORE')).toHaveValue('2');
-        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        await waitFor(() => expect(screen.getByLabelText('Saldo awal Toko (STORE)')).toHaveFocus());
+        expect(screen.getByLabelText('Saldo awal Toko (STORE)')).toHaveValue('2');
     });
 
     it('navigates with the backend-confirmed SKU after success', async () => {
@@ -269,7 +279,7 @@ describe('ItemCreate', () => {
         );
 
         await fillRequiredFields(user);
-        await user.click(screen.getByRole('button', { name: 'Buat barang' }));
+        await user.click(screen.getByRole('button', { name: 'Tambah barang' }));
 
         await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/items?'));
         expect(screen.getByTestId('location')).toHaveTextContent('KAIN-00042');

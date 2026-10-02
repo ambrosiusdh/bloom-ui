@@ -27,11 +27,16 @@ import {
 import {
     CircleOff,
     PencilIcon,
-    Plus
+    Plus,
+    Printer
 } from "lucide-react";
 import { enqueueSnackbar } from "notistack"
 
+import itemApi from "@api/item.js";
 import BloomConfirmationModal from "@components/_ui/BloomConfirmationModal.jsx";
+import ItemBulkBarcodeDialog, {
+    MAX_BARCODE_LABELS
+} from "@components/item/ItemBulkBarcodeDialog.jsx";
 import { ITEM_CATEGORY_LIST_MESSAGES } from "@constants/item-category.jsx"
 import {
     useBreadcrumbStore,
@@ -99,6 +104,10 @@ export default function ItemCategoryList() {
     const [listError, setListError] = useState('');
     const [itemCountError, setItemCountError] = useState({});
     const [deactivationError, setDeactivationError] = useState('');
+    const [barcodeCategoryTarget, setBarcodeCategoryTarget] = useState({});
+    const [barcodeItems, setBarcodeItems] = useState([]);
+    const [barcodeLoading, setBarcodeLoading] = useState(false);
+    const [barcodeLoadError, setBarcodeLoadError] = useState('');
     const [messageAlertData, setMessageAlertData] = useState(() => ({
         show: searchParams.has('message'),
         message: searchParams.get('message'),
@@ -110,6 +119,8 @@ export default function ItemCategoryList() {
     const isMountedRef = useRef(false);
     const itemCountAlertRef = useRef(null);
     const itemCountRequestRef = useRef(null);
+    const barcodeRequestRef = useRef(null);
+    const barcodeTriggerRef = useRef(null);
     const listHeadingRef = useRef(null);
     const messageAlertRef = useRef(null);
     const searchParamKey = searchParams.toString();
@@ -165,6 +176,82 @@ export default function ItemCategoryList() {
     const handlePageChange = (e, value) => {
         setCurrentPage(value);
     }
+
+    const loadCategoryBarcodeItems = async (itemCategory, trigger) => {
+        barcodeRequestRef.current?.abort();
+
+        const controller = new AbortController();
+        barcodeRequestRef.current = controller;
+        barcodeTriggerRef.current = trigger || barcodeTriggerRef.current;
+        setBarcodeCategoryTarget(itemCategory);
+        setBarcodeItems([]);
+        setBarcodeLoadError('');
+        setBarcodeLoading(true);
+
+        try {
+            const { data: response } = await itemApi.getItemList({
+                signal: controller.signal,
+                params: {
+                    page: 1,
+                    size: MAX_BARCODE_LABELS,
+                    category: itemCategory.code,
+                    sort: 'sku,asc'
+                }
+            });
+            const categoryPage = response?.data;
+            const totalCategoryItems = Number(categoryPage?.totalElements) || 0;
+            const categoryItems = Array.isArray(categoryPage?.content)
+                ? categoryPage.content
+                : [];
+
+            if (controller.signal.aborted || !isMountedRef.current) {
+                return;
+            }
+
+            if (totalCategoryItems > MAX_BARCODE_LABELS) {
+                setBarcodeLoadError(
+                    `Kategori ${ itemCategory.name } memiliki ${ totalCategoryItems } barang aktif. `
+                    + `Maksimum ${ MAX_BARCODE_LABELS } label per PDF; gunakan Data Barang untuk memilih barang.`
+                );
+                return;
+            }
+
+            if (!categoryItems.length) {
+                setBarcodeLoadError(
+                    `Kategori ${ itemCategory.name } belum memiliki barang aktif untuk dicetak.`
+                );
+                return;
+            }
+
+            setBarcodeItems(categoryItems);
+        } catch (error) {
+            if (!controller.signal.aborted && isMountedRef.current) {
+                setBarcodeLoadError(
+                    error?.message || 'Daftar barang kategori gagal dimuat. Silakan coba lagi.'
+                );
+            }
+        } finally {
+            if (barcodeRequestRef.current === controller) {
+                barcodeRequestRef.current = null;
+                if (isMountedRef.current) {
+                    setBarcodeLoading(false);
+                }
+            }
+        }
+    };
+
+    const closeCategoryBarcodeDialog = () => {
+        barcodeRequestRef.current?.abort();
+        barcodeRequestRef.current = null;
+        setBarcodeCategoryTarget({});
+        setBarcodeItems([]);
+        setBarcodeLoadError('');
+        setBarcodeLoading(false);
+
+        const trigger = barcodeTriggerRef.current;
+        barcodeTriggerRef.current = null;
+        setTimeout(() => trigger?.isConnected && trigger.focus(), 0);
+    };
 
     const openDeleteItemCategoryConfirmationModal = async (itemCategory, trigger) => {
         if (itemCountRequestRef.current) {
@@ -326,6 +413,13 @@ export default function ItemCategoryList() {
 
         setIsLoadingItemCount('');
         setItemCountError({});
+        barcodeRequestRef.current?.abort();
+        barcodeRequestRef.current = null;
+        setBarcodeCategoryTarget({});
+        setBarcodeItems([]);
+        setBarcodeLoadError('');
+        setBarcodeLoading(false);
+        barcodeTriggerRef.current = null;
         if (!deactivationInProgressRef.current) {
             setItemCount(null);
             setSelectedDeleteTarget({});
@@ -339,6 +433,7 @@ export default function ItemCategoryList() {
         return () => {
             isMountedRef.current = false;
             itemCountRequestRef.current?.abort();
+            barcodeRequestRef.current?.abort();
         };
     }, []);
 
@@ -356,6 +451,19 @@ export default function ItemCategoryList() {
 
     return (
         <div className="item-category-list">
+            <ItemBulkBarcodeDialog
+                open={ Boolean(barcodeCategoryTarget.code) }
+                allowCopies={ false }
+                contextLabel={ barcodeCategoryTarget.code
+                    ? `${ barcodeCategoryTarget.name } · ${ barcodeCategoryTarget.code }`
+                    : '' }
+                items={ barcodeItems }
+                loading={ barcodeLoading }
+                loadError={ barcodeLoadError }
+                onClose={ closeCategoryBarcodeDialog }
+                onRetry={ () => loadCategoryBarcodeItems(barcodeCategoryTarget) }
+            />
+
             {
                 selectedDeleteTarget?.code && (
                     <BloomConfirmationModal
@@ -676,6 +784,28 @@ export default function ItemCategoryList() {
                                                     <div
                                                         className="table-action__content flex justify-start md:justify-end items-center gap-1"
                                                     >
+                                                        <Tooltip title="Cetak barcode kategori" arrow>
+                                                            <span>
+                                                                <IconButton
+                                                                    aria-label={ `Cetak barcode kategori ${ itemCategory.name }` }
+                                                                    disabled={ barcodeLoading }
+                                                                    sx={ {
+                                                                        width: 44,
+                                                                        height: 44
+                                                                    } }
+                                                                    onClick={ event => loadCategoryBarcodeItems(
+                                                                        itemCategory,
+                                                                        event.currentTarget
+                                                                    ) }
+                                                                >
+                                                                    { barcodeLoading
+                                                                        && barcodeCategoryTarget.code === itemCategory.code
+                                                                        ? <CircularProgress size={ 18 } />
+                                                                        : <Printer aria-hidden="true" size={ 18 } /> }
+                                                                </IconButton>
+                                                            </span>
+                                                        </Tooltip>
+
                                                         <Tooltip title="Ubah kategori" arrow>
                                                             <IconButton
                                                                 component={ Link }

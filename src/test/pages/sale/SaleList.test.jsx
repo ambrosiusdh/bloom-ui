@@ -16,6 +16,27 @@ vi.mock('@api/sale.js', () => ({
         printReceipt: vi.fn()
     }
 }));
+vi.mock('@components/_ui/BloomDateRangePicker.jsx', () => ({
+    default: ({
+        endDate,
+        label,
+        onChange,
+        startDate
+    }) => (
+        <div>
+            <span aria-label={ label }>{ startDate }|{ endDate }</span>
+            <button
+                type="button"
+                onClick={ () => onChange({
+                    startDate: '2026-09-03',
+                    endDate: '2026-09-05'
+                }) }
+            >
+                Pilih rentang penjualan uji
+            </button>
+        </div>
+    )
+}));
 
 const sale = {
     code: 'SALE/IX-2026/0002',
@@ -85,8 +106,8 @@ describe('SaleList FE-22 read workflow', () => {
             ));
         expect(screen.getByRole('heading', { level: 1, name: 'Riwayat penjualan' }))
             .toBeInTheDocument();
-        expect(screen.getByLabelText('Tanggal mulai')).toHaveValue('01-09-2026');
-        expect(screen.getByLabelText('Tanggal akhir')).toHaveValue('03-09-2026');
+        expect(screen.getByLabelText('Rentang tanggal penjualan'))
+            .toHaveTextContent('2026-09-01|2026-09-03');
 
         const [params, config, options] = saleApi.getSaleList.mock.calls[0];
         expect(params).toMatchObject({ page: 2, size: 5, createdBy: 'admin' });
@@ -97,7 +118,7 @@ describe('SaleList FE-22 read workflow', () => {
         expect(options).toEqual({ useLoader: false });
     });
 
-    it('blocks an inverted Indonesian date range before sending another request', async () => {
+    it('applies one selected range without manual date entry', async () => {
         const user = userEvent.setup();
         saleApi.getSaleList.mockResolvedValue(response());
         render(<SaleList />, { route: '/sales' });
@@ -105,14 +126,15 @@ describe('SaleList FE-22 read workflow', () => {
         await waitFor(() => expect(saleApi.getSaleList).toHaveBeenCalledTimes(1));
         saleApi.getSaleList.mockClear();
 
-        await user.type(screen.getByLabelText('Tanggal mulai'), '28-09-2026');
-        await user.type(screen.getByLabelText('Tanggal akhir'), '27-09-2026');
+        await user.click(screen.getByRole('button', { name: 'Pilih rentang penjualan uji' }));
         await user.click(screen.getByRole('button', { name: 'Terapkan filter' }));
 
-        const alert = screen.getByRole('alert');
-        expect(alert).toHaveTextContent('Rentang tanggal belum benar.');
-        expect(alert).toHaveTextContent('Tanggal mulai tidak boleh setelah tanggal akhir.');
-        expect(saleApi.getSaleList).not.toHaveBeenCalled();
+        await waitFor(() => expect(saleApi.getSaleList).toHaveBeenCalledTimes(1));
+        expect(saleApi.getSaleList.mock.calls[0][0]).toMatchObject({
+            startDate: expect.any(String),
+            endDate: expect.any(String),
+            page: 1
+        });
     });
 
     it('keeps server paging stable and requests the next page with the same filters', async () => {

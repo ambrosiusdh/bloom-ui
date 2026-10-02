@@ -10,6 +10,27 @@ import { act, render, screen, waitFor } from '@/test/render.jsx';
 vi.mock('@api/goods-receipt.js', () => ({ default: {
     getGoodsReceiptList: vi.fn(), getGoodsReceiptDetails: vi.fn(), createGoodsReceipt: vi.fn()
 } }));
+vi.mock('@components/_ui/BloomDateRangePicker.jsx', () => ({
+    default: ({
+        endDate,
+        label,
+        onChange,
+        startDate
+    }) => (
+        <div>
+            <span aria-label={ label }>{ startDate }|{ endDate }</span>
+            <button
+                type="button"
+                onClick={ () => onChange({
+                    startDate: '2026-09-03',
+                    endDate: '2026-09-05'
+                }) }
+            >
+                Pilih rentang penerimaan uji
+            </button>
+        </div>
+    )
+}));
 
 const receipt = {
     code: 'GR/IX-2026/0025', supplierId: 7, supplierCode: 'SUP-007',
@@ -17,8 +38,14 @@ const receipt = {
     outstandingAmount: '12500.0000', paymentStatus: 'UNPAID', status: 'POSTED',
     receivedDate: '2026-09-02T03:00:00Z', createdAt: '2026-09-02T03:05:00Z', createdBy: 'admin'
 };
-const response = (content = [], totalPages = content.length ? 1 : 0) => ({
-    data: { data: { content, totalPages, totalElements: content.length } }
+const response = (content = [], totalPages = content.length ? 1 : 0, totalElements = content.length) => ({
+    data: {
+        data: {
+            content,
+            totalPages,
+            totalElements
+        }
+    }
 });
 const deferred = () => {
     let resolve;
@@ -31,7 +58,7 @@ const deferred = () => {
 };
 const LocationProbe = () => <output aria-label="Lokasi saat ini">{ useLocation().search }</output>;
 
-describe('GoodsReceiptList FE-25 read workflow', () => {
+describe('GoodsReceiptList UXI-18 read workflow', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         useGoodsReceiptStore.setState({
@@ -41,7 +68,7 @@ describe('GoodsReceiptList FE-25 read workflow', () => {
     });
 
     it('renders server receipt/payment truth and sends only supported filters and paging', async () => {
-        goodsReceiptApi.getGoodsReceiptList.mockResolvedValue(response([receipt], 3));
+        goodsReceiptApi.getGoodsReceiptList.mockResolvedValue(response([receipt], 3, 11));
         render(<GoodsReceiptList />, {
             route: '/goods-receipts?key=supplierName&q=Bloom&receivedDateFrom=2026-09-01&receivedDateTo=2026-09-03&page=2&size=5'
         });
@@ -54,18 +81,45 @@ describe('GoodsReceiptList FE-25 read workflow', () => {
         expect(screen.getByText('Total: Rp 12.500')).toBeInTheDocument();
         expect(screen.getByText('Dibayar: Rp 0')).toBeInTheDocument();
         expect(screen.getByText('Sisa: Rp 12.500')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Detail' })).toHaveAttribute(
+        expect(screen.getByRole('heading', { name: 'Penerimaan barang', level: 1 }))
+            .toBeInTheDocument();
+        expect(screen.getByText('6–6 dari 11 penerimaan · Terbaru lebih dulu'))
+            .toBeInTheDocument();
+        expect(screen.getByText('Halaman 2 dari 3')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: `Buka detail ${ receipt.code }` })).toHaveAttribute(
             'href', `/goods-receipts/${ encodeURIComponent(receipt.code) }`
         );
         expect(screen.getByRole('link', { name: /buat penerimaan/i })).toHaveAttribute('href', '/goods-receipts/new');
+        expect(screen.getByLabelText('Rentang tanggal penerimaan'))
+            .toHaveTextContent('2026-09-01|2026-09-03');
 
         const [params, config, options] = goodsReceiptApi.getGoodsReceiptList.mock.calls[0];
         expect(params).toMatchObject({ page: 2, size: 5, supplierName: 'Bloom' });
         expect(params.receivedDateFrom).toBe('2026-09-01');
         expect(params.receivedDateTo).toBe('2026-09-03');
+        expect(params).not.toHaveProperty('paymentStatus');
         expect(config.signal).toBeInstanceOf(AbortSignal);
         expect(options).toEqual({ useLoader: false });
         expect(goodsReceiptApi.getGoodsReceiptDetails).not.toHaveBeenCalled();
+    });
+
+    it('uses icon and numbered pagination instead of text navigation buttons', async () => {
+        const user = userEvent.setup();
+        goodsReceiptApi.getGoodsReceiptList.mockResolvedValue(response([receipt], 3, 11));
+        render(<GoodsReceiptList />, {
+            route: '/goods-receipts?page=2&size=5'
+        });
+
+        expect(await screen.findByText(receipt.code)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Sebelumnya' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Berikutnya' })).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Ke halaman 3' }));
+        await waitFor(() => expect(goodsReceiptApi.getGoodsReceiptList).toHaveBeenCalledTimes(2));
+        expect(goodsReceiptApi.getGoodsReceiptList.mock.calls[1][0]).toMatchObject({
+            page: 3,
+            size: 5
+        });
     });
 
     it('announces loading, retries an error with the same filter, then shows empty', async () => {
@@ -99,10 +153,76 @@ describe('GoodsReceiptList FE-25 read workflow', () => {
 
         const query = screen.getByRole('textbox', { name: 'Nomor penerimaan' });
         await user.type(query, 'Bloom');
-        const clearButton = screen.getByRole('button', { name: 'Hapus filter' });
+        const clearButton = screen.getByRole('button', { name: 'Reset filter' });
         expect(clearButton).toBeEnabled();
         await user.click(clearButton);
         expect(query).toHaveValue('');
+    });
+
+    it('forwards the exact supported supplier-code filter from the URL', async () => {
+        goodsReceiptApi.getGoodsReceiptList.mockResolvedValue(response());
+
+        render(<GoodsReceiptList />, {
+            route: '/goods-receipts?key=supplierCode&q=SUP-007&page=3&size=25'
+        });
+
+        expect(await screen.findByText('Tidak ada penerimaan barang')).toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: 'Kode pemasok' })).toHaveValue('SUP-007');
+        expect(goodsReceiptApi.getGoodsReceiptList.mock.calls[0][0]).toEqual({
+            page: 3,
+            size: 25,
+            supplierCode: 'SUP-007'
+        });
+    });
+
+    it('renders unpaid, partially paid, and paid states exactly as returned by the server', async () => {
+        const receipts = [
+            receipt,
+            {
+                ...receipt,
+                code: 'GR/IX-2026/0026',
+                paidAmount: '2500',
+                outstandingAmount: '10000',
+                paymentStatus: 'PARTIALLY_PAID'
+            },
+            {
+                ...receipt,
+                code: 'GR/IX-2026/0027',
+                paidAmount: '12500',
+                outstandingAmount: '0',
+                paymentStatus: 'PAID'
+            }
+        ];
+        goodsReceiptApi.getGoodsReceiptList.mockResolvedValue(response(receipts));
+
+        render(<GoodsReceiptList />, { route: '/goods-receipts' });
+
+        expect(await screen.findByLabelText('Status pembayaran: Belum dibayar'))
+            .toBeInTheDocument();
+        expect(screen.getByLabelText('Status pembayaran: Dibayar sebagian'))
+            .toBeInTheDocument();
+        expect(screen.getByLabelText('Status pembayaran: Lunas'))
+            .toBeInTheDocument();
+        expect(goodsReceiptApi.getGoodsReceiptList.mock.calls[0][0])
+            .not.toHaveProperty('paymentStatus');
+    });
+
+    it('applies one selected range as canonical calendar dates', async () => {
+        const user = userEvent.setup();
+        goodsReceiptApi.getGoodsReceiptList.mockResolvedValue(response());
+
+        render(<GoodsReceiptList />, { route: '/goods-receipts' });
+
+        await screen.findByText('Tidak ada penerimaan barang');
+        await user.click(screen.getByRole('button', { name: 'Pilih rentang penerimaan uji' }));
+        await user.click(screen.getByRole('button', { name: 'Terapkan filter' }));
+
+        await waitFor(() => expect(goodsReceiptApi.getGoodsReceiptList).toHaveBeenCalledTimes(2));
+        expect(goodsReceiptApi.getGoodsReceiptList.mock.calls[1][0]).toMatchObject({
+            receivedDateFrom: '2026-09-03',
+            receivedDateTo: '2026-09-05',
+            page: 1
+        });
     });
 
     it('moves an out-of-range page to the last server page instead of showing a false empty state', async () => {

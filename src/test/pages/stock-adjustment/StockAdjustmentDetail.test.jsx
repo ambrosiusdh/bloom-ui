@@ -54,8 +54,8 @@ describe('StockAdjustmentDetail FE-13 read workflow', () => {
         renderDetail();
 
         expect(await screen.findByText('Hitung fisik')).toBeInTheDocument();
-        expect(screen.getByText('Koreksi absolut')).toBeInTheDocument();
-        expect(screen.getByText('Gudang (WAREHOUSE)')).toBeInTheDocument();
+        expect(screen.getByText('Koreksi stok')).toBeInTheDocument();
+        expect(screen.getByText('Gudang')).toBeInTheDocument();
         expect(screen.getAllByText('0,25 meter')).toHaveLength(2);
         expect(screen.getByText('9,75 meter')).toBeInTheDocument();
         expect(stockAdjustmentApi.getStockAdjustmentDetails).toHaveBeenCalledWith(

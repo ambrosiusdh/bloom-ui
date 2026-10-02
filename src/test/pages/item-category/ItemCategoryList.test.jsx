@@ -21,8 +21,13 @@ const categoryApi = vi.hoisted(() => ({
     getItemCategoryList: vi.fn(),
     updateItemCategory: vi.fn()
 }));
+const itemApi = vi.hoisted(() => ({
+    downloadBulkBarcodes: vi.fn(),
+    getItemList: vi.fn()
+}));
 
 vi.mock('@api/item-category.js', () => ({ default: categoryApi }));
+vi.mock('@api/item.js', () => ({ default: itemApi }));
 
 const listResponse = (content, paging = {}) => ({
     data: {
@@ -67,6 +72,72 @@ describe('ItemCategoryList', () => {
 
         expect(await screen.findByText('Belum ada kategori aktif')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Buat kategori' })).toHaveAttribute('href', '/item-categories/new');
+    });
+
+    it('loads active category items before offering the existing bulk PDF action', async () => {
+        const category = {
+            code: 'KAIN',
+            name: 'Kain',
+            updatedAt: '2026-08-01T00:00:00Z'
+        };
+        categoryApi.getItemCategoryList.mockResolvedValue(listResponse([category]));
+        itemApi.getItemList.mockResolvedValue({
+            data: {
+                data: {
+                    content: [
+                        { sku: 'KAIN-00001', name: 'Kain katun' },
+                        { sku: 'KAIN-00002', name: 'Kain linen' }
+                    ],
+                    totalElements: 2
+                }
+            }
+        });
+        render(<ItemCategoryList />, { route: '/item-categories' });
+
+        fireEvent.click(await screen.findByRole('button', {
+            name: 'Cetak barcode kategori Kain'
+        }));
+
+        expect(await screen.findByRole('dialog', { name: /Cetak barcode bulk/i }))
+            .toHaveTextContent('Kain katun');
+        expect(itemApi.getItemList).toHaveBeenCalledWith({
+            signal: expect.any(AbortSignal),
+            params: {
+                page: 1,
+                size: 100,
+                category: 'KAIN',
+                sort: 'sku,asc'
+            }
+        });
+        expect(screen.getByRole('button', { name: 'Unduh PDF (2)' })).toBeEnabled();
+    });
+
+    it('blocks a category PDF when the active item count exceeds the backend limit', async () => {
+        const category = {
+            code: 'KAIN',
+            name: 'Kain',
+            updatedAt: '2026-08-01T00:00:00Z'
+        };
+        categoryApi.getItemCategoryList.mockResolvedValue(listResponse([category]));
+        itemApi.getItemList.mockResolvedValue({
+            data: {
+                data: {
+                    content: [{ sku: 'KAIN-00001', name: 'Kain katun' }],
+                    totalElements: 101
+                }
+            }
+        });
+        render(<ItemCategoryList />, { route: '/item-categories' });
+
+        fireEvent.click(await screen.findByRole('button', {
+            name: 'Cetak barcode kategori Kain'
+        }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'Kategori Kain memiliki 101 barang aktif'
+        );
+        expect(screen.getByRole('button', { name: 'Unduh PDF (0)' })).toBeDisabled();
+        expect(itemApi.downloadBulkBarcodes).not.toHaveBeenCalled();
     });
 
     it('groups category identity, labels narrow facts, and exposes exact paging context', async () => {

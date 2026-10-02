@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Contract
 
-Last updated: 2026-09-30
+Last updated: 2026-10-02
 
 ## 1. Purpose
 
@@ -34,10 +34,13 @@ Bloom UI is currently a JavaScript React application:
   application paint; system mode follows later operating-system changes; and shared Operational Blue,
   semantic state, focus, surface, text, border, and disabled tokens drive both MUI and existing shell
   styles without an account preference or backend endpoint.
+- The Bloom brand mark is implemented as a calm blue flower in the browser tab and the back-office
+  sidebar brand slot, replacing the Vite placeholder and the temporary letter mark without changing
+  navigation or business-domain behavior.
 - FE-04 cashier-focused layout is implemented: `/cashier` uses a focused shell with a clear back-office escape while preserving the route and shared theme.
 - FE-05 back-office navigation accessibility is implemented: current destinations are semantically grouped, route-active, keyboard accessible, and usable as a responsive drawer without adding or changing routes.
 - FE-06 item-category reliability is implemented: active-category list/create/edit/deactivate flows match the current backend contract and cover explicit async, validation, conflict, pending, success, confirmation, and focus behavior.
-- UXI-04 approved item-category UX is implemented: the paged active list groups name, code, and description; presents separate update actor/time facts with explicit fallbacks; provides 44-pixel named icon actions and labelled narrow records; links create/edit breadcrumbs back to the list; and preserves validated input, conflict recovery, safe cascade-aware deactivation, and deliberate result focus.
+- UXI-04 approved item-category UX is implemented: the paged active list groups name, code, and description; presents separate update actor/time facts with explicit fallbacks; provides 44-pixel named icon actions and labelled narrow records; links create/edit breadcrumbs back to the list; and preserves validated input, conflict recovery, safe cascade-aware deactivation, and deliberate result focus. Category barcode printing resolves up to 100 active items through the backend-supported category filter before sending their SKUs to the existing bulk-barcode PDF endpoint; empty, loading, failed, and over-limit results stay explicit without inventing a category-print contract.
 - UXI-05 approved cash-session current/history/opening UX is implemented: `/cash-sessions` is the single `Sesi kas` destination, composes the separately verified current-session read above the separately requested server-paged history, preserves the backend-confirmed no-session meaning, accepts Indonesian-formatted opening cash while sending only canonical `openingCash`, exposes explicit range/total/page/navigation context, and keeps every history fact available in labelled narrow records without predicting reconciliation.
 - UXI-06 approved cash-session close/reconciliation/detail UX is implemented: expected cash is requested only after closing starts; Indonesian actual-cash input is frozen into a cancel-first review before one locked close; uncertain outcomes require status recovery; final expected cash, actual cash, variance, audit facts, and conflict replacement come from server responses; and a fresh current-session read must verify no open session before the next open action appears. Current, history, and detail use one Jakarta/WIB timestamp pattern, while narrow actions and detail sections preserve an explicit non-wrapping hierarchy.
 - UXI-07 approved cashier discovery/cart UX is implemented: the session-gated workspace uses the approved continuous catalog/transaction split, moves full session management behind a compact header control, keeps category-aware manual/scanner discovery beside one persistent transaction panel, uses compact UOM-aware quantity rows and advisory STORE checks, and offers one-step undo after removing a line. Exact-decimal line/subtotal/discount/estimated-total and live cash-change hints remain non-authoritative; existing sale fields prepare CASH/QRIS tender with practical cash shortcuts, cart cancellation stays confirmed, and narrow desktop stacks into one document flow while keeping stock visible. Scanner wording reports capability without claiming a connected device; FE-19 physical store-laptop verification remains outstanding.
@@ -49,12 +52,139 @@ Bloom UI is currently a JavaScript React application:
   acknowledgement and directs the operator to check the printer. The result preserves encoded sale
   detail access and requires an explicit new-sale reset before cashier entry resumes.
 - UXI-10 approved sales-history/detail/reprint UX is implemented: the history keeps only the
-  backend-supported code, creator, start-date, and end-date filters; owns `DD-MM-YYYY` validation in
-  Indonesian; exposes stable server page/range context; and switches from labelled wide rows to
+  backend-supported code, creator, start-date, and end-date filters; uses the shared Bloom-themed
+  Indonesian calendar-range control while retaining canonical URL/backend dates; exposes stable
+  server page/range context; and switches from labelled wide rows to
   grouped narrow records without page-level horizontal panning. Detail has one page heading and
   separate transaction/status, server-value, persisted-line, and reprint sections. Statuses, money,
   UOM, and location remain backend-returned facts, while reprint stays a duplicate-locked,
   sale-reference-only operation whose failure never changes the recorded sale.
+- UXI-11 approved item-list/detail/location-inventory UX is implemented: the active list uses the
+  backend-supported name-or-SKU and category filters, stable server paging, grouped item identity,
+  exact server price precision, explicit UOM/fraction policy, and separate STORE/WAREHOUSE balances.
+  Detail preserves the server-reported movement locks and exposes item-scoped stock history, barcode,
+  and edit access. Compact named 44-pixel actions and labelled narrow records retain every fact without
+  page-level horizontal panning or frontend stock aggregation. Bulk barcode selection is opt-in so
+  checkboxes appear only after `Pilih untuk cetak`; selected rows may request per-item copies while
+  enforcing the backend's 100-label PDF limit and preserving pending, failure, and success feedback.
+- UXI-12 approved item-create/edit/deactivation UX is implemented: create groups identity and sales,
+  quantity rules, and optional location-specific opening balances while preserving exact decimal edit
+  strings for the backend's atomic request. Whole/fractional guidance, first-invalid-field focus,
+  retained validation/conflict input, and duplicate-submit protection remain explicit. Edit separates
+  mutable metadata from backend-reported UOM/fraction locks and read-only STORE/WAREHOUSE balances.
+  Deactivation uses cancel-first confirmation, retains history and balances, blocks duplicate requests,
+  preserves retry context on failure, and focuses the returned result without implying deletion.
+- UXI-13 approved stock-movement history/detail UX is implemented: the backend-paged ledger retains
+  exact SKU, direction, and location filters with URL state, page-one reset, result announcements, and
+  focus recovery. Wide columns and labelled narrow records group item/SKU/UOM, direction/signed exact
+  quantity/source, location, before-to-after balance, and actor/time without page-level horizontal
+  panning. One named 44-pixel action opens an accessible in-context modal using only the selected row's
+  server-returned facts; it links only to already-supported source routes and never requests or invents
+  a stock-movement detail endpoint. `Buat transfer stok` remains the primary action under the combined
+  `Pergerakan stok` destination.
+- UXI-14 approved stock-adjustment UX is implemented: history retains backend-supported reference and
+  date filters with URL state through the shared Bloom-themed calendar-range control, explicit server
+  paging/order context, filtered-empty recovery, named
+  detail actions, and grouped narrow records. Creation uses keyboard-searchable active-item selection
+  with SKU/category/UOM/fraction policy, explicit ADD/REMOVE positive-delta versus CORRECTION
+  absolute-target meaning, UOM-aware exact quantities, frozen cancel-first confirmation, one durable
+  exact-request quarantine, retained definitive rejection, and server-confirmed result/movement facts.
+  Detail and result views keep backend-reported previous/new balances together without page-level
+  horizontal panning; the browser never calculates final stock authoritatively.
+- UXI-15 approved stock-transfer UX is implemented: creation discovers active items across every
+  backend page through keyboard-searchable name/SKU selection, keeps explicit opposite source and
+  destination locations with a labelled swap, presents advisory source availability, and accepts
+  item-bound UOM/fraction-aware exact quantities plus an optional description. A cancel-first frozen
+  confirmation repeats the complete intent before one duplicate-locked POST. Definitive rejection
+  refreshes server item facts while preserving editable input; ambiguous outcomes retain only the
+  exact account-bound request/key for safe replay, quarantine other-account recovery, and fail closed
+  on key conflict. The result replaces the form with backend-confirmed transfer facts and an existing
+  stock-movement route, while wide and narrow layouts preserve reading order without frontend stock
+  calculations or new endpoints.
+- UXI-16 approved supplier list/detail UX is implemented: the URL-backed read model retains the
+  backend-supported name/code/contact/address search, active/inactive filtering, explicit range/page
+  controls, and stale-response protection. Wide columns become labelled grouped records before the
+  audited 768-pixel overflow boundary; each row keeps contact, lifecycle, updater/time, a named
+  44-pixel detail action, and an independently recoverable balance read returned by the existing
+  server aggregate. Detail groups immutable identity, complete contact and audit facts, explicit
+  inactive meaning, and the server-returned total/paid/outstanding summary without calculating debt.
+- UXI-17 approved supplier maintenance UX is implemented: create explains the backend's trim-and-
+  uppercase code normalization before the permanent identity is committed, retains every field on a
+  duplicate conflict, and explains that inactive suppliers continue to reserve their codes. Edit
+  keeps the code disabled and outside keyboard order while changing only supported master data.
+  Deactivation remains a separate duplicate-locked, history-preserving lifecycle action with
+  cancel-first focus, Escape restoration, retryable failure, and a focused backend-confirmed inactive
+  result. The complete form stays single-column through the approved narrow-desktop boundary.
+- UXI-18 approved goods-receipt history/detail UX is implemented: receipt code, exact supplier code,
+  supplier name, received-date range, page, and page size remain URL-backed and map only to supported
+  backend filters. The shared themed range picker removes manual date entry without changing those
+  canonical calendar-date parameters. History renders backend-returned `UNPAID`, `PARTIALLY_PAID`, and `PAID` states plus
+  total, paid, and outstanding values without client inference; no unsupported cross-page payment-
+  status filter is added. Wide rows become labelled grouped records before the audited narrow-
+  desktop overflow boundary. Detail presents one page heading, receipt/audit and financial facts,
+  then exact received item/UOM/location/price/subtotal lines before the separately owned supplier-
+  payment action. History paging uses the same numbered control with icon-only previous/next actions
+  as the item and item-category lists.
+- UXI-19 approved goods-receipt creation/recovery UX is implemented: explicit Indonesian
+  `DD-MM-YYYY`, 24-hour time, and WIB/WITA/WIT inputs map to the existing receipt Instant contract;
+  compact two-column-to-single-column lines preserve repeated SKU/location entries and exact decimal
+  strings. The browser presents only a clearly advisory input estimate. Cancel-first review, one
+  locked pending request, definitive rejection, and tab-durable ambiguous recovery retain the exact
+  payload and idempotency key. Success renders only backend-confirmed receipt, item, total, paid,
+  outstanding, and payment-status facts; no initial payment or client-authoritative financial state
+  is introduced.
+- UXI-20 approved payable-discovery/receipt-debt-detail UX is implemented: `/payables` retains only
+  the approved receipt-reference and supplier-name discovery choices plus URL-backed server paging,
+  explicit range/page controls, filtered-empty recovery, and stale-response protection. Wide rows
+  become labelled grouped records before the audited narrow-desktop overflow boundary while keeping
+  supplier, receipt, received time, receipt/payment statuses, total, paid, outstanding, and one named
+  detail action visible. Payable-context detail uses a receipt-first page heading and return path,
+  presents backend financial facts and received lines, then pages the slash-safe query-parameter
+  payment-history read model before the separately owned payment mutation. Active/voided history and
+  all balances/statuses are rendered from backend responses without browser debt calculation.
+- UXI-21 approved one-receipt supplier-payment/recovery UX is implemented: exact decimal amount,
+  method, optional reference/note, confirmation-time `paidAt`, receipt, supplier, last-known
+  outstanding, and method-specific drawer meaning are frozen behind a cancel-first review. The
+  corrected query-parameter POST persists one account-owned request and idempotency key before
+  mutation. CASH additionally freezes the reviewed cash-session ID in recovery metadata and freshly
+  verifies that same open session before initial submit and every retry; a later session is never
+  substituted. Pending, definitive rejection, ambiguous recovery, and confirmed payment states are
+  distinct. Success renders the returned payment record, then separately refreshed backend paid,
+  outstanding, payment-status, and history facts without frontend balance/status calculation.
+- UXI-22 approved expense-history/creation UX is implemented: `/expenses` renders the fixed newest-
+  first backend page as labelled records with an explicit result range and paging controls, preserves
+  active versus voided status and backend-returned void eligibility, and groups every required fact
+  before narrow layouts overflow. Creation validates one exact decimal amount, the backend category
+  vocabulary, and the conditional `OTHER` note; binds the request to the one freshly verified open
+  cash-session ID; then freezes those facts behind a cancel-first confirmation. Pending, definitive
+  rejection, exact account-owned ambiguous recovery, and confirmed-result states remain distinct.
+  Recovery never substitutes a later cash session, and the result renders only the backend-confirmed
+  expense record without inferring drawer impact, balances, totals, or reconciliation.
+- UXI-23 approved expense-void/reversal UX is implemented: every history record opens audit-rich
+  detail before any destructive action, while only fresh backend-eligible records expose the void
+  control. Confirmation requires and repeats the retained reason with a cancel-first focus path;
+  pending locks the exact original expense, session, amount, and reason. Definitive rejection remains
+  distinct from account-owned ambiguous recovery, which can only verify or replay that same operation.
+  Confirmed results retain immutable original and server audit facts in separate groups and display
+  only the explicitly refreshed server session status and expected cash, without calculating reversal
+  effects, balances, or session totals in the browser.
+- UXI-24 approved operational dashboard UX is implemented after both backend gates were verified.
+  One operational-overview response supplies four compact server-owned summaries, the authoritative
+  seven-day daily sales series and period totals, STORE-only stock-attention counts/previews, current
+  cash-session detail, semantic drill-downs, and freshness. The screen distinguishes zero values from
+  no open session, retains the last successful response through refresh failure and stale states,
+  exposes every chart day and a shell-level content bypass to keyboard users, and reflows through
+  one-, two-, and three-column layouts. It neither aggregates sales/stock nor ships placeholder
+  business data, unsupported filters, or legacy overview values.
+- UXI-25 cross-domain verification is complete for the implemented UX rework. The CI-defined
+  single-worker suite passes all 483 tests across 70 files; lint, production build, and diff checks
+  pass. Read-only browser checks confirm protected-entry context, explicit light/dark/system
+  resolution, and no page-level horizontal overflow at 760 CSS pixels or the 720-CSS-pixel reflow
+  equivalent of 200% zoom on a 1440-pixel display. No dashboard backend gate remains. Physical
+  E81W scanner behavior on the store laptop and physical printer paper/feed/cut output remain
+  hardware-only checks; a print-service acknowledgement is not evidence that paper was produced.
+  The literal default parallel `npm test` command can still hit cross-domain five-second timeouts
+  under local contention, so CI remains pinned to `npm test -- --maxWorkers=1`.
 - FE-07 backend receipt reprint is implemented: sale detail calls the backend print endpoint for the existing sale reference with pending, duplicate-click prevention, success, failure, and same-reference retry behavior.
 - FE-08 current dashboard reliability is implemented: the existing backend overview metrics have explicit accessible loading, error/retry, zero/empty, refresh, and last-successful-data behavior without frontend aggregation.
 - FE-10 item creation is implemented: `/items/new` sends item metadata, the Release 1 UOM/fractional policy, and optional decimal STORE/WAREHOUSE openings through the backend's single atomic create operation, with explicit category, validation, pending, conflict, failure-recovery, success, and focus behavior.
@@ -81,7 +211,7 @@ Release 1 work must preserve this baseline unless a narrowly scoped PR proves th
 - FE-28 single-receipt supplier payment is implemented: receipt detail accepts partial/full CASH, BANK_TRANSFER, or QRIS payments with confirmation, durable same-request/key recovery, duplicate prevention, conflict handling, and focused success. Only CASH requires the verified current session. Recovery is owned by the exact backend `accountId`; username-only or ownerless legacy state remains quarantined. Receipt amounts/status are refreshed from the backend after posting; failed refreshes cannot trigger another payment. See [transaction plan and gate evidence](../plans/fe-28-supplier-payment.md).
 - FE-29 expense history and creation are implemented: `/expenses` renders paged backend audit records across all sessions; `/expenses/new` accepts decimal amount, one of six backend categories, and the supported description field labelled “Alasan / catatan”. New posting requires a verified open session, confirmation, and a fresh session check. The confirmed `expectedCashSessionId`, exact request/key, and immutable backend `accountId` owner are persisted; retries never retarget another session. Legacy username-only, ownerless, or pre-session attempts remain locked for manual reconciliation. No edit/delete/void or drawer calculation is included; see the [contract evidence and history/create review split](../plans/fe-29-expenses.md).
 - FE-30 expense void/reversal is implemented: backend eligibility, reasoned confirmation, durable recovery, audit rendering, and refresh behavior remain intact, while selected records/attempts/results are now bound to the exact authenticated `accountId`. Username-only or ownerless legacy recovery is quarantined and a recreated account with the same username cannot render, replay, acknowledge, or refresh the earlier account's operation.
-- FE-31 Release 1 operational dashboard is implemented: one backend operational-overview request supplies today's persisted sales, the current cash-session summary and active expense count/amount, and supplier payables. The screen distinguishes zero metrics from no open session, derives staleness from backend `freshUntil`, preserves last-successful data on refresh failure, formats values in Indonesian, and maps only approved semantic drill-downs to completed routes. No profitability claim, reporting suite, legacy chart, or cross-endpoint frontend aggregation is included; see the [widget and request plan](../plans/fe-31-dashboard.md).
+- FE-31 Release 1 operational dashboard is implemented: one backend operational-overview request supplies today's persisted sales, an authoritative seven-day sales series/period total, STORE-only stock attention, the current cash-session summary and active expense count/amount, and supplier payables. The screen distinguishes zero metrics from no open session, derives staleness from backend `freshUntil`, preserves last-successful data on refresh failure, formats exact values in Indonesian, and maps only approved semantic drill-downs to completed routes. No profitability claim, reporting suite, legacy overview data, or cross-endpoint frontend aggregation is included; see the [widget and request plan](../plans/fe-31-dashboard.md).
 
 ### 2.2 Current implemented routes
 
@@ -484,7 +614,7 @@ The following gates are tracked here; completed entries document the contract th
 - Printer endpoint success/error semantics in the target environment.
 - Goods-receipt creation is available at `POST /api/goods-receipts` with required `Idempotency-Key`, stable `supplierCode`, `receivedDate` Instant, and decimal item/price/location lines. The service computes totals and posts receipt/movements atomically, replays identical requests, and conflicts on changed same-key payloads. `initialPayment` is optional; FE-26 omits it and renders returned total/paid/outstanding/status. The form requires an explicitly selected UTC offset rather than assuming a fixed store timezone.
 - Goods-receipt read fields and date semantics are implemented. `receivedDateFrom` and `receivedDateTo` are calendar dates; the backend uses the canonical system-wide `bloom.store-zone-id` IANA zone (default `Asia/Jakarta`) and queries `[from at start-of-day, day-after-to at start-of-day)`. The browser sends dates unchanged and performs no device-timezone conversion.
-- Single-receipt payment is available at `POST /api/goods-receipts/{code}/payments` with required `Idempotency-Key`. It serializes identical replay, rejects changed payloads/overpayment, and links only CASH to the globally open session. Its response is the payment record; the existing receipt detail GET supplies updated paid/outstanding/status. CASH paidAt cannot predate session opening. Recovery ownership uses the authenticated `accountId`; legacy username-only/ownerless state remains quarantined. Reversal UI remains outside FE-28.
+- Single-receipt payment is available at `POST /api/goods-receipts/payments?code={receiptCode}` with required `Idempotency-Key`. It serializes identical replay, rejects changed payloads/overpayment, and links only CASH to the globally open session. Its response is the payment record; the existing receipt detail GET supplies updated paid/outstanding/status. CASH paidAt cannot predate session opening. Recovery ownership uses the authenticated `accountId`; CASH recovery also retains and revalidates its original session ID in browser recovery metadata so a later open session cannot retarget the request. Legacy username-only, ownerless, or CASH attempts without an original session identity remain quarantined. Reversal UI remains outside FE-28.
 - Expense list/create contracts are verified: authenticated `GET /api/expenses` reads all sessions with one-based paging and fixed newest-first ordering, without filters; `POST /api/expenses` requires positive `expectedCashSessionId`, positive decimal `amount`, fixed `category`, optional `description` (required for OTHER), and `Idempotency-Key`. The service atomically records the expense and movement against that specified open session, replays identical requests before session eligibility checks, and conflicts on changed same-key content or session. FE-29 uses exact-request/key POST recovery with its original session ID and authenticated `accountId`. Old uncertain recovery without either identity or confirmed session ID remains quarantined. Detail/void UI remains outside FE-29.
 - FE-30 expense void/reversal is implemented. Expense responses expose `canVoid` and `voidBlockReason` (`ALREADY_VOIDED` / `CASH_SESSION_CLOSED`); history displays those decisions, and a fresh detail read precedes an accessible reasoned confirmation. One expense/reason is retained for duplicate-safe recovery across navigation/reload and exact `accountId` changes cannot cross the recovery boundary. Stored void audit and original-session cash values come from backend responses; refresh failures retain confirmed results. No deletion, posted-fact editing, local drawer calculation, sale correction, or supplier-payment correction is included. See [FE-30 contract and verification](../plans/fe-30-expense-reversal.md).
 - Future post-close correction workflows remain outside Release 1; the implemented supplier-payment rule rejects voiding CASH payments from closed sessions.

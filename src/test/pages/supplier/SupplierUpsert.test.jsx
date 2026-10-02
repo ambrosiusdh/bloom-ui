@@ -97,7 +97,8 @@ describe('SupplierUpsert', () => {
 
         await user.click(screen.getByRole('button', { name: 'Buat pemasok' }));
 
-        expect(await screen.findByText('Kode pemasok harus unik. Gunakan kode lain.')).toBeInTheDocument();
+        expect(await screen.findByText(/pemasok tidak aktif tetap menyimpan kodenya/i)).toBeInTheDocument();
+        expect(screen.getByText(/semua masukan anda dipertahankan/i)).toBeInTheDocument();
         const codeInput = screen.getByRole('textbox', { name: 'Kode pemasok' });
         expect(codeInput).toHaveValue('sup-001');
         expect(screen.getByRole('textbox', { name: 'Nama pemasok' })).toHaveValue('Nusantara Tekstil');
@@ -110,6 +111,26 @@ describe('SupplierUpsert', () => {
                 address: ''
             }
         }, undefined);
+    });
+
+    it('explains permanent code normalization before creation and keeps the narrow form complete', () => {
+        const { container } = renderCreate();
+
+        expect(screen.getByText(/menghapus spasi di awal\/akhir dan menyimpan kode dengan huruf besar/i))
+            .toBeInTheDocument();
+        expect(screen.getByText(/perbedaan huruf besar\/kecil tidak membuat identitas baru/i))
+            .toBeInTheDocument();
+        expect(screen.getByText(/kode tidak dapat diubah atau digunakan ulang/i)).toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: 'Nama pemasok' })).toBeRequired();
+        expect(screen.getByRole('textbox', { name: 'Kode pemasok' })).toBeRequired();
+
+        const fieldset = container.querySelector('fieldset');
+        expect(fieldset).toHaveClass('min-[821px]:grid-cols-2');
+        expect(screen.getByRole('textbox', { name: 'Alamat (opsional)' })
+            .closest('.MuiFormControl-root'))
+            .toHaveClass('min-[821px]:col-span-2');
+        expect(screen.getByRole('button', { name: 'Buat pemasok' })).toHaveClass('w-full');
+        expect(screen.getByRole('link', { name: 'Batal' })).toHaveClass('w-full');
     });
 
     it('blocks duplicate create submission while pending and uses the returned normalized code', async () => {
@@ -144,6 +165,12 @@ describe('SupplierUpsert', () => {
         expect(codeField).toHaveValue('SUP-001');
 
         const nameField = screen.getByRole('textbox', { name: 'Nama pemasok' });
+        nameField.focus();
+        await user.tab();
+        expect(screen.getByRole('textbox', { name: 'Nomor kontak (opsional)' })).toHaveFocus();
+        await user.tab();
+        expect(screen.getByRole('textbox', { name: 'Alamat (opsional)' })).toHaveFocus();
+
         await user.clear(nameField);
         await user.type(nameField, 'Nusantara Baru');
         await user.clear(screen.getByRole('textbox', { name: 'Nomor kontak (opsional)' }));

@@ -5,12 +5,20 @@ import supplierApi from '@api/supplier.js';
 let latestListRequestId = 0;
 let latestDetailRequestId = 0;
 let latestBalanceRequestId = 0;
+let listBalanceGeneration = 0;
+const latestListBalanceRequestIds = new Map();
+
+const invalidateSupplierListBalances = () => {
+    listBalanceGeneration += 1;
+    latestListBalanceRequestIds.clear();
+};
 
 const initialState = {
     supplierList: [],
     supplierPaging: {},
     listStatus: 'idle',
     listError: null,
+    supplierListBalances: {},
     supplierDetails: null,
     detailStatus: 'idle',
     detailError: null,
@@ -77,6 +85,61 @@ const useSupplierStore = create(set => ({
         }
     },
 
+    getSupplierListBalance: async (code, config, options) => {
+        const generation = listBalanceGeneration;
+        const requestId = (latestListBalanceRequestIds.get(code) || 0) + 1;
+        latestListBalanceRequestIds.set(code, requestId);
+        set(state => ({
+            supplierListBalances: {
+                ...state.supplierListBalances,
+                [code]: {
+                    data: null,
+                    status: 'loading',
+                    error: null
+                }
+            }
+        }));
+
+        try {
+            const { data: response } = await supplierApi.getSupplierOutstandingBalance(
+                code,
+                config,
+                options
+            );
+            if (generation === listBalanceGeneration
+                && requestId === latestListBalanceRequestIds.get(code)
+                && !config?.signal?.aborted) {
+                set(state => ({
+                    supplierListBalances: {
+                        ...state.supplierListBalances,
+                        [code]: {
+                            data: response.data,
+                            status: 'ready',
+                            error: null
+                        }
+                    }
+                }));
+            }
+            return response.data;
+        } catch (error) {
+            if (generation === listBalanceGeneration
+                && requestId === latestListBalanceRequestIds.get(code)
+                && !config?.signal?.aborted) {
+                set(state => ({
+                    supplierListBalances: {
+                        ...state.supplierListBalances,
+                        [code]: {
+                            data: null,
+                            status: 'error',
+                            error
+                        }
+                    }
+                }));
+            }
+            throw error;
+        }
+    },
+
     getSupplierOutstandingBalance: async (code, config, options) => {
         const requestId = ++latestBalanceRequestId;
         set({
@@ -114,9 +177,11 @@ const useSupplierStore = create(set => ({
     createSupplier: async (payload, options) => {
         const { data: response } = await supplierApi.createSupplier(payload, options);
         latestListRequestId += 1;
+        invalidateSupplierListBalances();
         set({
             supplierList: [],
             supplierPaging: {},
+            supplierListBalances: {},
             listStatus: 'idle',
             listError: null
         });
@@ -127,12 +192,14 @@ const useSupplierStore = create(set => ({
         const { data: response } = await supplierApi.updateSupplier(code, payload, options);
         const updatedSupplier = response.data;
         latestListRequestId += 1;
+        invalidateSupplierListBalances();
         set(state => ({
             supplierDetails: state.supplierDetails?.code === updatedSupplier.code
                 ? updatedSupplier
                 : state.supplierDetails,
             supplierList: [],
             supplierPaging: {},
+            supplierListBalances: {},
             listStatus: 'idle',
             listError: null
         }));
@@ -143,12 +210,14 @@ const useSupplierStore = create(set => ({
         const { data: response } = await supplierApi.setSupplierActive(code, active, options);
         const updatedSupplier = response.data;
         latestListRequestId += 1;
+        invalidateSupplierListBalances();
         set(state => ({
             supplierDetails: state.supplierDetails?.code === updatedSupplier.code
                 ? updatedSupplier
                 : state.supplierDetails,
             supplierList: [],
             supplierPaging: {},
+            supplierListBalances: {},
             listStatus: 'idle',
             listError: null
         }));
@@ -162,6 +231,11 @@ const useSupplierStore = create(set => ({
             detailStatus: 'idle',
             detailError: null
         });
+    },
+
+    clearSupplierListBalances: () => {
+        invalidateSupplierListBalances();
+        set({ supplierListBalances: {} });
     },
 
     clearSupplierOutstandingBalance: () => {
