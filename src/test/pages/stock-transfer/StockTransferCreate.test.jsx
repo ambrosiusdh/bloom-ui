@@ -97,6 +97,11 @@ const deferred = () => {
 
 const selectItem = async (user, sku = 'KAIN-00001') => {
     const itemSelector = screen.getByRole('combobox', { name: 'Barang' });
+
+    await waitFor(
+        () => expect(itemSelector).toBeEnabled(),
+        { timeout: 3000 }
+    );
     await user.clear(itemSelector);
     await user.type(itemSelector, sku);
     await user.click(await screen.findByRole('option', { name: new RegExp(sku, 'i') }));

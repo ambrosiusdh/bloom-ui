@@ -19,6 +19,24 @@ const drillDown = (destination, overrides = {}) => ({
     ...overrides
 });
 
+const salesDay = (businessDate, salesAmount = '0.0000', transactionCount = 0) => ({
+    businessDate,
+    salesAmount,
+    transactionCount,
+    periodStart: `${ businessDate }T00:00:00Z`,
+    periodEndExclusive: `${ businessDate }T23:59:59Z`
+});
+
+const emptySalesDays = [
+    '2026-09-06',
+    '2026-09-07',
+    '2026-09-08',
+    '2026-09-09',
+    '2026-09-10',
+    '2026-09-11',
+    '2026-09-12'
+].map(date => salesDay(date));
+
 const emptyOverview = {
     asOf: '2026-09-11T18:30:00Z',
     freshUntil: '2999-09-11T18:35:00Z',
@@ -33,6 +51,25 @@ const emptyOverview = {
             startDate: '2026-09-12',
             endDate: '2026-09-12'
         })
+    },
+    salesLast7Days: {
+        periodStartDate: '2026-09-06',
+        periodEndDate: '2026-09-12',
+        totalSalesAmount: '0.0000',
+        totalTransactionCount: 0,
+        days: emptySalesDays,
+        drillDown: drillDown('SALES_HISTORY', {
+            startDate: '2026-09-06',
+            endDate: '2026-09-12'
+        })
+    },
+    stockAttention: {
+        outOfStockCount: 0,
+        lowStockCount: 0,
+        threshold: '10.0000',
+        location: 'STORE',
+        preview: [],
+        drillDown: drillDown('ITEM_LIST')
     },
     currentCashSession: {
         state: 'NONE',
@@ -60,6 +97,38 @@ const populatedOverview = {
         ...emptyOverview.salesToday,
         salesAmount: '250000.1250',
         transactionCount: 12
+    },
+    salesLast7Days: {
+        ...emptyOverview.salesLast7Days,
+        totalSalesAmount: '450000.3750',
+        totalTransactionCount: 20,
+        days: [
+            ...emptySalesDays.slice(0, 5),
+            salesDay('2026-09-11', '200000.2500', 8),
+            salesDay('2026-09-12', '250000.1250', 12)
+        ]
+    },
+    stockAttention: {
+        outOfStockCount: 1,
+        lowStockCount: 1,
+        threshold: '10.0000',
+        location: 'STORE',
+        preview: [{
+            itemId: 41,
+            sku: 'KAIN-001',
+            name: 'Kain habis',
+            baseUnitOfMeasure: 'METER',
+            stockStore: '0.0000',
+            state: 'OUT_OF_STOCK'
+        }, {
+            itemId: 52,
+            sku: 'KAIN-002',
+            name: 'Kain menipis',
+            baseUnitOfMeasure: 'METER',
+            stockStore: '0.2500',
+            state: 'LOW_STOCK'
+        }],
+        drillDown: drillDown('ITEM_LIST')
     },
     currentCashSession: {
         state: 'OPEN',
@@ -118,7 +187,7 @@ describe('Release 1 operational dashboard', () => {
         dashboardApi.getOperationalOverview.mockReturnValue(request.promise);
         render(<Dashboard />, { route: '/dashboard' });
 
-        expect(await screen.findByRole('status')).toHaveTextContent('Memuat data dashboard...');
+        expect(await screen.findByRole('status')).toHaveTextContent('Memuat ringkasan operasional...');
         expect(screen.getByRole('button', { name: 'Memuat...' })).toBeDisabled();
         expect(screen.queryByText('Penjualan hari ini')).not.toBeInTheDocument();
 
@@ -126,6 +195,7 @@ describe('Release 1 operational dashboard', () => {
 
         const sales = await screen.findByRole('region', { name: 'Penjualan hari ini' });
         const cashSession = screen.getByRole('region', { name: 'Sesi kas saat ini' });
+        const expenses = screen.getByRole('region', { name: 'Pengeluaran sesi aktif' });
         const payables = screen.getByRole('region', { name: 'Utang pemasok' });
         const widgetGrid = screen.getByLabelText('Ringkasan operasional');
 
@@ -135,11 +205,17 @@ describe('Release 1 operational dashboard', () => {
             .toBeInTheDocument();
         expect(within(cashSession).getByLabelText('Status sesi kas: tidak ada sesi'))
             .toBeInTheDocument();
-        expect(within(cashSession).getByText(/belum ada sesi yang menjadi acuannya/i))
+        expect(within(cashSession).getByText(/belum ada sesi yang menjadi acuan/i))
             .toBeInTheDocument();
+        expect(within(expenses).getByText(/tidak ada sesi kas terbuka/i)).toBeInTheDocument();
         expect(within(payables).getByLabelText('Total utang pemasok belum dibayar Rp 0'))
             .toBeInTheDocument();
-        expect(screen.getByText(/Data per:/)).toHaveTextContent('12 Sep 2026');
+        expect(screen.getByText(/Terakhir diperbarui:/)).toHaveTextContent('12 Sep 2026');
+        expect(screen.getByText(/Terakhir diperbarui:/)).toHaveTextContent('Zona Asia/Jakarta');
+        expect(screen.getByRole('region', { name: 'Penjualan 7 hari terakhir' }))
+            .toHaveTextContent('Rp 0');
+        expect(screen.getByRole('complementary', { name: 'Perlu perhatian' }))
+            .toHaveTextContent('Tidak ada utang pemasok atau stok STORE');
     });
 
     it('renders Indonesian values and only backend-recognized completed drill-down routes', async () => {
@@ -148,24 +224,61 @@ describe('Release 1 operational dashboard', () => {
 
         const sales = await screen.findByRole('region', { name: 'Penjualan hari ini' });
         const cashSession = screen.getByRole('region', { name: 'Sesi kas saat ini' });
+        const expenses = screen.getByRole('region', { name: 'Pengeluaran sesi aktif' });
         const payables = screen.getByRole('region', { name: 'Utang pemasok' });
+        const chart = screen.getByRole('region', { name: 'Penjualan 7 hari terakhir' });
+        const attention = screen.getByRole('complementary', { name: 'Perlu perhatian' });
 
         expect(within(sales).getByText('Rp 250.000,125')).toBeInTheDocument();
         expect(within(sales).getByLabelText('12 transaksi penjualan hari ini'))
             .toBeInTheDocument();
         expect(within(cashSession).getByText(/Dibuka oleh admin pada/)).toBeInTheDocument();
         expect(within(cashSession).getByText('Rp 249.999,625')).toBeInTheDocument();
-        expect(within(cashSession).getByText('Rp 5.000,5')).toBeInTheDocument();
+        expect(within(expenses).getByText('Rp 5.000,5')).toBeInTheDocument();
         expect(within(payables).getByText('Rp 82.500,25')).toBeInTheDocument();
+        expect(within(chart).getByLabelText('Total penjualan tujuh hari Rp 450.000,375'))
+            .toBeInTheDocument();
+        expect(within(chart).getByText('20 transaksi dalam 7 hari')).toBeInTheDocument();
+        expect(within(attention).getByText('Kain habis')).toBeInTheDocument();
+        expect(within(attention).getByText(/KAIN-002.*0,25 meter/)).toBeInTheDocument();
 
         expect(screen.getByRole('link', { name: 'Buka riwayat penjualan hari ini' }))
             .toHaveAttribute('href', '/sales?startDate=2026-09-12&endDate=2026-09-12');
-        expect(screen.getByRole('link', { name: 'Buka detail sesi kas' }))
-            .toHaveAttribute('href', '/cash-sessions/7');
-        expect(screen.getByRole('link', { name: 'Buka riwayat pengeluaran' }))
-            .toHaveAttribute('href', '/expenses');
+        expect(screen.getAllByRole('link', { name: 'Buka detail sesi kas' })
+            .every(link => link.getAttribute('href') === '/cash-sessions/7')).toBe(true);
+        expect(screen.getAllByRole('link', { name: 'Buka riwayat pengeluaran' })
+            .every(link => link.getAttribute('href') === '/expenses')).toBe(true);
         expect(screen.getByRole('link', { name: 'Buka daftar utang pemasok' }))
             .toHaveAttribute('href', '/payables');
+        expect(screen.getByRole('link', { name: 'Buka riwayat penjualan 7 hari' }))
+            .toHaveAttribute('href', '/sales?startDate=2026-09-06&endDate=2026-09-12');
+        expect(screen.getByRole('link', { name: 'Buka data barang' }))
+            .toHaveAttribute('href', '/items');
+    });
+
+    it('makes every sales day keyboard reachable and shows exact selected-day detail', async () => {
+        const user = userEvent.setup();
+        dashboardApi.getOperationalOverview.mockResolvedValue(response(populatedOverview));
+        render(<Dashboard />, { route: '/dashboard' });
+
+        const chart = await screen.findByRole('region', { name: 'Penjualan 7 hari terakhir' });
+        const days = within(chart).getAllByRole('button');
+        expect(days).toHaveLength(7);
+        expect(days.every(day => day.getAttribute('tabindex') !== '-1')).toBe(true);
+        expect(days[6]).toHaveAttribute('aria-pressed', 'true');
+        expect(within(chart).getByLabelText(
+            'Rincian hari terpilih 12 September 2026, Rp 250.000,125, 12 transaksi'
+        )).toBeInTheDocument();
+
+        days[5].focus();
+        await user.keyboard('{ArrowRight}');
+        expect(days[6]).toHaveFocus();
+        await user.keyboard('{Home}');
+        expect(days[0]).toHaveFocus();
+        expect(days[0]).toHaveAttribute('aria-pressed', 'true');
+        expect(within(chart).getByLabelText(
+            'Rincian hari terpilih 6 September 2026, Rp 0, 0 transaksi'
+        )).toBeInTheDocument();
     });
 
     it('keeps server-confirmed values during refresh, focuses failures, and retries', async () => {
@@ -198,7 +311,8 @@ describe('Release 1 operational dashboard', () => {
 
         expect((await screen.findByText('Data dashboard berhasil diperbarui.'))
             .closest('[role="status"]')).toBeInTheDocument();
-        expect(screen.getByText('Rp 250.000,125')).toBeInTheDocument();
+        expect(screen.getByLabelText('Total penjualan hari ini Rp 250.000,125'))
+            .toBeInTheDocument();
         expect(dashboardApi.getOperationalOverview).toHaveBeenCalledTimes(3);
     });
 
@@ -217,7 +331,8 @@ describe('Release 1 operational dashboard', () => {
         await user.click(screen.getByRole('button', { name: 'Coba lagi' }));
 
         await waitFor(() => expect(screen.getByText('Penjualan hari ini')).toBeInTheDocument());
-        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(screen.queryByText('Data dashboard gagal dimuat. Periksa koneksi Anda lalu coba lagi.'))
+            .not.toBeInTheDocument();
     });
 
     it('labels retained data stale from the backend freshUntil value', async () => {
@@ -242,6 +357,18 @@ describe('Release 1 operational dashboard', () => {
             supplierPayables: {
                 ...emptyOverview.supplierPayables,
                 drillDown: drillDown('CASH_SESSION_DETAIL', { reference: '../admin' })
+            },
+            salesLast7Days: {
+                ...emptyOverview.salesLast7Days,
+                drillDown: drillDown('SALES_HISTORY', {
+                    startDate: 'invalid',
+                    endDate: '2026-09-12'
+                })
+            },
+            stockAttention: {
+                ...emptyOverview.stockAttention,
+                outOfStockCount: 1,
+                drillDown: drillDown('UNSUPPORTED_ITEMS')
             }
         }));
         render(<Dashboard />, { route: '/dashboard' });
@@ -250,6 +377,10 @@ describe('Release 1 operational dashboard', () => {
         expect(screen.queryByRole('link', { name: 'Buka riwayat penjualan hari ini' }))
             .not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Buka daftar utang pemasok' }))
+            .not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Buka riwayat penjualan 7 hari' }))
+            .not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Buka data barang' }))
             .not.toBeInTheDocument();
     });
 });

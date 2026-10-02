@@ -1,6 +1,6 @@
 # Bloom Release 1 UX Rework Roadmap
 
-Last updated: 2026-09-30
+Last updated: 2026-10-02
 
 ## 1. Purpose
 
@@ -1496,6 +1496,22 @@ Decision/audit: `docs/ux/design/uxr-d14-payables-payment-decision.md`; `docs/ux/
 
 #### UXI-22 — Expense history and creation
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-02):** Expense history now renders the backend's fixed newest-first
+page as labelled records with an explicit result range, page-size and previous/next controls, and no
+unsupported filters. Each record keeps ID, category, operational classification, note, exact amount,
+status, original cash session, actor/time, and backend-returned eligibility visible; wide rows become
+grouped records before the audited narrow-desktop overflow boundary. Creation accepts exact decimal
+amounts, the six backend categories, and the conditional `OTHER` note, then binds one reviewed request
+to the exact freshly verified open cash-session ID. Cancel-first confirmation repeats every submitted
+fact, pending locks and displays the durable request, and account-owned recovery retains the identical
+payload and idempotency key without substituting a later session. Definitive rejection preserves the
+form, while success renders only the backend-confirmed record and eligibility. No drawer impact,
+balance, total, or reconciliation is inferred. The focused expense suite passed 60 tests; the full
+single-worker suite passed 479 tests across 70 files. Full lint and the production build passed. Build
+output retained only the existing stale-Browserslist-data and large-chunk advisory warnings.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D15 Pengeluaran** and review history, active/closed eligibility, create, validation, confirmation, pending, recovery, result, and narrow states.
 
 Decision/audits: `docs/ux/design/uxr-d15-expenses-voids-decision.md`; `docs/ux/audits/uxr-a16-expense-create.md`; `docs/ux/audits/uxr-a17-expense-void.md`
@@ -1504,6 +1520,21 @@ Decision/audits: `docs/ux/design/uxr-d15-expenses-voids-decision.md`; `docs/ux/a
 
 #### UXI-23 — Expense void and reversal
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-02):** Expense history now opens an audit-rich detail for active,
+closed-session, and already-voided records before exposing any destructive action. Fresh backend
+eligibility controls whether the void action exists. The cancel-first confirmation requires a bounded
+reason and repeats immutable original facts; pending locks the exact expense, original session,
+amount, and reason. Definitive rejection is explicit and editable, while ambiguous recovery remains
+bound to the same backend account, expense, session, and retained reason. Confirmed results separate
+the original record, stored reversal audit, and explicitly refreshed server session status/expected
+cash; the frontend never deletes the original or calculates reversal, balance, or session totals.
+Keyboard Escape returns from confirmation to detail before closing, and focus returns through both
+levels. The focused void/history suite passed 30 tests; the full single-worker suite passed 481 tests
+across 70 files. Full lint, production build, and `git diff --check` passed. Build output retained only
+the existing stale-Browserslist-data and large-chunk advisory warnings.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D15 Pengeluaran** and review detail, reasoned void confirmation, pending, uncertain recovery, rejection, void result, retained original/reversal facts, and narrow states.
 
 Decision/audits: `docs/ux/design/uxr-d15-expenses-voids-decision.md`; UXR-A16/A17 reports above.
@@ -1511,6 +1542,23 @@ Decision/audits: `docs/ux/design/uxr-d15-expenses-voids-decision.md`; UXR-A16/A1
 > Implement only UXI-23, Bloom expense void and reversal. Read the governing documents, UXR-A16/A17 audits, the D15 decision, and D15 void states in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `ExpenseVoidDialog.jsx`, `ExpenseRecord.jsx`, expense-void store/API/utilities, history integration, and tests. Implement audit-rich detail, required reason, cancel-first confirmation, pending lock, exact account-bound ambiguous recovery, definitive rejection, backend-confirmed void result, immutable original plus reversal facts, and explicit server-returned session impact. Never delete the original or calculate reversal/session totals. Add tests and run the full validation commands. Update plan status; do not commit or push.
 
 #### UXI-24 — Operational dashboard
+
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-02):** The backend gate was verified before frontend changes:
+`OperationalDashboardResponse`, its controller/service, bounded repository projections, controller
+and security tests, and PostgreSQL integration coverage all include the required non-null
+`salesLast7Days` and `stockAttention` read models. The Dashboard now consumes that single response
+for four compact summaries, an action-oriented supplier/STORE attention panel, the authoritative
+seven-day sales chart and server period totals, exact semantic drill-downs, and detailed current-session
+facts. Zero sales, all-zero chart, no open session, loading, stale data, refresh success, and retained-
+data refresh failure stay distinct. Every day is keyboard reachable with visible exact selected-day
+detail; a shell-level skip link bypasses navigation; the card hierarchy uses one, two, and three
+columns without page-level overflow. No frontend sales/stock aggregation, unsupported stock filter,
+legacy Dashboard value, or placeholder business data is shipped. The focused dashboard/API/store/
+skip-link suite passed 17 tests; the full single-worker suite passed 483 tests across 70 files. Full
+lint, production build, and `git diff --check` passed. Build output retained only the existing stale-
+Browserslist-data and large-chunk advisory warnings.
 
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-dashboard-rework.html`
 

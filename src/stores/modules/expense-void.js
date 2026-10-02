@@ -91,7 +91,13 @@ const useExpenseVoidStore = create(persist((set, get) => {
 
             set({
                 record,
-                outcome: record.voided ? 'confirmed' : get().attempt ? 'uncertain' : 'ready',
+                outcome: record.voided
+                    ? 'confirmed'
+                    : get().attempt
+                        ? 'uncertain'
+                        : get().outcome === 'rejected'
+                            ? 'rejected'
+                            : 'ready',
                 ...(record.voided ? { attempt: null } : {}),
                 historyRevision: get().historyRevision + (historyChanged ? 1 : 0)
             });
@@ -171,8 +177,12 @@ const useExpenseVoidStore = create(persist((set, get) => {
         },
 
         edit: reason => {
-            if (canUseExpenseVoid(get()) && !get().pending && !get().attempt && get().outcome === 'ready') {
-                set({ reason });
+            if (canUseExpenseVoid(get()) && !get().pending && !get().attempt
+                && ['ready', 'rejected'].includes(get().outcome)) {
+                set({
+                    reason,
+                    notice: ''
+                });
             }
         },
 
@@ -188,7 +198,8 @@ const useExpenseVoidStore = create(persist((set, get) => {
         submit: async () => {
             const state = get();
             if (!canUseExpenseVoid(state) || state.pending || state.record?.voided
-                || (!state.attempt && (state.outcome !== 'ready' || !canVoidExpense(state.record)))
+                || (!state.attempt && (!['ready', 'rejected'].includes(state.outcome)
+                    || !canVoidExpense(state.record)))
                 || validateExpenseVoidReason(state.attempt || state.reason)) {
                 return;
             }
@@ -231,6 +242,7 @@ const useExpenseVoidStore = create(persist((set, get) => {
                         record: response.data,
                         attempt: null,
                         outcome: 'confirmed',
+                        notice: '',
                         historyRevision: get().historyRevision + 1
                     });
                 }
@@ -239,7 +251,7 @@ const useExpenseVoidStore = create(persist((set, get) => {
                     || error.domainCode === API_DOMAIN_ERROR_CODE.CASH_SESSION_CONFLICT);
                 set({
                     attempt: rejected ? null : attempt,
-                    outcome: 'uncertain',
+                    outcome: rejected ? 'rejected' : 'uncertain',
                     notice: error.domainCode === API_DOMAIN_ERROR_CODE.CASH_SESSION_CONFLICT ? 'Sesi kas berubah atau sudah ditutup. Periksa hasil terbaru.'
                         : rejected ? 'Permintaan ditolak. Periksa data dan alasan sebelum mencoba lagi.'
                             : 'Hasil permintaan belum pasti atau data berubah. Periksa hasil sebelum memulihkan pembatalan yang sama.'

@@ -5,6 +5,7 @@ import StockAdjustmentCreate from '@pages/stock-adjustment/StockAdjustmentCreate
 import useStockAdjustmentStore from '@stores/modules/stock-adjustment.js';
 import {
     act,
+    fireEvent,
     render,
     screen,
     waitFor
@@ -163,7 +164,7 @@ describe('StockAdjustmentCreate FE-13 workflow', () => {
         expect(itemApi.getItemList).toHaveBeenCalledTimes(2);
     });
 
-    it('focuses required input and enforces whole/fractional and duplicate-SKU rules', async () => {
+    it('focuses required input and enforces whole-item quantity rules', async () => {
         const user = userEvent.setup();
 
         render(<StockAdjustmentCreate />, { route: '/stock-adjustments/new' });
@@ -181,18 +182,38 @@ describe('StockAdjustmentCreate FE-13 workflow', () => {
         await user.click(screen.getByRole('button', { name: 'Tinjau penyesuaian' }));
         expect(screen.getByText('Barang ini hanya dapat disesuaikan dalam jumlah utuh.'))
             .toBeInTheDocument();
+        expect(adjustmentApi.createStockAdjustment).not.toHaveBeenCalled();
+    });
 
-        await user.clear(firstQuantity);
-        await user.type(firstQuantity, '1');
+    it('rejects duplicate item SKUs', async () => {
+        const user = userEvent.setup();
+
+        render(<StockAdjustmentCreate />, { route: '/stock-adjustments/new' });
+        await waitForFormReady();
+
+        fireEvent.change(screen.getByRole('textbox', { name: /Alasan penyesuaian/ }), {
+            target: { value: 'Hitung fisik' }
+        });
+        const firstItemSelector = screen.getByRole('combobox', {
+            name: 'Cari barang dengan nama atau SKU'
+        });
+        fireEvent.change(firstItemSelector, {
+            target: { value: 'Benang gulung' }
+        });
+        await user.click(screen.getByRole('option', { name: /Benang gulung/i }));
+        const firstQuantity = screen.getByRole('textbox', { name: /Jumlah perubahan/ });
+
+        fireEvent.change(firstQuantity, { target: { value: '1' } });
         await user.click(screen.getByRole('button', { name: 'Tambah baris' }));
         const secondItemSelector = screen.getByRole('combobox', {
             name: 'Cari barang dengan nama atau SKU'
         });
-        await user.click(secondItemSelector);
-        await user.type(secondItemSelector, 'Benang gulung');
+        fireEvent.change(secondItemSelector, {
+            target: { value: 'Benang gulung' }
+        });
         await user.click(screen.getByRole('option', { name: /Benang gulung/i }));
         const quantities = screen.getAllByRole('textbox', { name: /Jumlah perubahan/ });
-        await user.type(quantities[1], '1');
+        fireEvent.change(quantities[1], { target: { value: '1' } });
         await user.click(screen.getByRole('button', { name: 'Tinjau penyesuaian' }));
 
         expect(screen.getByText('Barang yang sama hanya boleh muncul satu kali.'))

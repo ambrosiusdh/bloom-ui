@@ -86,6 +86,28 @@ describe('protected route auth gating', () => {
         expect(await screen.findByText('/login:/dashboard?page=2#stock')).toBeInTheDocument();
     });
 
+    it('offers a first-class keyboard bypass to the protected main content', async () => {
+        authApi.getCurrentUser.mockResolvedValue({
+            status: 200,
+            data: {
+                data: {
+                    accountId: '101',
+                    username: 'kasir'
+                }
+            }
+        });
+
+        renderApp('/dashboard');
+
+        const skipLink = await screen.findByRole('link', { name: 'Lewati ke konten utama' });
+        const mainContent = document.querySelector('#bloom-main-content');
+
+        expect(skipLink).toHaveAttribute('href', '#bloom-main-content');
+        expect(mainContent).toHaveAttribute('tabindex', '-1');
+        expect(skipLink.compareDocumentPosition(mainContent) & Node.DOCUMENT_POSITION_FOLLOWING)
+            .toBeTruthy();
+    });
+
     it('focuses the destination heading after a successful protected return', async () => {
         authApi.getCurrentUser.mockResolvedValue({
             status: 200,

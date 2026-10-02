@@ -74,8 +74,12 @@ const begin = async () => {
 };
 
 const openDialog = async user => {
-    await user.click(await screen.findByRole('button', { name: 'Batalkan pengeluaran #29' }));
-    const field = await screen.findByLabelText(/Alasan pembatalan/);
+    await user.click(await screen.findByRole('button', { name: 'Buka detail pengeluaran #29' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Detail pengeluaran #29' });
+    const start = within(dialog).getByRole('button', { name: 'Batalkan pengeluaran' });
+    await waitFor(() => expect(start).toBeEnabled());
+    await user.click(start);
+    const field = await within(dialog).findByLabelText(/Alasan pembatalan/);
     await waitFor(() => expect(field).toBeEnabled());
     return field;
 };
@@ -126,7 +130,7 @@ it('fails closed for missing/unknown eligibility and validates nonblank bounded 
     expect(validateExpenseVoidReason('x'.repeat(255))).toBe('');
 });
 
-it('renders backend eligibility for history without per-row reads or actions for blocked records', async () => {
+it('renders backend eligibility and keeps audit detail available for every record', async () => {
     expenseApi.getExpenseList.mockResolvedValue(response({
         content: [row, {
             ...closed,
@@ -141,7 +145,8 @@ it('renders backend eligibility for history without per-row reads or actions for
     expect(await screen.findByText('Dapat dibatalkan menurut server.')).toBeInTheDocument();
     expect(screen.getByText(/Sesi kas sudah ditutup/)).toBeInTheDocument();
     expect(screen.getByText(/Sudah dibatalkan. Catatan audit/)).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /^Batalkan pengeluaran/ })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: /^Buka detail pengeluaran/ })).toHaveLength(3);
+    expect(screen.queryByRole('button', { name: /^Batalkan pengeluaran/ })).not.toBeInTheDocument();
     expect(expenseApi.getExpense).not.toHaveBeenCalled();
 });
 
@@ -155,8 +160,11 @@ it('requires a reason, focuses its error, and returns focus to the unchanged tri
     expect(field).toHaveAccessibleDescription('Alasan pembatalan wajib diisi.');
     await user.type(field, 'Batal');
     await user.keyboard('{Escape}');
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('Detail pengeluaran #29');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Batalkan pengeluaran' })).toHaveFocus());
+    await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(screen.getByRole('button', { name: 'Batalkan pengeluaran #29' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Buka detail pengeluaran #29' })).toHaveFocus();
     expect(expenseApi.getExpenseList).toHaveBeenCalledTimes(1);
     expect(expenseApi.voidExpense).not.toHaveBeenCalled();
 });
@@ -179,10 +187,10 @@ it('locks pending confirmation, renders original/server audit and drawer values,
     const dialog = within(screen.getByRole('dialog'));
     expect(await dialog.findByRole('status')).toHaveTextContent('Server mengonfirmasi pengeluaran sudah dibatalkan');
     expect(dialog.getByRole('status')).toHaveFocus();
-    expect(dialog.getByRole('article')).toHaveTextContent('Asli');
-    expect(dialog.getByRole('article')).toHaveTextContent('Audit server');
-    expect(dialog.getByRole('article')).toHaveTextContent('manager');
-    expect(dialog.getByText(/Kas yang diharapkan menurut server/)).toHaveTextContent('876,5432');
+    expect(dialog.getByRole('region', { name: 'Pengeluaran asli' })).toHaveTextContent('Asli');
+    expect(dialog.getByRole('region', { name: 'Pembatalan tersimpan' })).toHaveTextContent('Audit server');
+    expect(dialog.getByRole('region', { name: 'Pembatalan tersimpan' })).toHaveTextContent('manager');
+    expect(dialog.getByRole('region', { name: 'Dampak sesi menurut server' })).toHaveTextContent('876,5432');
     expect(cashApi.getSessionDetails).toHaveBeenCalledWith(15, { timeout: 15000 });
     expect(cashStore.getState().currentSession.id).toBe(99);
     expect(expenseApi.getExpenseList).toHaveBeenCalledTimes(2);
@@ -192,13 +200,34 @@ it.each([closed, voided])('refreshes stale list eligibility before allowing conf
     expenseApi.getExpense.mockResolvedValue(response(record));
     const user = userEvent.setup();
     render(<ExpenseHistory />);
-    await user.click(await screen.findByRole('button', { name: 'Batalkan pengeluaran #29' }));
+    await user.click(await screen.findByRole('button', { name: 'Buka detail pengeluaran #29' }));
     await waitFor(() => expect(store.getState().pending).toBe(false));
-    const submit = screen.queryByRole('button', { name: 'Konfirmasi pembatalan' });
-    if (submit) {
-        expect(submit).toBeDisabled();
-    }
+    expect(screen.getByRole('dialog')).toHaveAccessibleName(record.voided
+        ? 'Hasil pembatalan pengeluaran #29'
+        : 'Detail pengeluaran #29');
+    expect(screen.queryByRole('button', { name: 'Batalkan pengeluaran' })).not.toBeInTheDocument();
     expect(expenseApi.voidExpense).not.toHaveBeenCalled();
+});
+
+it('shows a definitive rejection, retains its reason, and permits an explicit corrected retry', async () => {
+    expenseApi.voidExpense.mockRejectedValueOnce({ status: 422 });
+    const user = userEvent.setup();
+    render(<ExpenseHistory />);
+    const field = await openDialog(user);
+    await user.type(field, 'Salah alasan');
+    await user.click(screen.getByRole('button', { name: 'Konfirmasi pembatalan' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Server menolak permintaan');
+    expect(screen.getByRole('status')).toHaveFocus();
+    expect(field).toHaveValue('Salah alasan');
+    expect(field).toBeEnabled();
+    expect(store.getState().attempt).toBeNull();
+    expect(expenseApi.voidExpense).toHaveBeenCalledTimes(1);
+
+    await user.clear(field);
+    await user.type(field, 'Alasan diperbaiki');
+    await user.click(screen.getByRole('button', { name: 'Konfirmasi pembatalan' }));
+    expect(expenseApi.voidExpense).toHaveBeenCalledTimes(2);
 });
 
 it('preserves the reason and blocks another post after a close conflict', async () => {
@@ -434,6 +463,15 @@ it('compares equivalent decimals exactly and rejects malformed values or replace
         ...voided,
         voidedReason: 'Replacement audit'
     }, voided)).toBe(false);
+    expect(validExpenseVoidRecord({
+        ...row,
+        canVoid: undefined
+    }, row)).toBe(false);
+    expect(validExpenseVoidRecord({
+        ...row,
+        canVoid: false,
+        voidBlockReason: null
+    }, row)).toBe(false);
 });
 
 it('preserves an unresolved attempt across owner changes and rehydration without freeing other reversal actions', async () => {
@@ -454,7 +492,7 @@ it('preserves an unresolved attempt across owner changes and rehydration without
         }
     });
     render(<ExpenseHistory />);
-    expect(await screen.findByRole('button', { name: 'Batalkan pengeluaran #29' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Buka detail pengeluaran #29' })).toBeDisabled();
     await store.getState().begin({
         ...row,
         id: 40

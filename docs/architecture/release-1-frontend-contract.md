@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Contract
 
-Last updated: 2026-10-01
+Last updated: 2026-10-02
 
 ## 1. Purpose
 
@@ -145,6 +145,31 @@ Bloom UI is currently a JavaScript React application:
   substituted. Pending, definitive rejection, ambiguous recovery, and confirmed payment states are
   distinct. Success renders the returned payment record, then separately refreshed backend paid,
   outstanding, payment-status, and history facts without frontend balance/status calculation.
+- UXI-22 approved expense-history/creation UX is implemented: `/expenses` renders the fixed newest-
+  first backend page as labelled records with an explicit result range and paging controls, preserves
+  active versus voided status and backend-returned void eligibility, and groups every required fact
+  before narrow layouts overflow. Creation validates one exact decimal amount, the backend category
+  vocabulary, and the conditional `OTHER` note; binds the request to the one freshly verified open
+  cash-session ID; then freezes those facts behind a cancel-first confirmation. Pending, definitive
+  rejection, exact account-owned ambiguous recovery, and confirmed-result states remain distinct.
+  Recovery never substitutes a later cash session, and the result renders only the backend-confirmed
+  expense record without inferring drawer impact, balances, totals, or reconciliation.
+- UXI-23 approved expense-void/reversal UX is implemented: every history record opens audit-rich
+  detail before any destructive action, while only fresh backend-eligible records expose the void
+  control. Confirmation requires and repeats the retained reason with a cancel-first focus path;
+  pending locks the exact original expense, session, amount, and reason. Definitive rejection remains
+  distinct from account-owned ambiguous recovery, which can only verify or replay that same operation.
+  Confirmed results retain immutable original and server audit facts in separate groups and display
+  only the explicitly refreshed server session status and expected cash, without calculating reversal
+  effects, balances, or session totals in the browser.
+- UXI-24 approved operational dashboard UX is implemented after both backend gates were verified.
+  One operational-overview response supplies four compact server-owned summaries, the authoritative
+  seven-day daily sales series and period totals, STORE-only stock-attention counts/previews, current
+  cash-session detail, semantic drill-downs, and freshness. The screen distinguishes zero values from
+  no open session, retains the last successful response through refresh failure and stale states,
+  exposes every chart day and a shell-level content bypass to keyboard users, and reflows through
+  one-, two-, and three-column layouts. It neither aggregates sales/stock nor ships placeholder
+  business data, unsupported filters, or legacy overview values.
 - FE-07 backend receipt reprint is implemented: sale detail calls the backend print endpoint for the existing sale reference with pending, duplicate-click prevention, success, failure, and same-reference retry behavior.
 - FE-08 current dashboard reliability is implemented: the existing backend overview metrics have explicit accessible loading, error/retry, zero/empty, refresh, and last-successful-data behavior without frontend aggregation.
 - FE-10 item creation is implemented: `/items/new` sends item metadata, the Release 1 UOM/fractional policy, and optional decimal STORE/WAREHOUSE openings through the backend's single atomic create operation, with explicit category, validation, pending, conflict, failure-recovery, success, and focus behavior.
@@ -171,7 +196,7 @@ Release 1 work must preserve this baseline unless a narrowly scoped PR proves th
 - FE-28 single-receipt supplier payment is implemented: receipt detail accepts partial/full CASH, BANK_TRANSFER, or QRIS payments with confirmation, durable same-request/key recovery, duplicate prevention, conflict handling, and focused success. Only CASH requires the verified current session. Recovery is owned by the exact backend `accountId`; username-only or ownerless legacy state remains quarantined. Receipt amounts/status are refreshed from the backend after posting; failed refreshes cannot trigger another payment. See [transaction plan and gate evidence](../plans/fe-28-supplier-payment.md).
 - FE-29 expense history and creation are implemented: `/expenses` renders paged backend audit records across all sessions; `/expenses/new` accepts decimal amount, one of six backend categories, and the supported description field labelled “Alasan / catatan”. New posting requires a verified open session, confirmation, and a fresh session check. The confirmed `expectedCashSessionId`, exact request/key, and immutable backend `accountId` owner are persisted; retries never retarget another session. Legacy username-only, ownerless, or pre-session attempts remain locked for manual reconciliation. No edit/delete/void or drawer calculation is included; see the [contract evidence and history/create review split](../plans/fe-29-expenses.md).
 - FE-30 expense void/reversal is implemented: backend eligibility, reasoned confirmation, durable recovery, audit rendering, and refresh behavior remain intact, while selected records/attempts/results are now bound to the exact authenticated `accountId`. Username-only or ownerless legacy recovery is quarantined and a recreated account with the same username cannot render, replay, acknowledge, or refresh the earlier account's operation.
-- FE-31 Release 1 operational dashboard is implemented: one backend operational-overview request supplies today's persisted sales, the current cash-session summary and active expense count/amount, and supplier payables. The screen distinguishes zero metrics from no open session, derives staleness from backend `freshUntil`, preserves last-successful data on refresh failure, formats values in Indonesian, and maps only approved semantic drill-downs to completed routes. No profitability claim, reporting suite, legacy chart, or cross-endpoint frontend aggregation is included; see the [widget and request plan](../plans/fe-31-dashboard.md).
+- FE-31 Release 1 operational dashboard is implemented: one backend operational-overview request supplies today's persisted sales, an authoritative seven-day sales series/period total, STORE-only stock attention, the current cash-session summary and active expense count/amount, and supplier payables. The screen distinguishes zero metrics from no open session, derives staleness from backend `freshUntil`, preserves last-successful data on refresh failure, formats exact values in Indonesian, and maps only approved semantic drill-downs to completed routes. No profitability claim, reporting suite, legacy overview data, or cross-endpoint frontend aggregation is included; see the [widget and request plan](../plans/fe-31-dashboard.md).
 
 ### 2.2 Current implemented routes
 

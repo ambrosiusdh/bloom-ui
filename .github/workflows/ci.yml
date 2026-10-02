@@ -36,7 +36,7 @@ jobs:
         run: npm run lint --if-present
 
       - name: Run Unit Tests
-        run: npm test -- --run
+        run: npm test -- --maxWorkers=1
         env:
           CI: true
 
