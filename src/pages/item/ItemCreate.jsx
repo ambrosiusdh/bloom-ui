@@ -15,6 +15,7 @@ import {
     TextField
 } from '@mui/material';
 
+import { API_DOMAIN_ERROR_CODE } from '@api/error-contract.js';
 import {
     useBreadcrumbStore,
     useItemCategoryStore,
@@ -291,6 +292,21 @@ export default function ItemCreate() {
                 return;
             }
 
+            if (error?.domainCode === API_DOMAIN_ERROR_CODE.ITEM_SKU_ALREADY_EXISTS) {
+                if (isAutoSku) {
+                    setErrorMessage(
+                        'SKU otomatis sudah digunakan. Matikan pembuatan SKU otomatis dan gunakan SKU lain.'
+                    );
+                } else {
+                    setErrorData(previous => ({
+                        ...previous,
+                        sku: `SKU [${ submittedFormData.sku.trim() }] sudah digunakan. Gunakan SKU lain.`
+                    }));
+                    pendingFieldFocusRef.current = 'sku';
+                }
+                return;
+            }
+
             if (error?.validationErrors?.length) {
                 const backendErrors = { ...EMPTY_ERRORS };
                 error.validationErrors.forEach(detail => {
@@ -307,20 +323,9 @@ export default function ItemCreate() {
             }
 
             if (error?.category === 'conflict') {
-                const submittedSku = isAutoSku ? '' : submittedFormData.sku.trim();
-
-                if (submittedSku) {
-                    setErrorData(previous => ({
-                        ...previous,
-                        sku: `Kode ${ submittedSku } sudah digunakan. Gunakan kode lain.`
-                    }));
-                }
                 setErrorMessage(
-                    submittedSku
-                        ? `Kode ${ submittedSku } sudah digunakan. Gunakan kode lain. `
-                            + 'Nilai lain yang sudah Anda isi tetap dipertahankan.'
-                        : 'Barang tidak dapat dibuat karena datanya berkonflik dengan data terbaru. '
-                            + 'Nilai yang sudah Anda isi tetap dipertahankan; periksa kembali lalu coba lagi.'
+                    'Barang tidak dapat dibuat karena datanya berkonflik dengan data terbaru. '
+                    + 'Nilai yang sudah Anda isi tetap dipertahankan; periksa kembali lalu coba lagi.'
                 );
             } else if (error?.category === 'not_found') {
                 setErrorMessage(
@@ -522,6 +527,7 @@ export default function ItemCreate() {
                             ) : (
                                 <TextField
                                     label="Kode barang (SKU)"
+                                    id="item-create-sku"
                                     name="sku"
                                     value={ formData.sku }
                                     inputRef={ element => { fieldRefs.current.sku = element; } }

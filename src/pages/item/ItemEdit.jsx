@@ -16,6 +16,7 @@ import {
     TextField
 } from '@mui/material';
 
+import { API_DOMAIN_ERROR_CODE } from '@api/error-contract.js';
 import {
     useBreadcrumbStore,
     useItemStore
@@ -291,6 +292,15 @@ export default function ItemEdit() {
             });
             navigate(`/items?${ params.toString() }`);
         } catch (error) {
+            if (error?.domainCode === API_DOMAIN_ERROR_CODE.ITEM_SKU_ALREADY_EXISTS) {
+                setErrorData(previous => ({
+                    ...previous,
+                    sku: `SKU [${ submittedFormData.sku.trim() }] sudah digunakan. Gunakan SKU lain.`
+                }));
+                pendingFieldFocusRef.current = 'sku';
+                return;
+            }
+
             if (error?.validationErrors?.length) {
                 const backendErrors = { ...EMPTY_ERRORS };
                 error.validationErrors.forEach(detail => {
@@ -469,6 +479,7 @@ export default function ItemEdit() {
                         />
                         <TextField
                             label="Kode barang (SKU)"
+                            id="item-edit-sku"
                             name="sku"
                             value={ formData.sku }
                             inputRef={ element => { fieldRefs.current.sku = element; } }

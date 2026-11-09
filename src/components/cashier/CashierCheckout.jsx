@@ -246,6 +246,22 @@ export default function CashierCheckout({
         }
     }, [phase, printReceipt, result?.code]);
 
+    useEffect(() => {
+        if (paymentType !== PAYMENT_TYPES.QRIS
+            || estimate.hasInvalidLine
+            || !isPreparationPhase) {
+            return;
+        }
+
+        setPaidAmount(estimate.totalAmount);
+        setPaidAmountError('');
+    }, [
+        estimate.hasInvalidLine,
+        estimate.totalAmount,
+        isPreparationPhase,
+        paymentType
+    ]);
+
     const resetKnownFailure = () => {
         setFailureMessage('');
         setCartError('');
@@ -263,13 +279,19 @@ export default function CashierCheckout({
     const changePaymentType = (_event, nextPaymentType) => {
         if (!nextPaymentType) return;
 
+        const nextPaidAmount = nextPaymentType === PAYMENT_TYPES.QRIS
+            && !estimate.hasInvalidLine
+            ? estimate.totalAmount
+            : paidAmount;
+
         setPaymentType(nextPaymentType);
+        setPaidAmount(nextPaidAmount);
         setPaidAmountError('');
         resetKnownFailure();
         resetAttemptWhenRequestChanges(createSaleRequest(
             itemList,
             nextPaymentType,
-            paidAmount,
+            nextPaidAmount,
             discountAmount,
             discountDescription
         ));
@@ -293,15 +315,22 @@ export default function CashierCheckout({
         const nextDescription = getMoneySign(nextDiscountAmount) > 0
             ? discountDescription
             : '';
+        const nextEstimate = getAdvisorySaleEstimate(itemList, nextDiscountAmount);
+        const nextPaidAmount = paymentType === PAYMENT_TYPES.QRIS
+            && !nextEstimate.hasInvalidLine
+            ? nextEstimate.totalAmount
+            : paidAmount;
 
         setDiscountAmount(nextDiscountAmount);
         setDiscountDescription(nextDescription);
+        setPaidAmount(nextPaidAmount);
+        setPaidAmountError('');
         setDiscountAmountError('');
         resetKnownFailure();
         resetAttemptWhenRequestChanges(createSaleRequest(
             itemList,
             paymentType,
-            paidAmount,
+            nextPaidAmount,
             nextDiscountAmount,
             nextDescription
         ));
@@ -661,7 +690,7 @@ export default function CashierCheckout({
                                 </span>
                             ) }
                     </div>
-                    <div className="mt-3 rounded border border-amber-300 bg-white p-3 text-sm text-slate-800">
+                    <div className="cashier-checkout__saved-request mt-3 rounded border p-3 text-sm">
                         <div className="font-semibold">
                             Permintaan tersimpan · { PAYMENT_LABELS[attempt?.request?.paymentType] }
                         </div>
@@ -862,7 +891,7 @@ export default function CashierCheckout({
                         <ToggleButton value={ PAYMENT_TYPES.CASH }>Tunai</ToggleButton>
                         <ToggleButton value={ PAYMENT_TYPES.QRIS }>QRIS</ToggleButton>
                     </ToggleButtonGroup>
-                    <p className="mt-2 text-xs text-slate-600">
+                    <p className="cashier-checkout__guidance mt-2 text-xs">
                         { paymentType === PAYMENT_TYPES.CASH
                             ? 'Masukkan uang yang benar-benar diterima.'
                             : 'Masukkan nominal yang sudah terkonfirmasi di perangkat QRIS.' }
@@ -882,7 +911,7 @@ export default function CashierCheckout({
                     error={ Boolean(paidAmountError) }
                     helperText={ paidAmountError || (paymentType === PAYMENT_TYPES.CASH
                         ? 'Kembalian resmi dihitung server dari nominal tunai ini.'
-                        : 'Masukkan nominal yang sudah terkonfirmasi di perangkat QRIS.') }
+                        : 'Diisi otomatis dari perkiraan saat barang atau diskon berubah. Server memvalidasi nominal ini terhadap total resmi.') }
                     inputRef={ paidAmountRef }
                     groupSeparator=","
                     decimalSeparator="."
@@ -956,7 +985,7 @@ export default function CashierCheckout({
                 ) }
 
                 { phase === 'failed' && (
-                    <div className="rounded border bg-slate-50 p-3 text-sm text-slate-700">
+                    <div className="cashier-checkout__retained-cart rounded border p-3 text-sm">
                         <div className="font-semibold">Keranjang tetap tersimpan</div>
                         { itemList.map(item => (
                             <div key={ item.sku }>

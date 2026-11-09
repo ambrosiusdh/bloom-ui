@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Contract
 
-Last updated: 2026-10-02
+Last updated: 2026-10-03
 
 ## 1. Purpose
 
@@ -45,6 +45,13 @@ Bloom UI is currently a JavaScript React application:
 - UXI-06 approved cash-session close/reconciliation/detail UX is implemented: expected cash is requested only after closing starts; Indonesian actual-cash input is frozen into a cancel-first review before one locked close; uncertain outcomes require status recovery; final expected cash, actual cash, variance, audit facts, and conflict replacement come from server responses; and a fresh current-session read must verify no open session before the next open action appears. Current, history, and detail use one Jakarta/WIB timestamp pattern, while narrow actions and detail sections preserve an explicit non-wrapping hierarchy.
 - UXI-07 approved cashier discovery/cart UX is implemented: the session-gated workspace uses the approved continuous catalog/transaction split, moves full session management behind a compact header control, keeps category-aware manual/scanner discovery beside one persistent transaction panel, uses compact UOM-aware quantity rows and advisory STORE checks, and offers one-step undo after removing a line. Exact-decimal line/subtotal/discount/estimated-total and live cash-change hints remain non-authoritative; existing sale fields prepare CASH/QRIS tender with practical cash shortcuts, cart cancellation stays confirmed, and narrow desktop stacks into one document flow while keeping stock visible. Scanner wording reports capability without claiming a connected device; FE-19 physical store-laptop verification remains outstanding.
 - UXI-08 approved checkout/durable-recovery UX is implemented: `Tinjau pembayaran` replaces only the transaction panel with a compact frozen review; CASH sends tendered cash while QRIS sends the externally confirmed exact settlement; and one account-bound exact request/idempotency key is verified in tab storage before POST. Definitive rejection restores editable intent and focused guidance, while ambiguous outcomes survive navigation/reload and permit only same-key status checks or exact replay without mutating the cart or navigating away.
+- UXI-08 checkout appearance and QRIS-entry follow-up is implemented: preparation, review,
+  retained-cart, and recovery surfaces use the shared light/dark semantic tokens. Choosing QRIS
+  prefills the editable settlement field from the explicitly advisory displayed estimate, and cart
+  or discount changes refresh that prefill; the backend still recalculates the official total and
+  rejects any QRIS settlement that is not an exact match. Focused checkout coverage passes 17 tests;
+  the full single-worker suite passes 491 tests across 71 files, followed by targeted lint and the
+  production build.
 - UXI-09 approved sale-result/printing UX is implemented: the completed sale replaces the cart with
   the server-returned reference, subtotal, discount, total, tender, payment method, and change before
   a separate sale-reference-only print operation begins. Pending printing locks duplicate requests;
@@ -74,6 +81,13 @@ Bloom UI is currently a JavaScript React application:
   mutable metadata from backend-reported UOM/fraction locks and read-only STORE/WAREHOUSE balances.
   Deactivation uses cancel-first confirmation, retains history and balances, blocks duplicate requests,
   preserves retry context on failure, and focuses the returned result without implying deletion.
+- Item duplicate-SKU validation follow-up is implemented: create and edit recognize only HTTP 409
+  with backend code `item_sku_already_exists`, show `SKU [<submitted SKU>] sudah digunakan. Gunakan
+  SKU lain.` beside the accessibly associated SKU field, and focus it after submission unlocks.
+  Rejection preserves every entered value, including exact opening-quantity strings, without success
+  navigation or automatic retry. Other conflicts retain their existing generic/refresh handling;
+  unrecognized failures retain the normalized fallback. See the
+  [contract and verification record](../plans/fe-10-11-duplicate-sku-validation.md).
 - UXI-13 approved stock-movement history/detail UX is implemented: the backend-paged ledger retains
   exact SKU, direction, and location filters with URL state, page-one reset, result announcements, and
   focus recovery. Wide columns and labelled narrow records group item/SKU/UOM, direction/signed exact

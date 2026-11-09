@@ -109,6 +109,43 @@ describe('normalizeApiError', () => {
         });
     });
 
+    it('maps the agreed duplicate-SKU response without exposing backend details', () => {
+        const normalized = normalizeApiError(createHttpError(409, {
+            success: false,
+            code: 'item_sku_already_exists',
+            errorType: 'ItemSkuAlreadyExistsException',
+            message: 'Item SKU already exists: QA1106-K7-A',
+            field: 'sku',
+            rejectedValue: 'QA1106-K7-A'
+        }));
+
+        expect(normalized).toMatchObject({
+            category: API_ERROR_CATEGORY.CONFLICT,
+            domainCode: API_DOMAIN_ERROR_CODE.ITEM_SKU_ALREADY_EXISTS,
+            status: 409,
+            validationErrors: []
+        });
+        expect(normalized.message).not.toContain('QA1106-K7-A');
+        expect(normalized.response).toBeUndefined();
+    });
+
+    it.each([
+        [409, { code: 'unknown_conflict' }],
+        [409, {
+            errorType: 'ItemSkuAlreadyExistsException',
+            message: 'Item SKU already exists: QA1106-K7-A'
+        }],
+        [500, { code: 'item_sku_already_exists' }],
+        [500, {
+            code: 500,
+            success: false,
+            errorType: 'InternalServerError',
+            message: 'An unexpected error occurred'
+        }]
+    ])('does not infer duplicate SKU from unrelated or malformed errors (%s)', (status, data) => {
+        expect(normalizeApiError(createHttpError(status, data)).domainCode).toBeNull();
+    });
+
     it.each([
         ['sale_insufficient_stock', API_DOMAIN_ERROR_CODE.SALE_INSUFFICIENT_STOCK],
         ['sale_paid_less_than_total', API_DOMAIN_ERROR_CODE.SALE_PAID_LESS_THAN_TOTAL],

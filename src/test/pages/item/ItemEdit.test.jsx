@@ -2,6 +2,7 @@ import { Route, Routes, useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { normalizeApiError } from '@api/index.js';
 import ItemEdit from '@pages/item/ItemEdit.jsx';
 import useItemStore from '@stores/modules/item.js';
 import {
@@ -227,6 +228,66 @@ describe('ItemEdit', () => {
             .toHaveAttribute('aria-disabled', 'true');
         expect(screen.getByRole('checkbox', { name: 'Izinkan jumlah pecahan' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'Simpan perubahan' })).toBeEnabled();
+    });
+
+    it('keeps duplicate SKU editable with associated feedback and keyboard correction', async () => {
+        const user = userEvent.setup();
+        const request = deferred();
+        itemApi.updateItem.mockReturnValueOnce(request.promise).mockResolvedValueOnce(apiResponse({
+            ...baseItem,
+            sku: 'QA1106-SKU-EDIT'
+        }));
+        renderEdit();
+
+        await screen.findByRole('heading', { name: 'Ubah barang' });
+        const skuInput = screen.getByLabelText('Kode barang (SKU)');
+        await user.clear(skuInput);
+        await user.type(skuInput, 'QA1106-K7-A');
+        await user.clear(screen.getByLabelText('Nama barang'));
+        await user.type(screen.getByLabelText('Nama barang'), 'Edit tetap ada');
+        await user.dblClick(screen.getByRole('button', { name: 'Simpan perubahan' }));
+        expect(itemApi.updateItem).toHaveBeenCalledTimes(1);
+        expect(skuInput).toBeDisabled();
+
+        await act(async () => request.reject(normalizeApiError({
+            response: {
+                status: 409,
+                data: {
+                    code: 'item_sku_already_exists',
+                    errorType: 'ItemSkuAlreadyExistsException',
+                    field: 'sku',
+                    rejectedValue: 'QA1106-K7-A'
+                }
+            }
+        })));
+
+        await waitFor(() => expect(skuInput).toHaveFocus());
+        expect(skuInput).toHaveAttribute('aria-invalid', 'true');
+        expect(skuInput).toHaveAccessibleDescription(
+            'SKU [QA1106-K7-A] sudah digunakan. Gunakan SKU lain.'
+        );
+        expect(skuInput).toHaveValue('QA1106-K7-A');
+        expect(screen.getByLabelText('Nama barang')).toHaveValue('Edit tetap ada');
+        expect(screen.getByLabelText('Harga jual')).toHaveValue('15000.5000');
+        expect(screen.getByLabelText('Deskripsi barang (opsional)')).toHaveValue('Kain lembut');
+        expect(screen.getByRole('button', { name: 'Simpan perubahan' })).toBeEnabled();
+        expect(screen.queryByRole('button', { name: 'Muat ulang data' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('location')).not.toBeInTheDocument();
+        expect(itemApi.getItemDetails).toHaveBeenCalledTimes(1);
+        expect(itemApi.updateItem).toHaveBeenCalledTimes(1);
+
+        await user.clear(skuInput);
+        await user.type(skuInput, 'QA1106-SKU-EDIT');
+        expect(screen.queryByText(/sudah digunakan/)).not.toBeInTheDocument();
+        await user.keyboard('{Enter}');
+
+        await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('QA1106-SKU-EDIT'));
+        expect(itemApi.updateItem).toHaveBeenCalledTimes(2);
+        expect(itemApi.updateItem.mock.lastCall[1].data).toMatchObject({
+            sku: 'QA1106-SKU-EDIT',
+            name: 'Edit tetap ada'
+        });
     });
 
     it('navigates with backend-confirmed identity after success', async () => {

@@ -2,6 +2,7 @@ import { Route, Routes, useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { normalizeApiError } from '@api/index.js';
 import ItemCreate from '@pages/item/ItemCreate.jsx';
 import useItemCategoryStore from '@stores/modules/item-category.js';
 import useItemStore from '@stores/modules/item.js';
@@ -216,7 +217,7 @@ describe('ItemCreate', () => {
         })));
     });
 
-    it('preserves all input and focuses an accessible conflict message after failure', async () => {
+    it('preserves all input and focuses an accessible generic conflict without blaming SKU', async () => {
         const user = userEvent.setup();
         itemApi.createItem.mockRejectedValue(Object.assign(new Error('Data telah berubah.'), {
             category: 'conflict',
@@ -236,14 +237,95 @@ describe('ItemCreate', () => {
         await user.click(screen.getByRole('button', { name: 'Tambah barang' }));
 
         const alert = await screen.findByRole('alert');
-        expect(alert).toHaveTextContent('Kode KAIN-MANUAL sudah digunakan');
-        expect(alert).toHaveTextContent('Nilai lain yang sudah Anda isi tetap dipertahankan');
+        expect(alert).toHaveTextContent('datanya berkonflik dengan data terbaru');
+        expect(alert).toHaveTextContent('Nilai yang sudah Anda isi tetap dipertahankan');
         await waitFor(() => expect(alert).toHaveFocus());
         expect(screen.getByLabelText('Nama barang')).toHaveValue('Kain katun');
         expect(screen.getByLabelText('Kode barang (SKU)')).toHaveValue('KAIN-MANUAL');
-        expect(screen.getByText('Kode KAIN-MANUAL sudah digunakan. Gunakan kode lain.'))
-            .toBeInTheDocument();
+        expect(screen.queryByText(/sudah digunakan/)).not.toBeInTheDocument();
+        expect(screen.getByLabelText('Kode barang (SKU)')).not.toHaveAttribute('aria-invalid', 'true');
         expect(screen.getByLabelText('Deskripsi barang (opsional)')).toHaveValue('Input tetap ada');
+    });
+
+    it('focuses the duplicate SKU inline, preserves opening strings, and submits only after correction', async () => {
+        const user = userEvent.setup();
+        const request = deferred();
+        itemApi.createItem.mockReturnValueOnce(request.promise).mockResolvedValueOnce({
+            data: { data: { sku: 'QA1106-SKU-UNIQUE' } }
+        });
+        render(
+            <Routes>
+                <Route path="/items/new" element={ <ItemCreate /> } />
+                <Route path="/items" element={ <LocationDisplay /> } />
+            </Routes>,
+            { route: '/items/new' }
+        );
+
+        await fillRequiredFields(user);
+        await user.click(screen.getByLabelText('Buat SKU otomatis'));
+        fireEvent.change(screen.getByLabelText('Kode barang (SKU)'), {
+            target: { value: ' QA1106-K7-A ' }
+        });
+        fireEvent.change(screen.getByLabelText('Deskripsi barang (opsional)'), {
+            target: { value: 'Tetap dipertahankan' }
+        });
+        await user.click(screen.getByRole('combobox', { name: 'Satuan dasar (UOM)' }));
+        await user.click(screen.getByRole('option', { name: 'Meter' }));
+        await user.click(screen.getByLabelText('Izinkan jumlah pecahan'));
+        fireEvent.change(screen.getByLabelText('Saldo awal Toko (STORE)'), {
+            target: { value: '1,2500' }
+        });
+        fireEvent.change(screen.getByLabelText('Saldo awal Gudang (WAREHOUSE)'), {
+            target: { value: '2.0001' }
+        });
+        await user.dblClick(screen.getByRole('button', { name: 'Tambah barang' }));
+        expect(itemApi.createItem).toHaveBeenCalledTimes(1);
+        expect(screen.getByLabelText('Kode barang (SKU)')).toBeDisabled();
+
+        await act(async () => request.reject(normalizeApiError({
+            response: {
+                status: 409,
+                data: {
+                    code: 'item_sku_already_exists',
+                    errorType: 'ItemSkuAlreadyExistsException',
+                    field: 'sku',
+                    rejectedValue: 'QA1106-K7-A'
+                }
+            }
+        })));
+
+        const skuInput = screen.getByLabelText('Kode barang (SKU)');
+        await waitFor(() => expect(skuInput).toHaveFocus());
+        expect(skuInput).toHaveAttribute('aria-invalid', 'true');
+        expect(skuInput).toHaveAccessibleDescription(
+            'SKU [QA1106-K7-A] sudah digunakan. Gunakan SKU lain.'
+        );
+        expect(skuInput).toHaveValue(' QA1106-K7-A ');
+        expect(screen.getByLabelText('Nama barang')).toHaveValue('Kain katun');
+        expect(screen.getByRole('combobox', { name: 'Kategori barang' })).toHaveTextContent('[KAIN] Kain');
+        expect(screen.getByLabelText('Harga jual')).toHaveValue('15000,5000');
+        expect(screen.getByLabelText('Deskripsi barang (opsional)')).toHaveValue('Tetap dipertahankan');
+        expect(screen.getByRole('combobox', { name: 'Satuan dasar (UOM)' })).toHaveTextContent('Meter');
+        expect(screen.getByLabelText('Izinkan jumlah pecahan')).toBeChecked();
+        expect(screen.getByLabelText('Saldo awal Toko (STORE)')).toHaveValue('1,2500');
+        expect(screen.getByLabelText('Saldo awal Gudang (WAREHOUSE)')).toHaveValue('2.0001');
+        expect(screen.getByRole('button', { name: 'Tambah barang' })).toBeEnabled();
+        expect(screen.queryByTestId('location')).not.toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(itemApi.createItem).toHaveBeenCalledTimes(1);
+
+        await user.clear(skuInput);
+        await user.type(skuInput, 'QA1106-SKU-UNIQUE');
+        expect(screen.queryByText(/sudah digunakan/)).not.toBeInTheDocument();
+        await user.keyboard('{Enter}');
+
+        await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('QA1106-SKU-UNIQUE'));
+        expect(itemApi.createItem).toHaveBeenCalledTimes(2);
+        expect(itemApi.createItem.mock.lastCall[0].data).toMatchObject({
+            sku: 'QA1106-SKU-UNIQUE',
+            stockStore: '1.2500',
+            stockWarehouse: '2.0001'
+        });
     });
 
     it('maps backend field validation without losing input and focuses that field', async () => {

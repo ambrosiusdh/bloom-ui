@@ -705,6 +705,38 @@
     margin-top: 0 !important;
   }
 
+  &__guidance,
+  &__review-secondary {
+    color: var(--bloom-shell-muted);
+  }
+
+  &__review {
+    color: var(--bloom-shell-text);
+    background: var(--bloom-shell-primary-soft);
+    border-color: color-mix(in srgb, var(--bloom-shell-primary) 48%, var(--bloom-shell-border));
+  }
+
+  &__review-title,
+  &__review-copy {
+    color: var(--bloom-shell-primary-soft-text);
+  }
+
+  &__review-card,
+  &__saved-request,
+  &__retained-cart {
+    color: var(--bloom-shell-text);
+    background: var(--bloom-shell-surface);
+    border-color: var(--bloom-shell-border);
+  }
+
+  &__saved-request {
+    border-color: color-mix(in srgb, var(--bloom-shell-warning) 48%, var(--bloom-shell-border));
+  }
+
+  &__retained-cart {
+    background: var(--bloom-shell-surface-soft);
+  }
+
   &__total-hero {
     display: grid;
     gap: 0.125rem;

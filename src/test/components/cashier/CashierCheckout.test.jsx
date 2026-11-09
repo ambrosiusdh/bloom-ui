@@ -355,7 +355,7 @@ describe('CashierCheckout', () => {
         expect(checkoutMocks.printReceipt).toHaveBeenCalledWith(completedSale.code, undefined);
     });
 
-    it('submits QRIS confirmation input without deriving a total or change locally', async () => {
+    it('prefills QRIS from the advisory estimate and submits it for backend validation', async () => {
         const user = userEvent.setup();
         const completedSale = sale({
             paidAmount: '18750.0000',
@@ -366,12 +366,18 @@ describe('CashierCheckout', () => {
         renderCheckout();
 
         await user.click(screen.getByRole('button', { name: 'QRIS' }));
-        await user.type(
-            screen.getByRole('textbox', { name: 'Nominal QRIS terkonfirmasi' }),
-            '18750'
+        expect(screen.getByRole('textbox', { name: 'Nominal QRIS terkonfirmasi' }))
+            .toHaveValue('18,750');
+        expect(screen.getByText(/Diisi otomatis dari perkiraan/)).toHaveTextContent(
+            'Server memvalidasi nominal ini terhadap total resmi.'
         );
         await user.click(screen.getByRole('button', { name: 'Tinjau pembayaran' }));
-        await user.click(await screen.findByRole('button', { name: 'Konfirmasi jual' }));
+        const review = await screen.findByRole('region', {
+            name: 'Pastikan barang dan pembayaran'
+        });
+        expect(review).toHaveClass('cashier-checkout__review');
+        expect(review.querySelectorAll('.cashier-checkout__review-card')).toHaveLength(2);
+        await user.click(screen.getByRole('button', { name: 'Konfirmasi jual' }));
 
         await waitFor(() => expect(checkoutMocks.createSale).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -385,6 +391,41 @@ describe('CashierCheckout', () => {
             .toHaveTextContent('Penjualan tersimpan');
         expect(screen.getByLabelText('Nilai resmi penjualan dari server'))
             .toHaveTextContent('KembalianRp 0');
+    });
+
+    it('refreshes the QRIS prefill when discounts or cart values change', async () => {
+        const user = userEvent.setup();
+        const { rerender } = renderCheckout();
+
+        await user.click(screen.getByRole('button', { name: 'QRIS' }));
+        const qrisAmount = screen.getByRole('textbox', {
+            name: 'Nominal QRIS terkonfirmasi'
+        });
+        expect(qrisAmount).toHaveValue('18,750');
+
+        const discount = screen.getByRole('textbox', { name: 'Diskon penjualan' });
+        await user.clear(discount);
+        await user.type(discount, '5000');
+        expect(qrisAmount).toHaveValue('13,750');
+
+        rerender(
+            <CashierCheckout
+                itemList={ [
+                    ...cartItems,
+                    {
+                        sku: 'BENANG-00001',
+                        name: 'Benang jahit',
+                        price: '2500.0000',
+                        quantity: '2',
+                        baseUnitOfMeasure: 'PIECE'
+                    }
+                ] }
+                onLockChange={ vi.fn() }
+                onSaleCompleted={ vi.fn() }
+            />
+        );
+
+        await waitFor(() => expect(qrisAmount).toHaveValue('18,750'));
     });
 
     it('focuses local validation and maps backend payment validation without clearing the cart', async () => {
