@@ -61,11 +61,23 @@ const getItemAuditLog = async (sku, payload, options) => {
     }, options)
 }
 
+const downloadBulkBarcodes = async (skus, options) => {
+    return api({
+        url: ITEM.bulkBarcode,
+        method: 'POST',
+        data: {
+            skus
+        },
+        responseType: 'blob'
+    }, options)
+}
+
 export default {
     getItemList,
     getItemDetails,
     createItem,
     updateItem,
     deactivateItem,
-    getItemAuditLog
+    getItemAuditLog,
+    downloadBulkBarcodes
 }

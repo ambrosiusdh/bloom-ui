@@ -8,6 +8,7 @@ import { act, fireEvent, render, screen, waitFor } from '@/test/render.jsx';
 const itemApi = vi.hoisted(() => ({
     createItem: vi.fn(),
     deactivateItem: vi.fn(),
+    downloadBulkBarcodes: vi.fn(),
     getItemAuditLog: vi.fn(),
     getItemDetails: vi.fn(),
     getItemList: vi.fn(),
@@ -24,23 +25,32 @@ const itemCategoryApi = vi.hoisted(() => ({
 
 vi.mock('@api/item.js', () => ({ default: itemApi }));
 vi.mock('@api/item-category.js', () => ({ default: itemCategoryApi }));
+vi.mock('react-barcode', () => ({
+    default: ({ value }) => <div data-testid="barcode-preview">{ value }</div>
+}));
 
-const listResponse = content => ({
+const listResponse = (content, paging = {}) => ({
     data: {
         data: {
             content,
-            totalElements: content.length,
-            totalPages: content.length ? 1 : 0
+            totalElements: paging.totalElements ?? content.length,
+            totalPages: paging.totalPages ?? (content.length ? 1 : 0)
         }
     }
 });
 
 const deferred = () => {
+    let reject;
     let resolve;
-    const promise = new Promise(resolvePromise => {
+    const promise = new Promise((resolvePromise, rejectPromise) => {
+        reject = rejectPromise;
         resolve = resolvePromise;
     });
-    return { promise, resolve };
+    return {
+        promise,
+        reject,
+        resolve
+    };
 };
 
 const HistoryBackButton = () => {
@@ -68,7 +78,53 @@ describe('ItemList', () => {
         await act(async () => request.resolve(listResponse([])));
 
         expect(await screen.findByText('Belum ada barang aktif')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Buat barang' })).toHaveAttribute('href', '/items/new');
+        expect(screen.getAllByRole('link', { name: 'Tambah barang' })).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ href: expect.stringContaining('/items/new') })
+            ])
+        );
+    });
+
+    it('shows barcode checkboxes only after entering selection mode', async () => {
+        const item = {
+            name: 'Kain katun',
+            sku: 'KAIN-00001',
+            price: '15000',
+            stockStore: '2',
+            stockWarehouse: '3',
+            baseUnitOfMeasure: 'METER',
+            fractionalQuantityAllowed: false,
+            category: {
+                code: 'KAIN',
+                name: 'Kain'
+            }
+        };
+        itemApi.getItemList.mockResolvedValue(listResponse([item]));
+        render(<ItemList />, { route: '/items' });
+
+        const selectionButton = await screen.findByRole('button', {
+            name: 'Pilih untuk cetak'
+        });
+        await screen.findByText('Kain katun');
+        await waitFor(() => expect(selectionButton).toBeEnabled());
+        expect(screen.queryByRole('checkbox', {
+            name: 'Pilih Kain katun untuk cetak barcode'
+        })).not.toBeInTheDocument();
+
+        fireEvent.click(selectionButton);
+        const itemCheckbox = screen.getByRole('checkbox', {
+            name: 'Pilih Kain katun untuk cetak barcode'
+        });
+        expect(itemCheckbox).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Cetak barcode (0)' })).toBeDisabled();
+
+        fireEvent.click(itemCheckbox);
+        expect(screen.getByRole('button', { name: 'Cetak barcode (1)' })).toBeEnabled();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Batal memilih' }));
+        expect(screen.queryByRole('checkbox', {
+            name: 'Pilih Kain katun untuk cetak barcode'
+        })).not.toBeInTheDocument();
     });
 
     it('shows an actionable error instead of stale item rows when the list read fails', async () => {
@@ -80,18 +136,23 @@ describe('ItemList', () => {
         expect(screen.getByRole('button', { name: 'Coba lagi' })).toBeInTheDocument();
     });
 
-    it('uses location stock fields and fetches a complete detail response', async () => {
+    it('groups item identity, renders exact server facts, and opens complete detail actions', async () => {
         const item = {
             name: 'Kain katun',
             sku: 'KAIN-00001',
-            price: 15000,
+            price: '23456.7500',
             stockQuantity: 999,
             stockStore: '12.5000',
             stockWarehouse: '0.0001',
             baseUnitOfMeasure: 'METER',
             fractionalQuantityAllowed: true,
             active: true,
-            category: { name: 'Kain' }
+            updatedAt: '2026-09-23T03:00:00Z',
+            updatedBy: 'Admin User',
+            category: {
+                code: 'KAIN',
+                name: 'Kain'
+            }
         };
         itemApi.getItemList.mockResolvedValue(listResponse([item]));
         itemApi.getItemDetails.mockResolvedValue({
@@ -107,10 +168,38 @@ describe('ItemList', () => {
 
         expect(await screen.findByText('12,5 meter')).toBeInTheDocument();
         expect(screen.getByText('0,0001 meter')).toBeInTheDocument();
+        expect(screen.getByText('Rp 23.456,75')).toBeInTheDocument();
+        expect(screen.getByText('Pecahan diizinkan')).toBeInTheDocument();
+        expect(screen.getByText('Admin User')).toBeInTheDocument();
         expect(screen.queryByText('999')).not.toBeInTheDocument();
+        expect(screen.getByRole('table')).toHaveClass('!block', 'lg:!table');
+        expect(screen.getByText('Toko · STORE')).toBeInTheDocument();
+        expect(screen.getByText('Gudang · WAREHOUSE')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Riwayat stok Kain katun' })).toHaveAttribute(
+            'href',
+            '/stock-movements?itemSku=KAIN-00001'
+        );
+        expect(screen.getByRole('button', { name: 'Cetak barcode Kain katun' })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Ubah barang Kain katun' })).toHaveAttribute(
+            'href',
+            '/items/KAIN-00001/edit'
+        );
+        expect(screen.getByRole('button', { name: 'Nonaktifkan barang Kain katun' })).toBeInTheDocument();
 
-        await screen.findByLabelText('Lihat detail Kain katun').then(row => row.click());
+        fireEvent.click(await screen.findByRole('button', { name: 'Kain katun' }));
         expect(await screen.findByText('Terkunci karena sudah ada pergerakan stok')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Riwayat stok' })).toHaveAttribute(
+            'href',
+            '/stock-movements?itemSku=KAIN-00001'
+        );
+        expect(screen.getByRole('link', { name: 'Ubah barang' })).toHaveAttribute(
+            'href',
+            '/items/KAIN-00001/edit'
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Barcode' }));
+        expect(await screen.findByRole('dialog', { name: /Cetak barcode/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Tutup pratinjau barcode' })).toBeInTheDocument();
         expect(itemApi.getItemDetails).toHaveBeenCalledWith(
             'KAIN-00001',
             expect.objectContaining({ signal: expect.any(AbortSignal) }),
@@ -128,7 +217,7 @@ describe('ItemList', () => {
 
         await waitFor(() => expect(itemApi.getItemList).toHaveBeenCalledTimes(1));
         const oldSignal = itemApi.getItemList.mock.calls[0][0].signal;
-        fireEvent.change(await screen.findByRole('textbox', { name: 'Cari berdasarkan Nama barang' }), {
+        fireEvent.change(await screen.findByRole('searchbox', { name: 'Cari barang' }), {
             target: { value: 'terbaru' }
         });
         await waitFor(() => expect(itemApi.getItemList).toHaveBeenCalledTimes(2));
@@ -157,8 +246,8 @@ describe('ItemList', () => {
 
     it('restores filters and results when browser history changes the URL', async () => {
         itemApi.getItemList.mockImplementation(({ params }) => Promise.resolve(listResponse([{
-            name: params.name === 'KAIN' ? 'Kain' : 'Makanan',
-            sku: params.name === 'KAIN' ? 'KAIN-00001' : 'MAKANAN-00001',
+            name: params.skuOrName === 'KAIN' ? 'Kain' : 'Makanan',
+            sku: params.skuOrName === 'KAIN' ? 'KAIN-00001' : 'MAKANAN-00001',
             stockStore: '1',
             stockWarehouse: '0',
             baseUnitOfMeasure: 'PIECE',
@@ -171,14 +260,14 @@ describe('ItemList', () => {
             </>,
             {
                 initialEntries: [
-                    '/items?page=1&itemPerPage=10&key=name&q=KAIN',
-                    '/items?page=1&itemPerPage=10&key=name&q=MAKANAN'
+                    '/items?page=1&itemPerPage=10&q=KAIN&category=',
+                    '/items?page=1&itemPerPage=10&q=MAKANAN&category='
                 ],
                 initialIndex: 1
             }
         );
 
-        const searchInput = await screen.findByRole('textbox', { name: 'Cari berdasarkan Nama barang' });
+        const searchInput = await screen.findByRole('searchbox', { name: 'Cari barang' });
         expect(searchInput).toHaveValue('MAKANAN');
         expect(await screen.findByText('Makanan')).toBeInTheDocument();
 
@@ -186,6 +275,144 @@ describe('ItemList', () => {
 
         await waitFor(() => expect(searchInput).toHaveValue('KAIN'));
         expect(await screen.findByText('Kain')).toBeInTheDocument();
-        expect(itemApi.getItemList.mock.lastCall[0].params).toMatchObject({ name: 'KAIN' });
+        expect(itemApi.getItemList.mock.lastCall[0].params).toMatchObject({ skuOrName: 'KAIN' });
+    });
+
+    it('uses the supported combined search and category filters with stable paging context', async () => {
+        itemCategoryApi.getItemCategoryList.mockResolvedValue(listResponse([{
+            code: 'KAIN',
+            name: 'Kain'
+        }]));
+        itemApi.getItemList.mockResolvedValue(listResponse([{
+            name: 'Kain katun',
+            sku: 'KAIN-00001',
+            price: '15000.0000',
+            stockStore: '2',
+            stockWarehouse: '3',
+            baseUnitOfMeasure: 'METER',
+            fractionalQuantityAllowed: false,
+            updatedBy: null,
+            updatedAt: null,
+            category: {
+                code: 'KAIN',
+                name: 'Kain'
+            }
+        }], {
+            totalElements: 24,
+            totalPages: 3
+        }));
+        render(<ItemList />, { route: '/items' });
+
+        expect(await screen.findByText('Menampilkan 1–1 dari 24 barang aktif')).toBeInTheDocument();
+        expect(screen.getByText('Halaman 1 dari 3')).toBeInTheDocument();
+        expect(screen.getByText('Belum tersedia')).toBeInTheDocument();
+        expect(screen.getByText('Belum diperbarui')).toBeInTheDocument();
+
+        fireEvent.change(screen.getByRole('searchbox', { name: 'Cari barang' }), {
+            target: { value: 'katun' }
+        });
+        fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Kategori' }));
+        fireEvent.click(await screen.findByRole('option', { name: '[KAIN] Kain' }));
+
+        await waitFor(() => expect(itemApi.getItemList.mock.lastCall[0].params).toMatchObject({
+            skuOrName: 'katun',
+            category: 'KAIN',
+            page: 1,
+            size: 10
+        }));
+
+        fireEvent.click(screen.getByRole('button', { name: 'Reset filter' }));
+        expect(screen.getByRole('searchbox', { name: 'Cari barang' })).toHaveValue('');
+        await waitFor(() => expect(itemApi.getItemList.mock.lastCall[0].params).toMatchObject({
+            skuOrName: '',
+            category: ''
+        }));
+    });
+
+    it('explains history-preserving deactivation, starts on cancel, and restores trigger focus', async () => {
+        const item = {
+            name: 'Kain katun',
+            sku: 'KAIN-00001',
+            price: '15000',
+            stockStore: '2',
+            stockWarehouse: '3',
+            baseUnitOfMeasure: 'METER',
+            fractionalQuantityAllowed: false,
+            category: {
+                code: 'KAIN',
+                name: 'Kain'
+            }
+        };
+        itemApi.getItemList.mockResolvedValue(listResponse([item]));
+        render(<ItemList />, { route: '/items' });
+
+        const trigger = await screen.findByRole('button', {
+            name: 'Nonaktifkan barang Kain katun'
+        });
+        fireEvent.click(trigger);
+
+        expect(await screen.findByRole('dialog', { name: 'Nonaktifkan Kain katun?' }))
+            .toBeInTheDocument();
+        expect(screen.getByText(/Riwayat dan saldo barang tidak dihapus/))
+            .toBeInTheDocument();
+        const cancelButton = screen.getByRole('button', { name: 'Batal' });
+        await waitFor(() => expect(cancelButton).toHaveFocus());
+
+        fireEvent.click(cancelButton);
+        await waitFor(() => expect(trigger).toHaveFocus());
+        expect(itemApi.deactivateItem).not.toHaveBeenCalled();
+    });
+
+    it('locks duplicate deactivation, retains failures, and focuses the preserved-history result', async () => {
+        const item = {
+            name: 'Kain katun',
+            sku: 'KAIN-00001',
+            price: '15000',
+            stockStore: '2',
+            stockWarehouse: '3',
+            baseUnitOfMeasure: 'METER',
+            fractionalQuantityAllowed: false,
+            category: {
+                code: 'KAIN',
+                name: 'Kain'
+            }
+        };
+        const firstRequest = deferred();
+        itemApi.getItemList.mockResolvedValue(listResponse([item]));
+        itemApi.deactivateItem
+            .mockReturnValueOnce(firstRequest.promise)
+            .mockResolvedValueOnce({ data: { data: true } });
+        render(<ItemList />, { route: '/items' });
+
+        fireEvent.click(await screen.findByRole('button', {
+            name: 'Nonaktifkan barang Kain katun'
+        }));
+        const confirmButton = screen.getByRole('button', { name: 'Nonaktifkan' });
+        fireEvent.click(confirmButton);
+        fireEvent.click(confirmButton);
+
+        expect(itemApi.deactivateItem).toHaveBeenCalledTimes(1);
+        expect(itemApi.deactivateItem).toHaveBeenCalledWith(
+            'KAIN-00001',
+            { useLoader: false }
+        );
+        expect(screen.getByRole('button', { name: 'Menonaktifkan...' })).toBeDisabled();
+
+        await act(async () => firstRequest.reject(new Error('Barang gagal dinonaktifkan.')));
+        const errorAlert = await screen.findByRole('alert');
+        expect(errorAlert).toHaveTextContent('Barang gagal dinonaktifkan.');
+        await waitFor(() => expect(errorAlert).toHaveFocus());
+        expect(screen.getByRole('dialog', { name: 'Nonaktifkan Kain katun?' }))
+            .toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Nonaktifkan' }));
+        await waitFor(() => expect(screen.getByRole('alert'))
+            .toHaveTextContent('Kain katun berhasil dinonaktifkan'));
+        const successAlert = screen.getByRole('alert');
+        expect(successAlert).toHaveTextContent('Kain katun berhasil dinonaktifkan');
+        expect(successAlert).toHaveTextContent('riwayat dan saldo tidak dihapus');
+        await waitFor(() => expect(successAlert).toHaveFocus());
+        expect(screen.queryByRole('dialog', { name: 'Nonaktifkan Kain katun?' }))
+            .not.toBeInTheDocument();
     });
 });

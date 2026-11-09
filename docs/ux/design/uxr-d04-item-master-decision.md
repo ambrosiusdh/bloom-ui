@@ -2,7 +2,7 @@
 
 Owner direction recorded: 2026-09-23  
 UXR-D04 status: `APPROVED`  
-Implementation status: not started
+Implementation status: UXI-11 and UXI-12 implemented
 
 ## Owner-approved direction
 
@@ -75,4 +75,3 @@ facts an inventory administrator needs to scan: what the item is, the exact quan
 location, its selling price, and the available actions. It also makes the distinction between item
 metadata and stock history explicit, which reduces the risk that users interpret one update
 timestamp as the last inventory movement.
-

@@ -11,6 +11,7 @@ import useCashSessionStore from '@stores/modules/cash-session.js';
 import {
     expenseRequest,
     hasExpectedExpenseSession,
+    validCreatedExpenseRecord,
     validateExpense
 } from '@utils/expense-utils.js';
 
@@ -147,9 +148,7 @@ const useExpenseStore = create(persist((set, get) => ({
                 return;
             }
             const result = response?.data;
-            if (!result?.id || result.cashSessionId !== attempt.request.expectedCashSessionId || result.amount == null || !result.category
-                || typeof result.voided !== 'boolean' || typeof result.operationalExpense !== 'boolean'
-                || !result.createdAt || !result.createdBy) {
+            if (!validCreatedExpenseRecord(result, attempt.request)) {
                 throw new Error('Incomplete expense response');
             }
             set({ result, attempt: null, outcome: 'success' });

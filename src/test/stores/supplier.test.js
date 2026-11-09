@@ -50,6 +50,7 @@ describe('supplier store', () => {
             supplierPaging: {},
             listStatus: 'idle',
             listError: null,
+            supplierListBalances: {},
             supplierDetails: null,
             detailStatus: 'idle',
             detailError: null,
@@ -130,6 +131,68 @@ describe('supplier store', () => {
             balanceError: null
         });
         expect(supplierApi.getSupplierOutstandingBalance).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps independent server balance state for a visible supplier row', async () => {
+        const serverBalance = {
+            supplierId: 1,
+            supplierCode: 'SUP-001',
+            supplierName: 'Bloom',
+            totalPostedAmount: '100.0000',
+            paidAmount: '40.0000',
+            outstandingAmount: '60.0000'
+        };
+        supplierApi.getSupplierOutstandingBalance.mockResolvedValue({
+            data: { data: serverBalance }
+        });
+
+        await useSupplierStore.getState().getSupplierListBalance(
+            'SUP-001',
+            {},
+            { useLoader: false }
+        );
+
+        expect(useSupplierStore.getState().supplierListBalances).toEqual({
+            'SUP-001': {
+                data: serverBalance,
+                status: 'ready',
+                error: null
+            }
+        });
+        expect(supplierApi.getSupplierOutstandingBalance).toHaveBeenCalledWith(
+            'SUP-001',
+            {},
+            { useLoader: false }
+        );
+    });
+
+    it('does not let an older row-balance request replace a newer retry', async () => {
+        const older = deferred();
+        const newerBalance = {
+            supplierCode: 'SUP-001',
+            outstandingAmount: '25.0000'
+        };
+        supplierApi.getSupplierOutstandingBalance
+            .mockReturnValueOnce(older.promise)
+            .mockResolvedValueOnce({ data: { data: newerBalance } });
+
+        const olderResult = useSupplierStore.getState().getSupplierListBalance('SUP-001');
+        await useSupplierStore.getState().getSupplierListBalance('SUP-001');
+        older.resolve({
+            data: {
+                data: {
+                    supplierCode: 'SUP-001',
+                    outstandingAmount: '50.0000'
+                }
+            }
+        });
+        await olderResult;
+
+        expect(useSupplierStore.getState().supplierListBalances['SUP-001']).toEqual({
+            data: newerBalance,
+            status: 'ready',
+            error: null
+        });
     });
 
     it('updates detail and invalidates the filtered list after activation changes', async () => {

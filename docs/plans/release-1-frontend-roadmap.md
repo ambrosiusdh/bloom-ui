@@ -311,6 +311,14 @@ all affected files passed when rerun with one worker.
 
 > Implement FE-09 only after its backend gate is satisfied. Re-inspect item controller/response DTO/service and confirm decimal location stock, UOM, fractional, active, and lock fields. Align the JavaScript item API/store/list/detail to that exact contract, remove UI reliance on legacy `stockQuantity`, and cover loading/error/empty and Indonesian quantity display. Add focused tests. Do not add mutations, movement history, TypeScript, or global table/API abstractions. Stop and report the mismatch if any required backend field is missing.
 
+**UXI-11 alignment note (2026-09-30):** The approved item-master read experience is implemented on
+the existing FE-09 contract. One backend-supported name-or-SKU search and category filter drive the
+active list; server paging exposes total, range, page, and page-size context. Rows group item identity,
+UOM/fraction policy, exact price precision, independent STORE/WAREHOUSE balances, item-update audit
+facts, and 44-pixel named actions. The same facts reflow into labelled narrow records without a
+minimum-width table or page-level horizontal panning. Detail retains backend lock facts and direct
+stock-history, barcode, and edit access; no aggregate inventory value or new endpoint is introduced.
+
 ### FE-10 — Item creation and opening balance
 
 - **Domain:** Item creation.

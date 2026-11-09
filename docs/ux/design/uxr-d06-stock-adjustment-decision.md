@@ -2,7 +2,7 @@
 
 Owner direction recorded: 2026-09-27  
 UXR-D06 status: `APPROVED`  
-Implementation status: not started
+Implementation status: `IMPLEMENTED` (2026-09-30)
 
 ## Owner-approved direction
 
@@ -73,4 +73,3 @@ The approved direction makes item discovery scalable and makes delta-versus-abso
 meaning visible before confirmation, while retaining the conservative transaction safeguards already
 present in Bloom. Grouped result rows solve the audited narrow-detail overflow without hiding the
 server-confirmed before/after balances needed for stock investigation.
-

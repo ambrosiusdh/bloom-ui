@@ -30,29 +30,43 @@ const propTypes = {
 
 const GoodsReceiptItemsTable = ({ goodsReceiptItems }) => {
     return (
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+        <section
+            className="min-w-0 overflow-hidden rounded-lg bg-white shadow-lg"
+            aria-labelledby="goods-receipt-items-heading"
+        >
             <div className="p-4 bg-gray-50 border-b">
-                <Typography variant="h6" className="font-bold text-gray-800">
-                    Daftar Barang Diterima
+                <Typography
+                    id="goods-receipt-items-heading"
+                    component="h2"
+                    variant="h6"
+                    className="font-bold text-gray-800"
+                >
+                    Barang yang diterima
                 </Typography>
-                <p className="text-sm text-gray-600">Jumlah, UOM, lokasi, harga, dan subtotal adalah nilai yang disimpan server.</p>
+                <p className="text-sm text-gray-600">
+                    Jumlah, satuan, lokasi, harga beli, dan subtotal yang tersimpan.
+                </p>
             </div>
-            <div className="space-y-3 p-4 md:hidden">
+            <div className="space-y-3 p-4 xl:hidden">
                 { goodsReceiptItems.length ? goodsReceiptItems.map((line, index) => (
                     <article key={ line.id || `${ line.item?.sku }-${ line.stockLocation }-${ index }` }
                         className="space-y-3 rounded-lg border p-4">
                         <div><strong>{ line.item?.name || '-' }</strong><div className="text-sm text-gray-600">{ line.item?.sku || '-' }</div></div>
                         <dl className="grid grid-cols-2 gap-3 text-sm">
                             <div><dt className="text-gray-600">Jumlah</dt><dd>{ formatQuantity(line.quantity, line.baseUnitOfMeasure) }</dd></div>
-                            <div><dt className="text-gray-600">Lokasi</dt><dd>{ GOODS_RECEIPT_LOCATION_LABELS[line.stockLocation] || line.stockLocation || '-' }</dd></div>
+                            <div>
+                                <dt className="text-gray-600">Lokasi</dt>
+                                <dd>{ GOODS_RECEIPT_LOCATION_LABELS[line.stockLocation] || line.stockLocation || '-' }</dd>
+                                <dd className="text-gray-600">{ line.stockLocation || '-' }</dd>
+                            </div>
                             <div><dt className="text-gray-600">Harga beli</dt><dd>{ money(line.purchasePrice) }</dd></div>
                             <div><dt className="text-gray-600">Subtotal baris</dt><dd className="font-semibold">{ money(line.lineTotal) }</dd></div>
                         </dl>
                     </article>
                 )) : <div className="py-6 text-center text-gray-500">Tidak ada barang pada penerimaan ini.</div> }
             </div>
-            <TableContainer component={ Paper } elevation={ 0 }>
-                <Table className="hidden md:table" sx={ { minWidth: 820 } } aria-label="Baris barang penerimaan">
+            <TableContainer component={ Paper } elevation={ 0 } className="!overflow-x-hidden">
+                <Table className="hidden xl:table xl:table-fixed" aria-label="Baris barang penerimaan">
                     <TableHead className="bg-gray-100">
                         <TableRow>
                             <TableCell className="font-semibold">Barang</TableCell>
@@ -70,7 +84,16 @@ const GoodsReceiptItemsTable = ({ goodsReceiptItems }) => {
                                         <div className="font-medium">{ goodsReceiptItem.item?.name || '-' }</div>
                                         <div className="text-sm text-gray-600">{ goodsReceiptItem.item?.sku || '-' }</div>
                                     </TableCell>
-                                    <TableCell>{ GOODS_RECEIPT_LOCATION_LABELS[goodsReceiptItem.stockLocation] || goodsReceiptItem.stockLocation || '-' }</TableCell>
+                                    <TableCell>
+                                        <span className="block">
+                                            { GOODS_RECEIPT_LOCATION_LABELS[goodsReceiptItem.stockLocation]
+                                                || goodsReceiptItem.stockLocation
+                                                || '-' }
+                                        </span>
+                                        <span className="block text-sm text-gray-600">
+                                            { goodsReceiptItem.stockLocation || '-' }
+                                        </span>
+                                    </TableCell>
                                     <TableCell align="right">{ formatQuantity(goodsReceiptItem.quantity, goodsReceiptItem.baseUnitOfMeasure) }</TableCell>
                                     <TableCell align="right" className="tabular-nums">{ money(goodsReceiptItem.purchasePrice) }</TableCell>
                                     <TableCell align="right" className="font-medium tabular-nums">{ money(goodsReceiptItem.lineTotal) }</TableCell>
@@ -86,7 +109,7 @@ const GoodsReceiptItemsTable = ({ goodsReceiptItems }) => {
                     </TableBody>
                 </Table>
             </TableContainer>
-        </div>
+        </section>
     );
 };
 

@@ -11,6 +11,7 @@ const ITEM = {
     detail: sku => `/api/items/${sku}`,
     deactivate: sku => `/api/items/${sku}`,
     auditLog: sku => `/api/items/${sku}/audit-log`,
+    bulkBarcode: '/api/items/barcode/bulk',
 }
 
 const ITEM_CATEGORY = {
@@ -83,7 +84,8 @@ const EXPENSE = {
 }
 
 const SUPPLIER_PAYMENT = {
-    create: '/api/goods-receipts/payments'
+    create: '/api/goods-receipts/payments',
+    history: '/api/goods-receipts/payments'
 }
 
 export {

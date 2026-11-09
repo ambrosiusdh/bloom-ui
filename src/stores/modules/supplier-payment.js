@@ -22,6 +22,7 @@ const createSupplierPaymentState = (code, ownerAccountId = null) => ({
     outcome: 'editing',
     error: '',
     pending: false,
+    checkingCashSession: false,
     refreshStatus: 'idle'
 });
 
@@ -31,7 +32,7 @@ const currentAccountId = () => {
 };
 export const canUsePayment = (state, accountId = currentAccountId()) =>
     !!accountId && state.ownerAccountId === accountId;
-export const isPaymentLocked = state => state.pending || !!state.attempt || !!state.result
+export const isPaymentLocked = state => state.pending || state.checkingCashSession || !!state.attempt || !!state.result
     || ['loading', 'error'].includes(state.refreshStatus);
 const isFreshPaymentState = state => !state.ownerAccountId
     && !state.code
@@ -123,7 +124,8 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
     },
 
     submit: async confirmation => {
-        if (!canUsePayment(get()) || get().pending || get().result || get().outcome === 'keyConflict') {
+        if (!canUsePayment(get()) || get().pending || get().checkingCashSession || get().result
+            || get().outcome === 'keyConflict') {
             return;
         }
         const replay = !!get().attempt;
@@ -138,8 +140,7 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
                 set({ error });
                 return;
             }
-            const cash = useCashSessionStore.getState();
-            if (confirmation.request.paymentMethod === 'CASH' && (cash.currentStatus !== 'ready' || !cash.drawerActionsEnabled)) {
+            if (confirmation.request.paymentMethod === 'CASH' && !confirmation.expectedCashSessionId) {
                 set({ outcome: 'sessionConflict' });
                 return;
             }
@@ -148,10 +149,50 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
             code,
             ownerAccountId,
             key: `payment-${ crypto.randomUUID() }`,
-            request: { ...confirmation.request }
+            request: { ...confirmation.request },
+            expectedCashSessionId: confirmation.expectedCashSessionId || null
         };
+        if (attempt.request.paymentMethod === 'CASH') {
+            if (!attempt.expectedCashSessionId) {
+                set({ outcome: replay ? 'cashRecoveryBlocked' : 'sessionConflict' });
+                return;
+            }
+
+            set({
+                checkingCashSession: true,
+                outcome: 'checkingSession',
+                error: ''
+            });
+
+            try {
+                const session = await useCashSessionStore.getState().getCurrentSession({ timeout: SUPPLIER_PAYMENT_TIMEOUT_MS });
+                if (session?.status !== 'OPEN' || session.id !== attempt.expectedCashSessionId) {
+                    set({
+                        checkingCashSession: false,
+                        outcome: replay ? 'cashRecoveryBlocked' : 'sessionConflict'
+                    });
+                    return;
+                }
+            } catch {
+                set({
+                    checkingCashSession: false,
+                    outcome: replay ? 'cashRecoveryBlocked' : 'sessionConflict'
+                });
+                return;
+            }
+
+            set({ checkingCashSession: false });
+        }
+        if (!canUsePayment(get()) || get().code !== code || get().ownerAccountId !== ownerAccountId) {
+            return;
+        }
         const { amount, paymentMethod, reference, note } = attempt.request;
-        const draft = { amount, paymentMethod, reference: reference || '', note: note || '' };
+        const draft = {
+            amount,
+            paymentMethod,
+            reference: reference || '',
+            note: note || ''
+        };
         try {
             sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
                 version: 0,
@@ -179,7 +220,8 @@ const useSupplierPaymentStore = create(persist((set, get) => ({
             if (!result?.id || result.receiptCode !== attempt.code || result.idempotencyKey !== attempt.key
                 || result.amount == null || result.paymentMethod !== attempt.request.paymentMethod
                 || typeof result.voided !== 'boolean'
-                || (result.paymentMethod === 'CASH' && !result.cashSessionId)) {
+                || (result.paymentMethod === 'CASH'
+                    && result.cashSessionId !== attempt.expectedCashSessionId)) {
                 throw new Error('Incomplete payment response');
             }
             set({ result, attempt: null, outcome: 'success', refreshStatus: 'idle' });

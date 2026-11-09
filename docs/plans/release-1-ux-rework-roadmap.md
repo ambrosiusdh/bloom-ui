@@ -1,6 +1,6 @@
 # Bloom Release 1 UX Rework Roadmap
 
-Last updated: 2026-09-28
+Last updated: 2026-10-02
 
 ## 1. Purpose
 
@@ -1230,21 +1230,61 @@ Decision/audit: `docs/ux/design/uxr-d11-sales-history-decision.md`; `docs/ux/aud
 
 #### UXI-11 — Item list, detail, and location inventory
 
+Status: `IMPLEMENTED`
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-item-master-review.html`
 
 Decision/audit: `docs/ux/design/uxr-d04-item-master-decision.md`; `docs/ux/audits/uxr-a04-items.md`
+
+**Implementation note (2026-09-30):** The active item list now uses the backend's combined
+name-or-SKU search and category filter, explicit server range/page/page-size context, grouped identity,
+exact decimal price display, UOM/fraction facts, separate STORE/WAREHOUSE balances, and item-update
+audit metadata. Compact 44-pixel named actions retain detail, item-scoped stock history, barcode,
+edit, and deactivation access. At narrow desktop widths, each row becomes a labelled record with no
+minimum-width table or page-level horizontal panning. Detail exposes the same backend facts and direct
+history/barcode/edit paths; stock is never aggregated or recalculated.
 
 > Implement only UXI-11, Bloom item list, detail, and location inventory. Read the governing documents, `docs/ux/audits/uxr-a04-items.md`, `docs/ux/design/uxr-d04-item-master-decision.md`, and `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-item-master-review.html`. Inspect `ItemList.jsx`, item detail/barcode/audit modals, item store/API/constants, and tests. Implement grouped identity, exact server prices, UOM/fraction facts, separate STORE/WAREHOUSE quantities, compact accessible row actions, full detail/audit/barcode access, filters/paging, and labelled narrow records without horizontal page overflow. Do not aggregate stock or change item rules. Add tests and run the full validation commands. Update plan status; do not commit or push.
 
 #### UXI-12 — Item creation, editing, and deactivation
 
+Status: `IMPLEMENTED`
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-item-master-review.html`; review create/opening, validation/conflict, edit/locks, deactivation, and narrow-form states.
 
 Decision/audit: `docs/ux/design/uxr-d04-item-master-decision.md`; `docs/ux/audits/uxr-a04-items.md`
 
+**Implementation note (2026-09-30):** Create and edit now use the approved identity-and-sales,
+quantity-rule, and location-stock hierarchy with one-column narrow reflow. Create retains comma/dot
+editing strings and sends canonical decimal strings in the existing atomic item/opening request;
+whole items reject fractional openings per location, while fractional items retain up to four decimal
+places. Validation focuses the first invalid field, manual-SKU conflict identifies the retained code,
+and pending submission stays duplicate-locked. Edit renders server STORE/WAREHOUSE balances as
+read-only facts, never sends stock, and omits backend-locked UOM/fraction fields from the update.
+Deactivation starts focus on cancel, states that history and balances remain, blocks duplicate requests,
+keeps a focused retryable error in the confirmation, restores trigger focus on cancel, and focuses the
+history-preserving success result. Five focused item files passed 28 tests; the full 68-file suite passed
+441 tests with one worker, followed by full lint and production build. The build retained the existing
+stale-Browserslist and large-chunk advisory warnings.
+
 > Implement only UXI-12, Bloom item creation, editing, and deactivation. Read the governing documents, `docs/ux/audits/uxr-a04-items.md`, `docs/ux/design/uxr-d04-item-master-decision.md`, and the relevant states in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-item-master-review.html`. Inspect `ItemCreate.jsx`, `ItemEdit.jsx`, item fields/utilities/store/API, and tests. Implement the approved field hierarchy, opening quantities by location, whole/fractional guidance, immutable/locked facts, retained server validation/conflict, and history-preserving deactivation confirmation/focus behavior. Preserve exact decimal inputs and backend authority. Add tests and run the full validation commands. Update plan status; do not commit or push.
 
 #### UXI-13 — Stock-movement history and detail
+
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-30):** The backend-paged ledger now keeps the approved exact SKU,
+direction, and location filters in the URL, resets them to page one, announces the settled result count,
+and returns focus to the item/SKU field. Wide presentation uses the approved `Barang`, `Pergerakan`,
+`Lokasi`, `Saldo`, and `Dibuat oleh & pada` grouping plus one named 44-pixel eye action; below the large
+breakpoint, the same facts become labelled grouped records without a minimum-width table or page-level
+horizontal panning. Direction uses localized text, sign, and icon, and the complete backend source map
+includes goods-receipt cancellation. The accessible in-context modal renders only selected-row facts,
+opens already-supported sale, goods-receipt, or stock-adjustment routes when available, and explicitly
+states when source detail is unavailable; it performs no row enrichment and adds no movement-detail
+endpoint. `Buat transfer stok` remains the primary action under `Pergerakan stok`. Two focused files
+passed 5 tests; the full 68-file suite passed 442 tests with one worker, followed by full lint and
+production build. The build retained the existing stale-Browserslist and large-chunk advisory warnings.
 
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D05 Riwayat stok** and review list, filters/reset, empty, detail modal, and narrow states.
 
@@ -1254,6 +1294,20 @@ Decision/audit: `docs/ux/design/uxr-d05-stock-movements-decision.md`; `docs/ux/a
 
 #### UXI-14 — Stock adjustment
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-09-30):** Stock-adjustment history now keeps backend-supported
+reference and date filters in the URL, exposes server paging/order context, distinguishes filtered
+empty results, and uses labelled grouped records on narrow screens. Creation now provides
+keyboard-searchable active-item selection with SKU/category/UOM/fraction policy, explicit
+ADD/REMOVE positive-delta versus CORRECTION absolute-target meaning, UOM-aware exact quantities,
+a frozen cancel-first confirmation, one durable pending request, retained definitive rejection, and
+exact-request ambiguous recovery. Result and detail views show only backend-confirmed balances and
+movements; the browser never calculates final stock authoritatively. Focused validation passed 36
+tests across 6 stock-adjustment files; the full suite passed 448 tests across 68 files, lint passed,
+and the production build passed with only the existing stale-Browserslist and large-chunk advisory
+warnings.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-stock-adjustment-review.html`
 
 Decision/audit: `docs/ux/design/uxr-d06-stock-adjustment-decision.md`; `docs/ux/audits/uxr-a06-stock-adjustment.md`
@@ -1261,6 +1315,22 @@ Decision/audit: `docs/ux/design/uxr-d06-stock-adjustment-decision.md`; `docs/ux/
 > Implement only UXI-14, Bloom stock adjustment. Read the governing documents, `docs/ux/audits/uxr-a06-stock-adjustment.md`, `docs/ux/design/uxr-d06-stock-adjustment-decision.md`, and `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-stock-adjustment-review.html`. Inspect stock-adjustment list/create/detail pages, components, store/API/utilities, and tests. Implement history, searchable item selection, ADD/REMOVE/CORRECTION meaning, UOM-aware quantity, confirmation, one pending request, definitive rejection, exact-request ambiguous recovery, backend-confirmed result/detail, and labelled narrow layouts. Never calculate final stock authoritatively. Add tests for each action and recovery path, then run the full validation commands. Update plan status; do not commit or push.
 
 #### UXI-15 — Stock transfer
+
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-01):** Stock transfer now discovers active items across every backend
+page and provides keyboard-searchable name/SKU selection with category, UOM, fraction policy, and
+advisory STORE/WAREHOUSE balances. The create form preserves explicit opposite source/destination
+selection, labelled swap, source availability, shared UOM-aware exact quantity controls, optional
+description counting, deliberate refresh, and a complete cancel-first confirmation. Pending locks all
+mutation, definitive rejection keeps the exact draft editable after refreshing item facts, and the
+existing persisted account-bound request/key recovery now renders as a dedicated locked summary,
+quarantines other-account facts, permits only same-request/key replay, and fails closed on key conflict.
+Success replaces the form with the server-returned reference, item/quantity, direction, description,
+and actor, plus the existing item-filtered stock-movement route; no stock calculation or transfer read
+endpoint was added. Focused validation passed 15 tests across 2 stock-transfer files; the full suite
+passed 453 tests across 68 files, full lint passed, and the production build passed with only the
+existing stale-Browserslist and large-chunk advisory warnings.
 
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-stock-transfer-review.html`
 
@@ -1270,6 +1340,21 @@ Decision/audit: `docs/ux/design/uxr-d07-stock-transfer-decision.md`; `docs/ux/au
 
 #### UXI-16 — Supplier list and detail
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-01):** The supplier list now keeps supported search, active/inactive
+filtering, page size, visible range, current page, and previous/next controls in URL-backed server
+requests. One responsive table becomes labelled grouped records below `lg`, keeping the named
+44-pixel detail action visible and eliminating the audited 768-pixel page overflow. Identity,
+contact fallbacks, lifecycle state, updater/time, and each visible supplier's independently retryable
+existing server aggregate are rendered without receipt summation or inferred debt. Detail groups the
+immutable code, full contact and created/updated audit facts, explicit inactive meaning, and the
+server-returned total, paid, and outstanding amounts with separate loading/error retry. Focused
+validation passed 30 tests across 5 supplier files; the full suite passed 457 tests across 68 files
+when run with one worker after the default parallel run exhausted the environment's five-second test
+budgets. Full lint passed, and the production build passed with only the existing stale-Browserslist
+and large-chunk advisory warnings.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D12 Pemasok** and review list, paging, active/inactive, detail, error/empty, and narrow states.
 
 Decision/audit: `docs/ux/design/uxr-d12-suppliers-decision.md`; `docs/ux/audits/uxr-a12-suppliers.md`
@@ -1277,6 +1362,20 @@ Decision/audit: `docs/ux/design/uxr-d12-suppliers-decision.md`; `docs/ux/audits/
 > Implement only UXI-16, Bloom supplier list and detail. Read the governing documents, `docs/ux/audits/uxr-a12-suppliers.md`, `docs/ux/design/uxr-d12-suppliers-decision.md`, and D12 in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `SupplierList.jsx`, `SupplierDetail.jsx`, supplier store/API/utilities, and tests. Implement supported search/status/paging, labelled columns and grouped narrow records, backend-owned outstanding balance, complete contact/audit facts, clear inactive treatment, loading/error/empty recovery, and accessible compact actions. Do not infer debt. Add tests and run the full validation commands. Update plan status; do not commit or push.
 
 #### UXI-17 — Supplier creation, editing, and deactivation
+
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-01):** Supplier creation now explains the backend's surrounding-
+whitespace removal and locale-independent uppercase normalization before the permanent code is
+submitted, including the case-insensitive identity boundary and prohibition on later reuse. Duplicate
+conflicts keep every entered value, focus the code, and explain that inactive suppliers retain their
+codes. Edit keeps code disabled and outside keyboard order while submitting only name, contact, and
+address. The form switches to one complete column through 820 pixels with full-width narrow actions.
+Deactivation remains a separate duplicate-locked state change that preserves identity, receipt/payment
+history, and server-owned debt; confirmation starts on `Batal`, Escape restores the trigger, and the
+backend-confirmed inactive result receives focus. Focused validation passed 31 tests across 5 supplier
+files; the full suite passed 458 tests across 68 files with one worker. Full lint passed, and the
+production build passed with only the existing stale-Browserslist and large-chunk advisory warnings.
 
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D12 Pemasok** and review create, normalization guidance, immutable-code edit, duplicate conflict, deactivation confirmation, inactive result, and narrow form.
 
@@ -1286,6 +1385,32 @@ Decision/audit: `docs/ux/design/uxr-d12-suppliers-decision.md`; `docs/ux/audits/
 
 #### UXI-18 — Goods-receipt history and detail
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-01):** Goods-receipt history now retains backend-supported receipt
+code, exact supplier code, supplier name, received-date, page, and page-size state in the URL. Date
+fields use explicit Indonesian `DD-MM-YYYY` entry while requests keep canonical `YYYY-MM-DD` calendar
+dates. The backend exposes no payment-status list filter, so the UI does not create an incorrect
+client-only filter across paged results; it renders `UNPAID`, `PARTIALLY_PAID`, and `PAID` plus exact
+total, paid, and outstanding values directly from each server row. The wide list becomes labelled,
+grouped records below the extra-large breakpoint, and item lines use the same no-overflow narrow
+pattern. Detail now has one page heading, sequential receipt and financial sections, complete audit
+facts, and localized item/UOM/location/price/subtotal lines before the secondary supplier-payment
+workflow. Focused receipt read/API/store coverage passed 22 tests across 4 files, and the affected
+supplier-payment integration passed 33 tests. The full single-worker suite passed 461 tests across 68
+files; full lint and the production build passed. Build output retained only the existing stale-
+Browserslist-data and large-chunk advisory warnings.
+
+**Shared history date-range follow-up (2026-10-02):** UXI-10 sales history, UXI-14 stock-adjustment
+history, and UXI-18 goods-receipt history now use one controlled date-range field instead of two
+manual/native inputs. The Indonesian calendar uses Bloom light/dark primary, surface, text, border,
+focus, and selected-text colors; provides explicit `Batal`, `Pilih rentang`, and `Hapus tanggal`
+actions; and stacks actions at narrow widths. Existing URL names, one-sided deep links, canonical
+calendar dates, sale Instant boundaries, and backend request contracts remain unchanged. Focused
+component/history validation passed 24 tests across 4 files; full lint and the production build
+passed. The full single-worker suite passed 475 of 476 tests, with one unrelated existing five-second
+stock-adjustment-create interaction timeout; that exact test passed immediately in isolation.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D13 Penerimaan barang** and review list, payment-state filters, detail, error/empty, and narrow states.
 
 Decision/audits: `docs/ux/design/uxr-d13-goods-receipts-decision.md`; `docs/ux/audits/uxr-a13-goods-receipt-history.md`; `docs/ux/audits/uxr-a14-goods-receipt-create.md`
@@ -1293,6 +1418,22 @@ Decision/audits: `docs/ux/design/uxr-d13-goods-receipts-decision.md`; `docs/ux/a
 > Implement only UXI-18, Bloom goods-receipt history and detail. Read the governing documents, both UXR-A13/A14 audits, `docs/ux/design/uxr-d13-goods-receipts-decision.md`, and D13 in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect receipt list/detail pages, info/items components, receipt store/API, and tests. Implement URL-backed supported filters/paging, UNPAID/PARTIALLY_PAID/PAID states from the server, labelled/grouped narrow records, and receipt-first detail with audit/payment facts and received item/location lines before the secondary payment action. Do not infer payment status, debt, or totals. Add tests and run the full validation commands. Update plan status; do not commit or push.
 
 #### UXI-19 — Goods-receipt creation and recovery
+
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-01):** Goods-receipt creation now uses explicit Indonesian
+`DD-MM-YYYY`, 24-hour time, and WIB/WITA/WIT guidance while preserving the backend Instant request.
+Repeated SKUs remain independent compact item/location lines; the editor changes from two columns to
+one column at the small breakpoint without horizontal page overflow. Exact decimal-string helpers
+provide only a labelled input estimate and line comparison values, while the completed screen renders
+official total, paid, outstanding, payment status, and posted item facts exclusively from the complete
+server response. The localized review keeps `Kembali` first and focused, locks duplicate submission,
+and states that no initial payment is recorded. Known server rejection unlocks the retained draft;
+ambiguous outcomes keep the exact payload and idempotency key durably locked for an explicit same-
+request replay, including migration of the earlier combined local date/time draft shape. Focused
+creation/API coverage passed 33 tests across 2 files. The full single-worker suite passed 466 tests
+across 68 files; full lint and the production build passed. Build output retained only the existing
+stale-Browserslist-data and large-chunk advisory warnings.
 
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D13 Penerimaan barang** and review create, per-location lines, repeated SKU, validation, confirmation, pending, rejection, exact-request recovery, success, and narrow states.
 
@@ -1302,6 +1443,25 @@ Decision/audits: `docs/ux/design/uxr-d13-goods-receipts-decision.md`; UXR-A13/A1
 
 #### UXI-20 — Payable discovery and receipt debt detail
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-01):** Payable discovery now keeps receipt-reference or supplier-name
+search, page, and page-size state in the URL and exposes explicit range, current-page, previous, and
+next context. It renders the receipt/payment statuses and total, paid, and outstanding values returned
+on each backend row; the payable list does not aggregate or infer debt. The approved payable surface
+does not silently add the optional supplier-code refinement. Wide rows become labelled grouped
+records below the extra-large breakpoint, keeping supplier, receipt/time, status, exact values, and
+the named 44-pixel detail action together without page-level horizontal panning. Payable-context
+receipt detail has its own level-one heading and return path, followed by receipt/financial facts,
+received lines, and a paged server payment history before the separately owned payment mutation.
+History uses the corrected slash-safe `GET /api/goods-receipts/payments?code={receiptCode}` contract,
+shows active and voided audit facts, and reloads after a confirmed receipt refresh. Focused payable,
+payment, receipt, API, and store coverage passed 54 tests across 7 files. The parallel full suite
+passed 471 tests and hit one unrelated stock-adjustment timeout; that test passed in isolation, then
+the full single-worker suite passed 472 tests across 69 files. Full lint and the production build
+passed. Build output retained only the existing stale-Browserslist-data and large-chunk advisory
+warnings.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D14 Utang pemasok** and review list, search/paging, receipt detail, payment history, error/empty, and narrow states.
 
 Decision/audit: `docs/ux/design/uxr-d14-payables-payment-decision.md`; `docs/ux/audits/uxr-a15-payables-payment.md`
@@ -1309,6 +1469,24 @@ Decision/audit: `docs/ux/design/uxr-d14-payables-payment-decision.md`; `docs/ux/
 > Implement only UXI-20, Bloom payable discovery and receipt debt detail. Read the governing documents, `docs/ux/audits/uxr-a15-payables-payment.md`, `docs/ux/design/uxr-d14-payables-payment-decision.md`, and D14 in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `SupplierPayableList.jsx`, receipt detail/payment components, supplier-payment API/store/utilities, and tests. Implement only supported receipt/supplier-name discovery and paging, receipt-first debt detail, received lines and payment history before mutation, exact backend balances/payment states, and grouped narrow records. Optional supplier-code filtering must remain gated until the backend contract exists. Add tests and run the full validation commands. Update plan status; do not commit or push.
 
 #### UXI-21 — Supplier payment and recovery
+
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-01):** The one-receipt form preserves exact decimal amount, backend
+method vocabulary, optional reference/note, full-outstanding assistance, and explicit CASH versus
+non-cash drawer meaning. Cancel-first confirmation repeats receipt, supplier, amount, method,
+last-known outstanding, reference, note, confirmation-time payment timestamp, and session meaning;
+pending then locks and displays the exact durable request. The corrected
+`POST /api/goods-receipts/payments?code={receiptCode}` transport retains its idempotency key and exact
+authenticated `accountId` owner. CASH additionally persists the originally reviewed session ID as
+recovery metadata and freshly verifies that exact open session before initial submission and every
+retry; a newer session is never substituted, and legacy CASH attempts without this identity remain
+quarantined. Definitive rejection explicitly confirms that no payment was accepted and refreshes
+receipt facts while preserving editable input. Success separately displays the returned payment
+record and backend-refreshed paid, outstanding, payment-status, and payment-history facts. No browser
+balance or status calculation was added. The focused supplier-payment suite passed 35 tests; the full
+single-worker suite passed 474 tests across 69 files. Full lint and the production build passed. Build
+output retained only the existing stale-Browserslist-data and large-chunk advisory warnings.
 
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D14 Utang pemasok** and review amount/method/reference/note form, CASH/non-cash meaning, confirmation, pending, rejection, exact recovery, refreshed success, and narrow states.
 
@@ -1318,6 +1496,22 @@ Decision/audit: `docs/ux/design/uxr-d14-payables-payment-decision.md`; `docs/ux/
 
 #### UXI-22 — Expense history and creation
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-02):** Expense history now renders the backend's fixed newest-first
+page as labelled records with an explicit result range, page-size and previous/next controls, and no
+unsupported filters. Each record keeps ID, category, operational classification, note, exact amount,
+status, original cash session, actor/time, and backend-returned eligibility visible; wide rows become
+grouped records before the audited narrow-desktop overflow boundary. Creation accepts exact decimal
+amounts, the six backend categories, and the conditional `OTHER` note, then binds one reviewed request
+to the exact freshly verified open cash-session ID. Cancel-first confirmation repeats every submitted
+fact, pending locks and displays the durable request, and account-owned recovery retains the identical
+payload and idempotency key without substituting a later session. Definitive rejection preserves the
+form, while success renders only the backend-confirmed record and eligibility. No drawer impact,
+balance, total, or reconciliation is inferred. The focused expense suite passed 60 tests; the full
+single-worker suite passed 479 tests across 70 files. Full lint and the production build passed. Build
+output retained only the existing stale-Browserslist-data and large-chunk advisory warnings.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D15 Pengeluaran** and review history, active/closed eligibility, create, validation, confirmation, pending, recovery, result, and narrow states.
 
 Decision/audits: `docs/ux/design/uxr-d15-expenses-voids-decision.md`; `docs/ux/audits/uxr-a16-expense-create.md`; `docs/ux/audits/uxr-a17-expense-void.md`
@@ -1325,6 +1519,21 @@ Decision/audits: `docs/ux/design/uxr-d15-expenses-voids-decision.md`; `docs/ux/a
 > Implement only UXI-22, Bloom expense history and creation. Read the governing documents, UXR-A16/A17 audits, `docs/ux/design/uxr-d15-expenses-voids-decision.md`, and D15 in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`. Inspect `ExpenseHistory.jsx`, `ExpenseCreate.jsx`, expense record/helpers/store/API, and tests. Implement paged labelled history, active versus closed-session eligibility, exact open-session-bound creation, decimal/category/note validation, cancel-first confirmation, pending lock, account-bound exact recovery, definitive rejection, backend-confirmed result, and grouped narrow records. Do not infer cash-session impact or balances. Add tests and run the full validation commands. Update plan status; do not commit or push.
 
 #### UXI-23 — Expense void and reversal
+
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-02):** Expense history now opens an audit-rich detail for active,
+closed-session, and already-voided records before exposing any destructive action. Fresh backend
+eligibility controls whether the void action exists. The cancel-first confirmation requires a bounded
+reason and repeats immutable original facts; pending locks the exact expense, original session,
+amount, and reason. Definitive rejection is explicit and editable, while ambiguous recovery remains
+bound to the same backend account, expense, session, and retained reason. Confirmed results separate
+the original record, stored reversal audit, and explicitly refreshed server session status/expected
+cash; the frontend never deletes the original or calculates reversal, balance, or session totals.
+Keyboard Escape returns from confirmation to detail before closing, and focus returns through both
+levels. The focused void/history suite passed 30 tests; the full single-worker suite passed 481 tests
+across 70 files. Full lint, production build, and `git diff --check` passed. Build output retained only
+the existing stale-Browserslist-data and large-chunk advisory warnings.
 
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-design-review-suite.html`, select **D15 Pengeluaran** and review detail, reasoned void confirmation, pending, uncertain recovery, rejection, void result, retained original/reversal facts, and narrow states.
 
@@ -1334,6 +1543,23 @@ Decision/audits: `docs/ux/design/uxr-d15-expenses-voids-decision.md`; UXR-A16/A1
 
 #### UXI-24 — Operational dashboard
 
+Status: `IMPLEMENTED`
+
+**Implementation note (2026-10-02):** The backend gate was verified before frontend changes:
+`OperationalDashboardResponse`, its controller/service, bounded repository projections, controller
+and security tests, and PostgreSQL integration coverage all include the required non-null
+`salesLast7Days` and `stockAttention` read models. The Dashboard now consumes that single response
+for four compact summaries, an action-oriented supplier/STORE attention panel, the authoritative
+seven-day sales chart and server period totals, exact semantic drill-downs, and detailed current-session
+facts. Zero sales, all-zero chart, no open session, loading, stale data, refresh success, and retained-
+data refresh failure stay distinct. Every day is keyboard reachable with visible exact selected-day
+detail; a shell-level skip link bypasses navigation; the card hierarchy uses one, two, and three
+columns without page-level overflow. No frontend sales/stock aggregation, unsupported stock filter,
+legacy Dashboard value, or placeholder business data is shipped. The focused dashboard/API/store/
+skip-link suite passed 17 tests; the full single-worker suite passed 483 tests across 70 files. Full
+lint, production build, and `git diff --check` passed. Build output retained only the existing stale-
+Browserslist-data and large-chunk advisory warnings.
+
 Prototype: `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-dashboard-rework.html`
 
 Decision/audit/backend gate: `docs/ux/design/uxr-d02-dashboard-decision.md`; `docs/ux/audits/uxr-a02-dashboard.md`; `docs/ux/design/uxr-d02-dashboard-backend-request.md`
@@ -1341,6 +1567,40 @@ Decision/audit/backend gate: `docs/ux/design/uxr-d02-dashboard-decision.md`; `do
 > Implement only UXI-24, Bloom's operational dashboard, after verifying the backend read models requested in `docs/ux/design/uxr-d02-dashboard-backend-request.md` exist. Read the governing documents, UXR-A02 audit, D02 decision/backend request, and `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61\bloom-dashboard-rework.html`. Inspect `Dashboard.jsx`, dashboard components/store/API, navigation destinations, and tests. Implement four server-owned summaries, action-oriented attention, one seven-day sales chart, exact drill-downs, loading/no-session/zero/stale/refresh-error states, keyboard bypass/focus, and one/two/three-column responsive layouts. Do not aggregate sales or stock in the frontend and do not ship placeholder business data. If either required backend read model is absent, stop and report the gate without implementing approximations. Add tests and run the full validation commands. Update plan status; do not commit or push.
 
 #### UXI-25 — Cross-domain verification
+
+Status: `VERIFIED`
+
+**Verification note (2026-10-02):** The final `origin/release/1.0.0...HEAD` rework diff was inspected
+across 117 files and passed `git diff --check`; the worktree was clean before verification. The
+approved decisions and five primary prototypes were reconciled with the current frontend and the
+authoritative backend controllers, request/response DTOs, validation, and services. Deterministic
+interaction coverage exercises protected return, cash-session open/close, cashier search/cart,
+CASH and QRIS checkout, account-bound ambiguous recovery, sale-first printing and sales reprint,
+item and stock operations, receipt creation, supplier payment, expense creation/void, dashboard
+drill-downs, appearance modes, and keyboard/focus behavior. The CI-defined command
+`npm test -- --maxWorkers=1` passed all 483 tests across 70 files; `npm run lint`, `npm run build`,
+and the final diff check passed. The literal default parallel `npm test` command was also run and
+reported 33 cross-domain five-second timeout failures under local contention (450 tests passed);
+the same suite is green with the repository's checked-in one-worker CI setting. The production
+build retains the existing stale-Browserslist-data and large-chunk advisory warnings.
+
+Read-only headless browser verification confirmed that a protected sale-detail URL with query
+context first renders the session-check gate and then the login return-context notice. Explicit
+light and dark preferences resolved correctly, while `Ikuti sistem` resolved to dark under an
+emulated dark system preference. At 760 CSS pixels, document `clientWidth` and `scrollWidth` were
+both 760. A 1440-pixel display modeled at 200% zoom reflowed to a 720-CSS-pixel viewport; the
+document measured 705 CSS pixels for both client and scroll width, retained every login action,
+and used vertical scrolling without horizontal page overflow. No UX-rework regression required a
+runtime-code change.
+
+Remaining hardware-only verification is explicit: run the E81W keyboard-wedge focus, terminator,
+feedback, and rapid-scan sequence on the deployed store laptop; and verify the configured receipt
+printer's physical target, paper output, feed, and cut behavior. Software coverage verifies only
+the scanner adapter behavior and print-service acknowledgement/retry boundaries. No dashboard
+backend work remains gated: the current operational response and service provide authoritative
+`salesLast7Days`, STORE `stockAttention`, freshness, and semantic drill-down metadata. Older
+prototype/register wording that calls those fields backend-gated describes the pre-implementation
+design snapshot rather than the current contract.
 
 Primary prototypes: `bloom-appearance-modes-final-review.html`, `bloom-navigation-shell-review.html`, `bloom-cashier-workspace-rework.html`, `bloom-design-review-suite.html`, and `bloom-dashboard-rework.html` in `C:\Users\Ambrosius David H\.codex\visualizations\2026\09\14\01a0a24b-49aa-7771-b460-386677499a61`.
 

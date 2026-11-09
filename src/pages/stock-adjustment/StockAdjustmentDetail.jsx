@@ -8,7 +8,7 @@ import { Alert, Button, CircularProgress } from '@mui/material';
 import { ArrowLeft } from 'lucide-react';
 
 import StockAdjustmentInfoCard from '@components/stock-adjustment/StockAdjustmentInfoCard.jsx';
-import StockAdjustmentItemsTable from '@components/stock-adjustment/StockAdjustmentItemsTable.jsx';
+import StockAdjustmentLines from '@components/stock-adjustment/StockAdjustmentLines.jsx';
 import {
     useBreadcrumbStore,
     useStockAdjustmentStore
@@ -55,6 +55,15 @@ export default function StockAdjustmentDetail() {
                 Kembali ke daftar
             </Button>
 
+            <header>
+                <h1 className="break-all text-2xl font-bold">
+                    { decodedCode || 'Detail penyesuaian stok' }
+                </h1>
+                <p className="mt-1 text-slate-600">
+                    Hasil penyesuaian yang sudah dibukukan oleh server.
+                </p>
+            </header>
+
             { status === 'loading' || status === 'idle' ? (
                 <div role="status" className="py-12 text-center">
                     <CircularProgress size={ 22 } /> Memuat detail penyesuaian...
@@ -70,7 +79,10 @@ export default function StockAdjustmentDetail() {
             ) : adjustment ? (
                 <>
                     <StockAdjustmentInfoCard adjustment={ adjustment } />
-                    <StockAdjustmentItemsTable items={ adjustment.items } />
+                    <StockAdjustmentLines items={ adjustment.items } />
+                    <Button component={ Link } to="/stock-adjustments/new" variant="contained">
+                        Buat penyesuaian baru
+                    </Button>
                 </>
             ) : (
                 <Alert severity="info">Detail penyesuaian tidak tersedia.</Alert>

@@ -1,12 +1,7 @@
-import { DISMISS_ACTION } from "@constants/snackbar.jsx";
-
 const ITEM_LIST_MESSAGES = {
-    deleteItemSuccess: {
-        message: itemName => `[${itemName}] berhasil dihapus`,
-        options: {
-            variant: 'success',
-            action: DISMISS_ACTION
-        }
+    deactivateItemSuccess: {
+        message: itemName => `${ itemName } berhasil dinonaktifkan. `
+            + 'Barang tidak lagi muncul dalam daftar aktif; riwayat dan saldo tidak dihapus.'
     }
 }
 

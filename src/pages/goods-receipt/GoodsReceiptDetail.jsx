@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import GoodsReceiptInfoCard from '@components/goods-receipt/GoodsReceiptInfoCard.jsx';
 import GoodsReceiptItemsTable from '@components/goods-receipt/GoodsReceiptItemsTable.jsx';
 import SupplierPayment from '@components/goods-receipt/SupplierPayment.jsx';
+import SupplierPaymentHistory from '@components/goods-receipt/SupplierPaymentHistory.jsx';
 import { useGoodsReceiptStore, useBreadcrumbStore } from '@stores/index.js';
 import useSupplierPaymentStore from '@stores/modules/supplier-payment.js';
 import { isValidGoodsReceiptReference } from '@utils/goods-receipt-utils.js';
@@ -18,6 +19,8 @@ const GoodsReceiptDetail = () => {
     const detailStatus = useGoodsReceiptStore(state => state.goodsReceiptDetailStatus);
     const detailError = useGoodsReceiptStore(state => state.goodsReceiptDetailError);
     const clearGoodsReceiptDetails = useGoodsReceiptStore(state => state.clearGoodsReceiptDetails);
+    const paymentResult = useSupplierPaymentStore(state => state.result);
+    const paymentRefreshStatus = useSupplierPaymentStore(state => state.refreshStatus);
     const location = useLocation();
     const [retryVersion, setRetryVersion] = useState(0);
     const receiptReference = code || '';
@@ -28,6 +31,12 @@ const GoodsReceiptDetail = () => {
             || location.state.from.startsWith('/payables'))
         ? location.state.from
         : '/goods-receipts';
+    const payableContext = backTo.startsWith('/payables');
+    const detailTitle = payableContext ? 'Detail utang penerimaan' : 'Detail penerimaan';
+    const paymentHistoryRefreshKey = paymentResult?.receiptCode === receiptReference
+        && paymentRefreshStatus === 'ready'
+        ? paymentResult.id
+        : null;
 
     useEffect(() => {
         if (!isValidReference) {
@@ -42,7 +51,10 @@ const GoodsReceiptDetail = () => {
 
             try {
                 setBreadcrumbs([
-                    { to: '/goods-receipts', label: 'Penerimaan Barang' },
+                    {
+                        to: payableContext ? '/payables' : '/goods-receipts',
+                        label: payableContext ? 'Utang Pemasok' : 'Penerimaan Barang'
+                    },
                     receiptReference
                 ]);
                 await getGoodsReceiptDetails(
@@ -66,11 +78,12 @@ const GoodsReceiptDetail = () => {
             clearGoodsReceiptDetails();
         };
     }, [clearGoodsReceiptDetails, isValidReference, receiptReference,
-        setBreadcrumbs, getGoodsReceiptDetails, retryVersion]);
+        setBreadcrumbs, getGoodsReceiptDetails, payableContext, retryVersion]);
 
     if (!isValidReference) {
         return (
-            <div className="space-y-4">
+            <div className="space-y-4 pb-8">
+                <h1 className="text-2xl font-bold">{ detailTitle }</h1>
                 <Alert severity="error">Nomor penerimaan barang tidak valid.</Alert>
                 <Button component={ Link } to={ backTo } startIcon={ <ArrowLeft /> }>Kembali ke daftar</Button>
             </div>
@@ -88,7 +101,8 @@ const GoodsReceiptDetail = () => {
 
     if (detailStatus === 'error' || !isCurrentReceipt) {
         return (
-            <div className="space-y-4">
+            <div className="space-y-4 pb-8">
+                <h1 className="text-2xl font-bold">{ detailTitle }</h1>
                 <Alert
                     severity="error"
                     action={ (
@@ -108,23 +122,41 @@ const GoodsReceiptDetail = () => {
 
     return (
         <div className="goods-receipt-detail space-y-6 pb-8">
-            <div className="flex justify-between items-center print:hidden">
+            <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold">{ detailTitle }</h1>
+                    <p className="mt-1 break-all text-gray-600">{ receiptReference }</p>
+                </div>
                 <Button
                     component={ Link }
                     to={ backTo }
                     startIcon={ <ArrowLeft /> }
-                    variant="text"
-                    color="inherit"
+                    className="self-start print:hidden"
                 >
-                    Kembali
+                    Kembali ke daftar
                 </Button>
-            </div>
+            </header>
 
             <GoodsReceiptInfoCard receipt={ goodsReceiptDetails } />
 
-            <SupplierPayment key={ receiptReference } receipt={ goodsReceiptDetails } />
-
             <GoodsReceiptItemsTable goodsReceiptItems={ goodsReceiptDetails?.items || [] } />
+
+            <SupplierPaymentHistory
+                receiptCode={ receiptReference }
+                refreshKey={ paymentHistoryRefreshKey }
+            />
+
+            <section className="space-y-3 print:hidden" aria-labelledby="goods-receipt-payment-heading">
+                <div>
+                    <h2 id="goods-receipt-payment-heading" className="text-xl font-bold">
+                        Pembayaran pemasok
+                    </h2>
+                    <p className="mt-1 text-gray-600">
+                        Pembayaran adalah tugas terpisah setelah isi penerimaan selesai diperiksa.
+                    </p>
+                </div>
+                <SupplierPayment key={ receiptReference } receipt={ goodsReceiptDetails } />
+            </section>
         </div>
     );
 };

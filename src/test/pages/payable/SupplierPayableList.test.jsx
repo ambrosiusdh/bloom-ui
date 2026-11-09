@@ -39,8 +39,18 @@ const receipts = [
     }
 ];
 
-const response = (content = [], totalPages = content.length ? 1 : 0) => ({
-    data: { data: { content, totalPages, totalElements: content.length } }
+const response = (
+    content = [],
+    totalPages = content.length ? 1 : 0,
+    totalElements = content.length
+) => ({
+    data: {
+        data: {
+            content,
+            totalPages,
+            totalElements
+        }
+    }
 });
 
 const deferred = () => {
@@ -63,18 +73,19 @@ describe('SupplierPayableList FE-27 read workflow', () => {
     });
 
     it('renders server amounts/statuses and detail links from one paged request', async () => {
-        goodsReceiptApi.getGoodsReceiptList.mockResolvedValue(response(receipts, 3));
+        goodsReceiptApi.getGoodsReceiptList.mockResolvedValue(response(receipts, 3, 30));
         render(<SupplierPayableList />, {
             route: '/payables?key=supplierName&q=Nusantara&page=2&size=25'
         });
 
         expect(await screen.findByRole('link', { name: 'Nusantara Tekstil' }))
             .toHaveAttribute('href', '/suppliers/SUP-001');
-        expect(screen.getByRole('link', { name: 'GR/IX-2026/0001' }))
+        expect(screen.getByRole('link', { name: 'Buka detail utang GR/IX-2026/0001' }))
             .toHaveAttribute('href', '/goods-receipts/GR%2FIX-2026%2F0001');
         expect(screen.getByLabelText('Status pembayaran: Belum dibayar')).toBeInTheDocument();
         expect(screen.getByLabelText('Status pembayaran: Dibayar sebagian')).toBeInTheDocument();
         expect(screen.getByLabelText('Status pembayaran: Lunas')).toBeInTheDocument();
+        expect(screen.queryByText('Kode pemasok')).not.toBeInTheDocument();
         expect(screen.getByText('Sisa: Rp 100.000')).toBeInTheDocument();
         expect(screen.getByText('Sisa: Rp 50.000')).toBeInTheDocument();
         expect(screen.getByText('Sisa: Rp 0')).toBeInTheDocument();
@@ -98,14 +109,41 @@ describe('SupplierPayableList FE-27 read workflow', () => {
 
         expect(screen.getByRole('status')).toHaveTextContent('Memuat utang pemasok...');
         await act(async () => firstRequest.reject(new Error('Utang gagal dimuat.')));
-        expect(await screen.findByText('Utang gagal dimuat.')).toBeInTheDocument();
+        expect(await screen.findByRole('alert')).toHaveTextContent('Utang gagal dimuat.');
 
         goodsReceiptApi.getGoodsReceiptList.mockResolvedValueOnce(response());
         await user.click(screen.getByRole('button', { name: 'Coba lagi' }));
 
-        expect(await screen.findByText('Belum ada penerimaan pemasok')).toBeInTheDocument();
+        expect(await screen.findByText('Tidak ada penerimaan yang cocok')).toBeInTheDocument();
         await waitFor(() => expect(goodsReceiptApi.getGoodsReceiptList).toHaveBeenCalledTimes(2));
         expect(goodsReceiptApi.getGoodsReceiptList.mock.calls[1][0])
             .toEqual({ page: 1, size: 10, code: 'GR-404' });
+    });
+
+    it('keeps discovery URL-backed and exposes range and previous/next paging', async () => {
+        goodsReceiptApi.getGoodsReceiptList.mockResolvedValue(response(receipts, 3, 30));
+        const user = userEvent.setup();
+
+        render(<SupplierPayableList />, {
+            route: '/payables?key=code&q=GR&page=2&size=10'
+        });
+
+        expect(await screen.findByText('11–13 dari 30 penerimaan · Terbaru lebih dulu'))
+            .toBeInTheDocument();
+        expect(screen.getByText('Halaman 2 dari 3')).toBeInTheDocument();
+        expect(screen.getByRole('table')).toHaveClass('!block', 'xl:!table');
+        expect(screen.getAllByRole('row')[1]).toHaveClass('!grid', 'xl:!table-row');
+
+        await user.click(screen.getByRole('button', { name: 'Berikutnya' }));
+
+        await waitFor(() => expect(goodsReceiptApi.getGoodsReceiptList).toHaveBeenLastCalledWith(
+            {
+                page: 3,
+                size: 10,
+                code: 'GR'
+            },
+            { signal: expect.any(AbortSignal) },
+            { useLoader: false }
+        ));
     });
 });

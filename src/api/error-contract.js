@@ -1,4 +1,5 @@
 export const API_DOMAIN_ERROR_CODE = Object.freeze({
+    ITEM_SKU_ALREADY_EXISTS: 'item_sku_already_exists',
     ITEM_CATEGORY_ALREADY_EXISTS: 'item_category_already_exists',
     PRINTER_NOT_FOUND: 'printer_not_found',
     SALE_NOT_FOUND: 'sale_not_found',
@@ -37,6 +38,10 @@ const LEGACY_DOMAIN_ERRORS = Object.freeze({
 });
 
 export const getLegacyDomainErrorCode = (status, data) => {
+    if (status === 409 && data?.code === API_DOMAIN_ERROR_CODE.ITEM_SKU_ALREADY_EXISTS) {
+        return API_DOMAIN_ERROR_CODE.ITEM_SKU_ALREADY_EXISTS;
+    }
+
     if (typeof data?.code === 'string' && STRUCTURED_DOMAIN_CODES.has(data.code)) {
         return data.code;
     }

@@ -30,20 +30,23 @@ export default function CashierPurchaseConfirmationModal({
 
     return (
         <section
-            className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4"
+            className="cashier-checkout__review mt-4 rounded-xl border p-4"
             aria-labelledby="cashier-checkout-review-title"
             aria-busy={ isPending }
         >
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h3 id="cashier-checkout-review-title" className="font-bold text-blue-950">
+                    <h3
+                        id="cashier-checkout-review-title"
+                        className="cashier-checkout__review-title font-bold"
+                    >
                         { isSubmitting
                             ? 'Mengirim permintaan yang sama'
                             : isChecking
                                 ? 'Memeriksa hasil di server'
                                 : 'Pastikan barang dan pembayaran' }
                     </h3>
-                    <p className="mt-1 text-sm text-blue-900">
+                    <p className="cashier-checkout__review-copy mt-1 text-sm">
                         Permintaan belum menjadi penjualan. Nilai resmi tetap ditetapkan server.
                     </p>
                 </div>
@@ -59,16 +62,19 @@ export default function CashierPurchaseConfirmationModal({
 
             <div className="mt-4 space-y-2" aria-label="Barang yang dikonfirmasi">
                 { itemList.map(item => (
-                    <div className="rounded-lg border border-blue-100 bg-white p-3 text-sm" key={ item.sku }>
+                    <div
+                        className="cashier-checkout__review-card rounded-lg border p-3 text-sm"
+                        key={ item.sku }
+                    >
                         <div className="font-semibold">{ item.name }</div>
-                        <div className="mt-1 text-slate-600">
+                        <div className="cashier-checkout__review-secondary mt-1">
                             { formatQuantity(item.quantity, item.baseUnitOfMeasure) } dari STORE
                         </div>
                     </div>
                 )) }
             </div>
 
-            <dl className="mt-4 rounded-lg border border-blue-100 bg-white p-3 text-sm">
+            <dl className="cashier-checkout__review-card mt-4 rounded-lg border p-3 text-sm">
                 <div className="flex justify-between gap-3">
                     <dt>Metode</dt>
                     <dd className="font-semibold">{ PAYMENT_LABELS[request.paymentType] }</dd>
