@@ -58,7 +58,7 @@ export const navigationGroups = [
                 to: '/stock-movements',
                 icon: HistoryIcon,
                 label: 'Pergerakan stok',
-                matchPaths: ['/stock-movements', '/stock-transfers/new']
+                matchPaths: ['/stock-movements', '/stock-transfers', '/stock-transfers/*']
             }
         ]
     },
@@ -167,7 +167,21 @@ const routeBreadcrumbs = [
     },
     {
         path: '/stock-transfers/new',
-        breadcrumbs: ['Persediaan', { to: '/stock-movements', label: 'Pergerakan stok' }, 'Buat transfer stok']
+        breadcrumbs: ['Persediaan', {
+            to: '/stock-transfers',
+            label: 'Riwayat transfer stok'
+        }, 'Buat transfer stok']
+    },
+    {
+        path: '/stock-transfers/:code',
+        breadcrumbs: ['Persediaan', {
+            to: '/stock-transfers',
+            label: 'Riwayat transfer stok'
+        }, 'Detail transfer stok']
+    },
+    {
+        path: '/stock-transfers',
+        breadcrumbs: ['Persediaan', 'Riwayat transfer stok']
     },
     {
         path: '/stock-movements',

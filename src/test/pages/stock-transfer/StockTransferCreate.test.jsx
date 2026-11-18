@@ -1,6 +1,7 @@
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { normalizeApiError } from '@api/index.js';
 import StockTransferCreate from '@pages/stock-transfer/StockTransferCreate.jsx';
 import useAuthStore from '@stores/modules/auth.js';
 import useItemStore from '@stores/modules/item.js';
@@ -12,7 +13,8 @@ import {
     act,
     render,
     screen,
-    waitFor
+    waitFor,
+    within
 } from '@/test/render.jsx';
 
 const itemApi = vi.hoisted(() => ({
@@ -51,12 +53,15 @@ const wholeItem = {
     stockWarehouse: '9.0000'
 };
 
-const itemListResponse = (content = [fractionalItem, wholeItem]) => ({
+const itemListResponse = (
+    content = [fractionalItem, wholeItem],
+    totalPages = content.length ? 1 : 0
+) => ({
     data: {
         data: {
             content,
             totalElements: content.length,
-            totalPages: content.length ? 1 : 0
+            totalPages
         }
     }
 });
@@ -92,14 +97,23 @@ const deferred = () => {
     return { promise, reject, resolve };
 };
 
-const selectItem = async (user, name = '[KAIN-00001] Kain katun') => {
-    await user.click(screen.getByRole('combobox', { name: 'Barang' }));
-    await user.click(screen.getByRole('option', { name }));
+const selectItem = async (user, sku = 'KAIN-00001') => {
+    const itemSelector = screen.getByRole('combobox', { name: 'Barang' });
+
+    await waitFor(
+        () => expect(itemSelector).toBeEnabled(),
+        { timeout: 3000 }
+    );
+    await user.clear(itemSelector);
+    await user.type(itemSelector, sku);
+    await user.click(await screen.findByRole('option', { name: new RegExp(sku, 'i') }));
 };
+
+const getQuantityField = () => screen.getByRole('textbox', { name: 'Jumlah transfer' });
 
 const openConfirmation = async (user, quantity = '1,2500') => {
     await selectItem(user);
-    await user.type(screen.getByLabelText('Jumlah transfer'), quantity);
+    await user.type(getQuantityField(), quantity);
     await user.type(screen.getByLabelText('Keterangan (opsional)'), 'Isi rak toko');
     await user.click(screen.getByRole('button', { name: 'Tinjau transfer' }));
     return screen.findByRole('dialog', { name: 'Konfirmasi transfer stok' });
@@ -107,7 +121,7 @@ const openConfirmation = async (user, quantity = '1,2500') => {
 
 describe('StockTransferCreate', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
         sessionStorage.clear();
         useAuthStore.setState({
             authStatus: 'authenticated',
@@ -166,11 +180,46 @@ describe('StockTransferCreate', () => {
         expect(screen.getByLabelText('Lokasi tujuan')).toHaveTextContent('Gudang');
 
         await selectItem(user);
-        await user.type(screen.getByLabelText('Jumlah transfer'), '1');
+        await user.type(getQuantityField(), '1');
         await user.click(screen.getByRole('button', { name: 'Tinjau transfer' }));
 
         expect(await screen.findByRole('dialog', { name: 'Konfirmasi transfer stok' }))
-            .toHaveTextContent('dari Toko (STORE) ke Gudang (WAREHOUSE)');
+            .toHaveTextContent(/Toko \(STORE\).*Gudang \(WAREHOUSE\)/s);
+    });
+
+    it('loads every active item page and supports keyboard-first name or SKU search', async () => {
+        const user = userEvent.setup();
+        itemApi.getItemList
+            .mockResolvedValueOnce(itemListResponse([fractionalItem], 2))
+            .mockResolvedValueOnce(itemListResponse([wholeItem], 2));
+
+        render(<StockTransferCreate />, { route: '/stock-transfers/new' });
+        const itemSelector = await screen.findByRole('combobox', { name: 'Barang' });
+        await user.type(itemSelector, 'benang');
+
+        const option = await screen.findByRole('option', { name: /BENANG-00001/i });
+        expect(option).toHaveTextContent('Benang gulung');
+        expect(option).toHaveTextContent('Jumlah utuh');
+        expect(option).toHaveTextContent('Toko 3 pcs');
+        await user.keyboard('{ArrowDown}{Enter}');
+
+        expect(itemSelector).toHaveValue('BENANG-00001 · Benang gulung');
+        expect(itemApi.getItemList).toHaveBeenNthCalledWith(1, {
+            signal: expect.any(AbortSignal),
+            params: {
+                page: 1,
+                size: 100,
+                isRemoved: false
+            }
+        }, { useLoader: false });
+        expect(itemApi.getItemList).toHaveBeenNthCalledWith(2, {
+            signal: expect.any(AbortSignal),
+            params: {
+                page: 2,
+                size: 100,
+                isRemoved: false
+            }
+        }, { useLoader: false });
     });
 
     it('uses roomier responsive spacing around the transfer controls', async () => {
@@ -200,18 +249,34 @@ describe('StockTransferCreate', () => {
         render(<StockTransferCreate />, { route: '/stock-transfers/new' });
         await screen.findByRole('combobox', { name: 'Barang' });
 
-        await selectItem(user, '[BENANG-00001] Benang gulung');
-        await user.type(screen.getByLabelText('Jumlah transfer'), '1,5');
+        await selectItem(user, 'BENANG-00001');
+        await user.type(getQuantityField(), '1,5');
         await user.click(screen.getByRole('button', { name: 'Tinjau transfer' }));
         expect(screen.getByText('Barang ini hanya dapat dipindahkan dalam jumlah utuh.'))
             .toBeInTheDocument();
 
-        await user.clear(screen.getByLabelText('Jumlah transfer'));
-        await user.type(screen.getByLabelText('Jumlah transfer'), '1,00001');
+        await user.clear(getQuantityField());
+        await user.type(getQuantityField(), '1,00001');
         await user.click(screen.getByRole('button', { name: 'Tinjau transfer' }));
         expect(screen.getByText('Maksimal 4 angka di belakang tanda desimal.'))
             .toBeInTheDocument();
         expect(stockTransferApi.createStockTransfer).not.toHaveBeenCalled();
+    });
+
+    it('starts confirmation on cancel and restores review focus after Escape', async () => {
+        const user = userEvent.setup();
+        render(<StockTransferCreate />, { route: '/stock-transfers/new' });
+        await screen.findByRole('combobox', { name: 'Barang' });
+        await openConfirmation(user);
+
+        expect(screen.getByRole('button', { name: 'Batal' })).toHaveFocus();
+        await user.keyboard('{Escape}');
+
+        expect(screen.queryByRole('dialog', { name: 'Konfirmasi transfer stok' }))
+            .not.toBeInTheDocument();
+        await waitFor(() => expect(screen.getByRole('button', {
+            name: 'Tinjau transfer'
+        })).toHaveFocus());
     });
 
     it('confirms one exact decimal request, blocks duplicates, shows the server reference, and refreshes affected data', async () => {
@@ -221,10 +286,18 @@ describe('StockTransferCreate', () => {
         render(<StockTransferCreate />, { route: '/stock-transfers/new?itemSku=KAIN-00001' });
         await screen.findByRole('combobox', { name: 'Barang' });
 
-        await user.type(screen.getByLabelText('Jumlah transfer'), '1,2500');
+        await user.type(getQuantityField(), '1,2500');
         await user.type(screen.getByLabelText('Keterangan (opsional)'), 'Isi rak toko');
         await user.click(screen.getByRole('button', { name: 'Tinjau transfer' }));
-        expect(await screen.findByText(/1,25 meter/)).toBeInTheDocument();
+        const confirmation = await screen.findByRole('dialog', {
+            name: 'Konfirmasi transfer stok'
+        });
+        expect(confirmation).toHaveTextContent('Kain katun');
+        expect(confirmation).toHaveTextContent('KAIN-00001');
+        expect(confirmation).toHaveTextContent('1,25 meter');
+        expect(confirmation).toHaveTextContent('12,5 meter');
+        expect(confirmation).toHaveTextContent('Isi rak toko');
+        expect(screen.getByRole('button', { name: 'Batal' })).toHaveFocus();
 
         await user.dblClick(screen.getByRole('button', { name: 'Pindahkan stok' }));
         expect(stockTransferApi.createStockTransfer).toHaveBeenCalledTimes(1);
@@ -241,6 +314,10 @@ describe('StockTransferCreate', () => {
             }
         }, expect.stringMatching(/^stock-transfer-/), undefined);
         expect(screen.getByRole('button', { name: 'Memindahkan...' })).toBeDisabled();
+        expect(screen.getByRole('group', {
+            name: 'Data transfer stok',
+            hidden: true
+        })).toBeDisabled();
 
         const requestKey = stockTransferApi.createStockTransfer.mock.calls[0][1];
         await act(async () => transferRequest.resolve({
@@ -252,12 +329,69 @@ describe('StockTransferCreate', () => {
             }
         }));
         expect(await screen.findByText('Transfer TRF-00042 berhasil.')).toBeInTheDocument();
-        expect(screen.getByText(/dipindahkan dari Gudang.*ke Toko/)).toBeInTheDocument();
-        expect(screen.getByLabelText('Jumlah transfer')).toHaveValue('');
+        const resultPanel = screen.getByRole('region', { name: 'Hasil transfer stok' });
+        expect(resultPanel).toHaveTextContent('Kain katun · KAIN-00001');
+        expect(resultPanel).toHaveTextContent('1,25 meter');
+        expect(resultPanel).toHaveTextContent('Gudang (WAREHOUSE)');
+        expect(resultPanel).toHaveTextContent('Toko (STORE)');
+        expect(resultPanel).toHaveTextContent('admin');
+        expect(screen.getByRole('link', { name: 'Buka pergerakan stok' }))
+            .toHaveAttribute('href', '/stock-movements?itemSku=KAIN-00001');
+        expect(screen.queryByRole('group', { name: 'Data transfer stok' }))
+            .not.toBeInTheDocument();
         await waitFor(() => expect(itemApi.getItemDetails).toHaveBeenCalledWith(
             'KAIN-00001', undefined, undefined
         ));
         expect(itemApi.getItemList).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps a known rejection editable, refreshes availability, and focuses guidance', async () => {
+        const user = userEvent.setup();
+        stockTransferApi.createStockTransfer.mockRejectedValueOnce(Object.assign(
+            new Error('Insufficient stock'),
+            {
+                category: 'request',
+                status: 400,
+                validationErrors: []
+            }
+        ));
+        render(<StockTransferCreate />, { route: '/stock-transfers/new' });
+        await screen.findByRole('combobox', { name: 'Barang' });
+        await openConfirmation(user, '999');
+
+        await user.click(screen.getByRole('button', { name: 'Pindahkan stok' }));
+
+        const alert = (await screen.findByText(/Transfer ditolak server/))
+            .closest('[role="alert"]');
+        await waitFor(() => expect(alert).toHaveFocus());
+        expect(getQuantityField()).toHaveValue('999');
+        expect(screen.getByLabelText('Keterangan (opsional)')).toHaveValue('Isi rak toko');
+        expect(screen.getByRole('group', { name: 'Data transfer stok' })).not.toBeDisabled();
+        expect(useStockTransferStore.getState()).toMatchObject({
+            stockTransferAttempt: null,
+            stockTransferCreateStatus: 'error'
+        });
+        expect(itemApi.getItemDetails).toHaveBeenCalledWith(
+            'KAIN-00001',
+            undefined,
+            undefined
+        );
+        expect(itemApi.getItemList).toHaveBeenCalledTimes(2);
+    });
+
+    it('reloads all availability data without changing the transfer intent', async () => {
+        const user = userEvent.setup();
+        render(<StockTransferCreate />, { route: '/stock-transfers/new' });
+        await screen.findByRole('combobox', { name: 'Barang' });
+        await selectItem(user);
+        await user.type(getQuantityField(), '2');
+
+        await user.click(screen.getByRole('button', { name: 'Muat ulang stok' }));
+
+        await waitFor(() => expect(itemApi.getItemList).toHaveBeenCalledTimes(2));
+        expect(screen.getByRole('combobox', { name: 'Barang' }))
+            .toHaveValue('KAIN-00001 · Kain katun');
+        expect(getQuantityField()).toHaveValue('2');
     });
 
     it('persists an uncertain request, locks editing, and reconciles after reload with the same key', async () => {
@@ -277,9 +411,14 @@ describe('StockTransferCreate', () => {
             .closest('[role="alert"]');
         expect(alert).toHaveTextContent('Formulir dikunci');
         await waitFor(() => expect(alert).toHaveFocus());
-        expect(screen.getByLabelText('Jumlah transfer')).toHaveValue('1.2500');
-        expect(screen.getByLabelText('Keterangan (opsional)')).toHaveValue('Isi rak toko');
-        expect(screen.getByRole('group', { name: 'Data transfer stok' })).toBeDisabled();
+        const recoveryPanel = screen.getByRole('region', {
+            name: 'Permintaan transfer yang dikunci'
+        });
+        expect(recoveryPanel).toHaveTextContent('Kain katun · KAIN-00001');
+        expect(recoveryPanel).toHaveTextContent('1,25 meter');
+        expect(recoveryPanel).toHaveTextContent('Isi rak toko');
+        expect(screen.queryByRole('group', { name: 'Data transfer stok' }))
+            .not.toBeInTheDocument();
 
         const durableState = sessionStorage.getItem(STOCK_TRANSFER_STORAGE_KEY);
         const firstPayload = stockTransferApi.createStockTransfer.mock.calls[0][0];
@@ -316,6 +455,37 @@ describe('StockTransferCreate', () => {
         expect(await screen.findByText('Transfer TRF-00042 berhasil.')).toBeInTheDocument();
     });
 
+    it('fails closed when the retained idempotency key conflicts with the server', async () => {
+        const user = userEvent.setup();
+        stockTransferApi.createStockTransfer.mockRejectedValueOnce(Object.assign(
+            new Error('Idempotency conflict'),
+            {
+                category: 'conflict',
+                status: 409,
+                validationErrors: []
+            }
+        ));
+        render(<StockTransferCreate />, { route: '/stock-transfers/new' });
+        await screen.findByRole('combobox', { name: 'Barang' });
+        await openConfirmation(user);
+
+        await user.click(screen.getByRole('button', { name: 'Pindahkan stok' }));
+
+        const alert = (await screen.findByText(/bertentangan dengan catatan server/))
+            .closest('[role="alert"]');
+        await waitFor(() => expect(alert).toHaveFocus());
+        expect(screen.getByRole('region', {
+            name: 'Permintaan transfer yang dikunci'
+        })).toHaveTextContent('KAIN-00001');
+        expect(screen.queryByRole('button', { name: 'Periksa hasil transfer' }))
+            .not.toBeInTheDocument();
+        expect(screen.queryByRole('group', { name: 'Data transfer stok' }))
+            .not.toBeInTheDocument();
+        expect(useStockTransferStore.getState()).toMatchObject({
+            stockTransferCreateStatus: 'key_conflict'
+        });
+    });
+
     it('quarantines another account recovery state without exposing its transfer facts', async () => {
         useStockTransferStore.setState({
             ...createStockTransferState('101'),
@@ -348,7 +518,8 @@ describe('StockTransferCreate', () => {
         expect(await screen.findByText(/pemulihan transfer milik akun lain/i))
             .toBeInTheDocument();
         expect(screen.queryByText('Rahasia akun asal')).not.toBeInTheDocument();
-        expect(screen.getByRole('group', { name: 'Data transfer stok' })).toBeDisabled();
+        expect(screen.queryByRole('group', { name: 'Data transfer stok' }))
+            .not.toBeInTheDocument();
         expect(stockTransferApi.createStockTransfer).not.toHaveBeenCalled();
     });
 
@@ -373,4 +544,207 @@ describe('StockTransferCreate', () => {
         });
         storageSpy.mockRestore();
     });
+
+    const prepareBatch = async user => {
+        await openConfirmation(user);
+        await user.click(screen.getByRole('button', { name: 'Batal' }));
+        await user.click(screen.getByRole('button', { name: 'Tambah baris' }));
+
+        const secondLine = within(screen.getByRole('region', { name: 'Baris transfer 2' }));
+        const selector = secondLine.getByRole('combobox', { name: 'Barang' });
+
+        expect(selector).toHaveFocus();
+        await user.type(selector, wholeItem.sku);
+        await user.click(await screen.findByRole('option', { name: /BENANG-00001/i }));
+        await user.type(secondLine.getByRole('textbox', { name: 'Jumlah transfer' }), '2');
+    };
+
+    const batchResponse = (payload, requestKey) => ({
+        data: {
+            data: {
+                ...transferResult,
+                requestKey,
+                // Backend persistence order may differ from the operator's line order.
+                lines: [...payload.data.lines].reverse().map((line, index) => ({
+                    ...line,
+                    id: 100 + index,
+                    itemName: line.itemSku === fractionalItem.sku ? fractionalItem.name : wholeItem.name
+                }))
+            }
+        }
+    });
+
+    it('confirms every line and posts one batch, accepting backend line order and refreshing all items', async () => {
+        const user = userEvent.setup();
+        const pending = deferred();
+
+        stockTransferApi.createStockTransfer.mockReturnValueOnce(pending.promise);
+        render(<StockTransferCreate />);
+        await prepareBatch(user);
+
+        expect(screen.getByRole('region', { name: 'Baris transfer 2' }))
+            .toHaveTextContent('Stok asal Gudang (WAREHOUSE) saat dimuat: 9 pcs');
+        await user.click(screen.getByRole('button', { name: 'Tinjau transfer' }));
+
+        const dialog = await screen.findByRole('dialog');
+
+        expect(dialog).toHaveTextContent('KAIN-00001');
+        expect(dialog).toHaveTextContent('BENANG-00001');
+        expect(dialog).toHaveTextContent('1,25 meter');
+        expect(dialog).toHaveTextContent('2 pcs');
+        expect(dialog).toHaveTextContent('Gudang (WAREHOUSE)');
+        expect(dialog).toHaveTextContent('Toko (STORE)');
+        expect(dialog).toHaveTextContent('Isi rak toko');
+        await user.dblClick(screen.getByRole('button', { name: 'Pindahkan stok' }));
+        expect(stockTransferApi.createStockTransfer).toHaveBeenCalledTimes(1);
+
+        const [payload, key] = stockTransferApi.createStockTransfer.mock.calls[0];
+
+        expect(payload.data.lines).toEqual([
+            {
+                itemSku: fractionalItem.sku,
+                quantity: '1.2500',
+                unitOfMeasure: 'METER'
+            },
+            {
+                itemSku: wholeItem.sku,
+                quantity: '2',
+                unitOfMeasure: 'PIECE'
+            }
+        ]);
+        await act(async () => pending.resolve(batchResponse(payload, key)));
+
+        const result = await screen.findByRole('region', { name: 'Hasil transfer stok' });
+
+        expect(result).toHaveTextContent('Kain katun · KAIN-00001');
+        expect(result).toHaveTextContent('Benang gulung · BENANG-00001');
+        expect(screen.getByRole('link', { name: 'Buka detail transfer' })).toHaveAttribute('href', '/stock-transfers/TRF-00042');
+        await waitFor(() => expect(itemApi.getItemDetails).toHaveBeenCalledWith(wholeItem.sku, undefined, undefined));
+        expect(itemApi.getItemDetails).toHaveBeenCalledWith(fractionalItem.sku, undefined, undefined);
+    }, 15000);
+
+    it('binds a backend invalid second line to its quantity and retains every entered batch value', async () => {
+        const user = userEvent.setup();
+        const rejected = normalizeApiError({
+            response: {
+                status: 400,
+                data: {
+                    errorType: 'StockTransferValidationException',
+                    message: 'Stock transfer rejected',
+                    errors: [{
+                        field: 'lines[1].quantity',
+                        lineIndex: 1,
+                        itemSku: wholeItem.sku,
+                        code: 'INSUFFICIENT_STOCK',
+                        message: 'Stok asal BENANG-00001 tidak cukup. Kurangi jumlah.'
+                    }]
+                }
+            }
+        });
+
+        stockTransferApi.createStockTransfer.mockRejectedValueOnce(rejected);
+        render(<StockTransferCreate />);
+        await prepareBatch(user);
+        await user.click(screen.getByRole('button', { name: 'Tinjau transfer' }));
+        await user.click(screen.getByRole('button', { name: 'Pindahkan stok' }));
+
+        expect(await screen.findByText(/Tidak ada baris yang dibukukan/)).toBeInTheDocument();
+
+        const secondLine = within(screen.getByRole('region', { name: 'Baris transfer 2' }));
+        const quantity = secondLine.getByRole('textbox', { name: 'Jumlah transfer' });
+
+        expect(secondLine.getByText('Stok asal BENANG-00001 tidak cukup. Kurangi jumlah.')).toBeInTheDocument();
+        await waitFor(() => expect(quantity).toHaveFocus());
+        expect(quantity).toHaveValue('2');
+        expect(quantity).toHaveAttribute('aria-invalid', 'true');
+        expect(screen.getAllByRole('textbox', { name: 'Jumlah transfer' })[0]).toHaveValue('1,2500');
+        expect(secondLine.getByRole('combobox', { name: 'Barang' })).toHaveValue('BENANG-00001 · Benang gulung');
+        expect(screen.getByLabelText('Keterangan (opsional)')).toHaveValue('Isi rak toko');
+        expect(screen.getByLabelText('Lokasi asal')).toHaveTextContent('Gudang');
+        expect(screen.getByLabelText('Lokasi tujuan')).toHaveTextContent('Toko');
+        expect(screen.queryByRole('region', { name: 'Hasil transfer stok' })).not.toBeInTheDocument();
+        expect(stockTransferApi.createStockTransfer).toHaveBeenCalledTimes(1);
+        expect(useStockTransferStore.getState().stockTransferAttempt).toBeNull();
+    }, 15000);
+
+    it('identifies missing and duplicate item lines and removes a line without changing remaining input', async () => {
+        const user = userEvent.setup();
+
+        render(<StockTransferCreate />);
+        await prepareBatch(user);
+        await user.click(screen.getByRole('button', { name: 'Tambah baris' }));
+        await user.click(screen.getByRole('button', { name: 'Tinjau transfer' }));
+
+        const thirdLine = within(screen.getByRole('region', { name: 'Baris transfer 3' }));
+        const selector = thirdLine.getByRole('combobox', { name: 'Barang' });
+
+        expect(thirdLine.getByText('Barang wajib dipilih.')).toBeInTheDocument();
+        expect(selector).toHaveFocus();
+        await user.type(selector, fractionalItem.sku);
+        await user.click(await screen.findByRole('option', { name: /KAIN-00001/i }));
+        await user.type(thirdLine.getByRole('textbox', { name: 'Jumlah transfer' }), '1');
+        await user.click(screen.getByRole('button', { name: 'Tinjau transfer' }));
+        expect(thirdLine.getByText(/Barang sudah dipilih di baris lain/)).toBeInTheDocument();
+        expect(stockTransferApi.createStockTransfer).not.toHaveBeenCalled();
+
+        await user.click(screen.getByRole('button', { name: 'Hapus baris 3' }));
+        expect(screen.queryByRole('region', { name: 'Baris transfer 3' })).not.toBeInTheDocument();
+        expect(screen.getAllByRole('textbox', { name: 'Jumlah transfer' }).map(input => input.value)).toEqual(['1,2500', '2']);
+        expect(screen.getByLabelText('Keterangan (opsional)')).toHaveValue('Isi rak toko');
+    }, 15000);
+
+    it('quarantines an incomplete batch response and never automatically replays it', async () => {
+        const user = userEvent.setup();
+
+        stockTransferApi.createStockTransfer.mockImplementation((payload, key) => Promise.resolve({
+            data: {
+                data: {
+                    ...transferResult,
+                    requestKey: key
+                }
+            }
+        }));
+        render(<StockTransferCreate />);
+        await prepareBatch(user);
+        await user.click(screen.getByRole('button', { name: 'Tinjau transfer' }));
+        await user.click(screen.getByRole('button', { name: 'Pindahkan stok' }));
+
+        expect(await screen.findByText(/Hasil transfer belum dapat dipastikan/)).toBeInTheDocument();
+        expect(screen.queryByRole('region', { name: 'Hasil transfer stok' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('group', { name: 'Data transfer stok' })).not.toBeInTheDocument();
+        expect(screen.getByRole('region', { name: 'Permintaan transfer yang dikunci' })).toHaveTextContent('BENANG-00001');
+        expect(useStockTransferStore.getState().stockTransferAttempt.request.lines).toHaveLength(2);
+        expect(stockTransferApi.createStockTransfer).toHaveBeenCalledTimes(1);
+    }, 15000);
+
+    it('retains the selected SKU when a rejected item disappears from the refreshed active list', async () => {
+        const user = userEvent.setup();
+
+        itemApi.getItemList.mockResolvedValueOnce(itemListResponse())
+            .mockResolvedValueOnce(itemListResponse([fractionalItem]));
+        stockTransferApi.createStockTransfer.mockRejectedValueOnce({
+            status: 400,
+            category: 'validation',
+            validationErrors: [{
+                field: 'lines[1].itemSku',
+                message: 'Barang BENANG-00001 sudah dinonaktifkan.'
+            }]
+        });
+        render(<StockTransferCreate />);
+        await prepareBatch(user);
+        await user.click(screen.getByRole('button', { name: 'Tinjau transfer' }));
+        await user.click(screen.getByRole('button', { name: 'Pindahkan stok' }));
+
+        expect(await screen.findByText(/Satuan dan stok di bawah adalah data terakhir/)).toBeInTheDocument();
+
+        const secondLine = within(screen.getByRole('region', { name: 'Baris transfer 2' }));
+
+        expect(secondLine.getByRole('combobox', { name: 'Barang' })).toHaveValue('BENANG-00001 · Benang gulung');
+        expect(secondLine.getByRole('textbox', { name: 'Jumlah transfer' })).toHaveValue('2');
+        expect(secondLine.getByText('Barang BENANG-00001 sudah dinonaktifkan.')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Tinjau transfer' }));
+        expect(secondLine.getByText('Barang ini tidak tersedia pada daftar aktif. Pilih barang aktif atau hapus baris.')).toBeInTheDocument();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(stockTransferApi.createStockTransfer).toHaveBeenCalledTimes(1);
+    }, 15000);
 });

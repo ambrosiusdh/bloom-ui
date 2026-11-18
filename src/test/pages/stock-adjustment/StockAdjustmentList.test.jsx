@@ -21,12 +21,38 @@ vi.mock('@api/stock-adjustment.js', () => ({ default: {
     getStockAdjustmentDetails: vi.fn(),
     getStockAdjustmentList: vi.fn()
 } }));
+vi.mock('@components/_ui/BloomDateRangePicker.jsx', () => ({
+    default: ({
+        endDate,
+        label,
+        onChange,
+        startDate
+    }) => (
+        <div>
+            <span aria-label={ label }>{ startDate }|{ endDate }</span>
+            <button
+                type="button"
+                onClick={ () => onChange({
+                    startDate: '2026-09-03',
+                    endDate: '2026-09-05'
+                }) }
+            >
+                Pilih rentang penyesuaian uji
+            </button>
+        </div>
+    )
+}));
 
 const adjustment = {
     stockAdjustmentCode: 'ADJ/IX-2026/0001',
     reason: 'Hitung fisik',
     createdBy: 'admin',
-    createdAt: '2026-09-12T03:00:00Z'
+    createdAt: '2026-09-12T03:00:00Z',
+    items: [{
+        stockLocation: 'STORE'
+    }, {
+        stockLocation: 'WAREHOUSE'
+    }]
 };
 const response = (content = [], totalPages = content.length ? 1 : 0) => ({
     data: {
@@ -72,7 +98,12 @@ describe('StockAdjustmentList FE-13 read workflow', () => {
         expect(await screen.findByText(adjustment.stockAdjustmentCode)).toBeInTheDocument();
         expect(screen.getByText('Hitung fisik')).toBeInTheDocument();
         expect(screen.getByText('admin')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Detail' })).toHaveAttribute(
+        expect(screen.getByText('2 barang')).toBeInTheDocument();
+        expect(screen.getByText('Toko dan Gudang')).toBeInTheDocument();
+        expect(screen.getAllByText('Referensi').length).toBeGreaterThan(0);
+        expect(screen.getByRole('link', {
+            name: `Buka detail ${ adjustment.stockAdjustmentCode }`
+        })).toHaveAttribute(
             'href',
             `/stock-adjustments/${ encodeURIComponent(adjustment.stockAdjustmentCode) }`
         );
@@ -98,7 +129,7 @@ describe('StockAdjustmentList FE-13 read workflow', () => {
         expect(await screen.findByRole('alert')).toHaveTextContent('Riwayat gagal dimuat.');
 
         await user.click(screen.getByRole('button', { name: 'Coba lagi' }));
-        expect(await screen.findByText('Belum ada penyesuaian stok')).toBeInTheDocument();
+        expect(await screen.findByText('Tidak ada hasil untuk filter ini')).toBeInTheDocument();
         expect(stockAdjustmentApi.getStockAdjustmentList).toHaveBeenCalledTimes(2);
     });
 
@@ -115,6 +146,34 @@ describe('StockAdjustmentList FE-13 read workflow', () => {
         expect(stockAdjustmentApi.getStockAdjustmentList.mock.calls[0][0]).toEqual({
             page: 1,
             size: 10
+        });
+    });
+
+    it('applies one selected date range from progressive filters', async () => {
+        const user = userEvent.setup();
+        stockAdjustmentApi.getStockAdjustmentList.mockResolvedValue(response([adjustment]));
+
+        render(<StockAdjustmentList />, {
+            route: '/stock-adjustments?startDate=2026-09-01&endDate=2026-09-12'
+        });
+
+        expect(await screen.findByLabelText('Rentang tanggal penyesuaian'))
+            .toHaveTextContent('2026-09-01|2026-09-12');
+        expect(stockAdjustmentApi.getStockAdjustmentList).toHaveBeenCalledWith({
+            page: 1,
+            size: 10,
+            startDate: expect.any(String),
+            endDate: expect.any(String)
+        }, { signal: expect.any(AbortSignal) }, { useLoader: false });
+
+        await user.click(screen.getByRole('button', { name: 'Pilih rentang penyesuaian uji' }));
+        await user.click(screen.getByRole('button', { name: 'Terapkan' }));
+
+        await waitFor(() => expect(stockAdjustmentApi.getStockAdjustmentList).toHaveBeenCalledTimes(2));
+        expect(stockAdjustmentApi.getStockAdjustmentList.mock.calls[1][0]).toMatchObject({
+            startDate: expect.any(String),
+            endDate: expect.any(String),
+            page: 1
         });
     });
 
@@ -142,7 +201,9 @@ describe('StockAdjustmentList FE-13 read workflow', () => {
             { route: '/stock-adjustments?q=ADJ&page=4&size=25' }
         );
 
-        await user.click(await screen.findByRole('link', { name: 'Detail' }));
+        await user.click(await screen.findByRole('link', {
+            name: `Buka detail ${ adjustment.stockAdjustmentCode }`
+        }));
 
         expect(screen.getByLabelText('Asal daftar detail')).toHaveTextContent(
             '/stock-adjustments?q=ADJ&page=4&size=25'

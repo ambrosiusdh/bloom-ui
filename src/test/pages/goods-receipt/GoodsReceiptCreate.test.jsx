@@ -5,45 +5,128 @@ import goodsReceiptApi from '@api/goods-receipt.js';
 import { normalizeApiError } from '@api/index.js';
 import itemApi from '@api/item.js';
 import supplierApi from '@api/supplier.js';
-import { newReceiptDraft, receiptRequest, validateReceipt, validateReceiptDecimal } from '@components/goods-receipt/receipt-create.js';
+import {
+    formatReceiptDraftDateTime,
+    getReceiptInputEstimate,
+    getReceiptLineInputEstimate,
+    migrateReceiptDraft,
+    newReceiptDraft,
+    receiptRequest,
+    validateReceipt,
+    validateReceiptDecimal
+} from '@components/goods-receipt/receipt-create.js';
 import GoodsReceiptCreate from '@pages/goods-receipt/GoodsReceiptCreate.jsx';
+import useAuthStore from '@stores/modules/auth.js';
 import useCreate from '@stores/modules/goods-receipt-create.js';
 import { act, fireEvent, render, screen, waitFor, within } from '@/test/render.jsx';
 
-vi.mock('@api/goods-receipt.js', () => ({ default: { createGoodsReceipt: vi.fn() } }));
+vi.mock('@api/goods-receipt.js', () => ({
+    default: {
+        createGoodsReceipt: vi.fn(),
+        getGoodsReceiptSubmission: vi.fn()
+    }
+}));
 vi.mock('@api/item.js', () => ({ default: { getItemList: vi.fn() } }));
 vi.mock('@api/supplier.js', () => ({ default: { getSupplierList: vi.fn() } }));
 
-const supplier = { code: 'SUP-007', name: 'Pemasok Sama', active: true };
-const item = { sku: 'KAIN-1', name: 'Kain', active: true, baseUnitOfMeasure: 'METER', fractionalQuantityAllowed: true };
-const draft = () => ({ supplier, receivedTime: '2026-09-09T09:15', offset: '+07:00', description: '  Nota 10  ', items: [
-    { id: 'line-1', item, quantity: '0,5000', purchasePrice: '25000,1250', stockLocation: 'WAREHOUSE' }
-] });
+const supplier = {
+    code: 'SUP-007',
+    name: 'Pemasok Sama',
+    active: true
+};
+const item = {
+    sku: 'KAIN-1',
+    name: 'Kain',
+    active: true,
+    baseUnitOfMeasure: 'METER',
+    fractionalQuantityAllowed: true
+};
+const draft = () => ({
+    supplier,
+    receivedDate: '09-09-2026',
+    receivedTime: '09:15',
+    offset: '+07:00',
+    description: '  Nota 10  ',
+    items: [
+        {
+            id: 'line-1',
+            item,
+            quantity: '0,5000',
+            purchasePrice: '25000,1250',
+            stockLocation: 'WAREHOUSE'
+        }
+    ]
+});
 const receipt = {
-    code: 'GR/IX-2026/0026', supplierId: 7, supplierCode: supplier.code, supplierName: supplier.name,
-    receivedDate: '2026-09-09T02:15:00Z', totalAmount: '17000.25', paidAmount: '1000',
-    outstandingAmount: '16000.25', status: 'POSTED', paymentStatus: 'PARTIALLY_PAID',
-    items: [{ item, quantity: '0.5', baseUnitOfMeasure: 'METER', purchasePrice: '25000.125', lineTotal: '17000.25', stockLocation: 'WAREHOUSE' }]
+    code: 'GR/IX-2026/0026',
+    supplierId: 7,
+    supplierCode: supplier.code,
+    supplierName: supplier.name,
+    receivedDate: '2026-09-09T02:15:00Z',
+    totalAmount: '17000.25',
+    paidAmount: '1000',
+    outstandingAmount: '16000.25',
+    status: 'POSTED',
+    paymentStatus: 'PARTIALLY_PAID',
+    items: [
+        {
+            item,
+            quantity: '0.5',
+            baseUnitOfMeasure: 'METER',
+            purchasePrice: '25000.125',
+            lineTotal: '17000.25',
+            stockLocation: 'WAREHOUSE'
+        }
+    ]
 };
-const response = content => ({ data: { data: { content } } });
+const response = content => ({
+    data: {
+        data: { content }
+    }
+});
 const deferred = () => {
-    let resolve, reject;
-    const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
-    return { promise, resolve, reject };
+    let resolve;
+    let reject;
+    const promise = new Promise((yes, no) => {
+        resolve = yes;
+        reject = no;
+    });
+
+    return {
+        promise,
+        resolve,
+        reject
+    };
 };
-const seed = value => useCreate.setState({ draft: value, attempt: null, result: null, pending: false, outcome: 'editing', errors: {} });
+const seed = value => useCreate.setState({
+    ownerAccountId: '101',
+    draft: value,
+    attempt: null,
+    result: null,
+    pending: false,
+    outcome: 'editing',
+    errors: {}
+});
 const openReview = async user => {
     await user.click(screen.getByRole('button', { name: 'Tinjau penerimaan' }));
-    return screen.findByRole('dialog', { name: 'Konfirmasi penerimaan barang' });
+    return screen.findByRole('dialog', { name: 'Tinjau penerimaan' });
 };
 
 beforeEach(() => {
     vi.clearAllMocks();
+    useAuthStore.setState({
+        authStatus: 'authenticated',
+        currentUser: {
+            accountId: '101',
+            username: 'admin'
+        }
+    });
     sessionStorage.clear();
     seed(draft());
     itemApi.getItemList.mockResolvedValue(response([item]));
     supplierApi.getSupplierList.mockResolvedValue(response([supplier]));
     goodsReceiptApi.createGoodsReceipt.mockResolvedValue({ data: { data: receipt } });
+    goodsReceiptApi.getGoodsReceiptSubmission.mockResolvedValue({ data: { data: receipt } });
 });
 
 describe('FE-26 input and exact request boundary', () => {
@@ -55,16 +138,94 @@ describe('FE-26 input and exact request boundary', () => {
         expect(validateReceiptDecimal('2.0000', false)).toBe('');
         expect(validateReceiptDecimal('0.5', false)).toMatch(/utuh/);
         const input = draft();
-        input.items.push({ ...input.items[0], id: 'line-2', purchasePrice: '10.01', stockLocation: 'STORE' });
+        input.items.push({
+            ...input.items[0],
+            id: 'line-2',
+            purchasePrice: '10.01',
+            stockLocation: 'STORE'
+        });
         expect(validateReceipt(input)).toEqual({});
-        expect(receiptRequest(input)).toEqual({ supplierCode: 'SUP-007', receivedDate: '2026-09-09T02:15:00.000Z', description: 'Nota 10',
-            items: [ { itemSku: 'KAIN-1', quantity: '0.5', purchasePrice: '25000.125', stockLocation: 'WAREHOUSE' },
-                { itemSku: 'KAIN-1', quantity: '0.5', purchasePrice: '10.01', stockLocation: 'STORE' } ] });
+        expect(receiptRequest(input)).toEqual({
+            supplierCode: 'SUP-007',
+            receivedDate: '2026-09-09T02:15:00.000Z',
+            description: 'Nota 10',
+            items: [
+                {
+                    itemSku: 'KAIN-1',
+                    quantity: '0.5',
+                    purchasePrice: '25000.125',
+                    stockLocation: 'WAREHOUSE'
+                },
+                {
+                    itemSku: 'KAIN-1',
+                    quantity: '0.5',
+                    purchasePrice: '10.01',
+                    stockLocation: 'STORE'
+                }
+            ]
+        });
         expect(input.items[0].quantity).toBe('0,5000');
         input.offset = '';
-        input.receivedTime = '2026-02-31T09:15';
+        input.receivedDate = '31-02-2026';
+        input.receivedTime = '24:15';
         input.items[0].stockLocation = '';
-        expect(validateReceipt(input)).toMatchObject({ offset: expect.any(String), receivedTime: expect.any(String), 'items[0].stockLocation': expect.any(String) });
+        expect(validateReceipt(input)).toMatchObject({
+            offset: expect.any(String),
+            receivedDate: expect.any(String),
+            receivedTime: expect.any(String),
+            'items[0].stockLocation': expect.any(String)
+        });
+    });
+
+    it('uses localized received date/time guidance and exact advisory input estimates only', () => {
+        const input = draft();
+        input.items = [
+            {
+                ...input.items[0],
+                quantity: '2',
+                purchasePrice: '1500'
+            },
+            {
+                ...input.items[0],
+                id: 'line-2',
+                quantity: '0,75',
+                purchasePrice: '25000,125'
+            },
+            {
+                ...input.items[0],
+                id: 'line-3',
+                quantity: '0,25',
+                purchasePrice: '26000,5'
+            }
+        ];
+
+        expect(getReceiptLineInputEstimate(input.items[1])).toBe('18750.0938');
+        expect(getReceiptInputEstimate(input.items)).toBe('28250.2188');
+        expect(formatReceiptDraftDateTime(input)).toBe('9 Sep 2026, 09.15 WIB (UTC+07)');
+        expect(getReceiptInputEstimate([
+            {
+                ...input.items[0],
+                purchasePrice: ''
+            }
+        ])).toBeNull();
+
+        const microscopic = draft();
+        microscopic.items[0].quantity = '0,0001';
+        microscopic.items[0].purchasePrice = '0,0001';
+        expect(validateReceipt(microscopic)).toMatchObject({
+            'items[0].purchasePrice': expect.stringMatching(/Rp 0,0001/)
+        });
+    });
+
+    it('migrates a legacy durable draft without changing its local instant', () => {
+        const legacyDraft = draft();
+        delete legacyDraft.receivedDate;
+        legacyDraft.receivedTime = '2026-09-09T09:15';
+
+        expect(migrateReceiptDraft(legacyDraft)).toMatchObject({
+            receivedDate: '09-09-2026',
+            receivedTime: '09:15'
+        });
     });
     it('normalizes the verified backend idempotency conflict', () => {
         expect(normalizeApiError({ response: { status: 409, data: { errorType: 'GoodsReceiptIdempotencyConflictException' } } })).toMatchObject({
@@ -93,13 +254,13 @@ describe('FE-26 atomic posting and recovery', () => {
         expect(dialog).toHaveTextContent('WAREHOUSE');
         expect(within(dialog).getByRole('button', { name: 'Kembali' })).toHaveFocus();
         await user.keyboard('{Shift>}{Tab}{/Shift}');
-        expect(within(dialog).getByRole('button', { name: 'Simpan penerimaan' })).toHaveFocus();
+        expect(within(dialog).getByRole('button', { name: 'Catat penerimaan' })).toHaveFocus();
         await user.keyboard('{Escape}');
         await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
         expect(screen.getByRole('button', { name: 'Tinjau penerimaan' })).toHaveFocus();
         expect(goodsReceiptApi.createGoodsReceipt).not.toHaveBeenCalled();
         await openReview(user);
-        await user.dblClick(screen.getByRole('button', { name: 'Simpan penerimaan' }));
+        await user.dblClick(screen.getByRole('button', { name: 'Catat penerimaan' }));
         expect(goodsReceiptApi.createGoodsReceipt).toHaveBeenCalledTimes(1);
         expect(screen.getByRole('button', { name: 'Kembali' })).toBeDisabled();
         await user.keyboard('{Escape}');
@@ -114,7 +275,9 @@ describe('FE-26 atomic posting and recovery', () => {
         expect(screen.getAllByText('Rp 17.000,25').length).toBeGreaterThan(0);
         expect(screen.getByText('Rp 1.000')).toBeInTheDocument();
         expect(screen.getByText('Rp 16.000,25')).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Simpan penerimaan' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Catat penerimaan' })).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Buka detail penerimaan' }))
+            .toHaveAttribute('href', '/goods-receipts/GR%2FIX-2026%2F0026');
     });
     it.each([400, 404, 409, 422, 401, 403])('preserves draft on known HTTP %s rejection', async status => {
         goodsReceiptApi.createGoodsReceipt.mockRejectedValue({ status });
@@ -122,25 +285,43 @@ describe('FE-26 atomic posting and recovery', () => {
         expect(useCreate.getState()).toMatchObject({ draft: draft(), attempt: null, pending: false, result: null });
         expect(useCreate.getState().outcome).not.toBe('uncertain');
     });
+    it('shows a definitive rejection and unlocks the preserved draft for correction', async () => {
+        const user = userEvent.setup();
+        goodsReceiptApi.createGoodsReceipt.mockRejectedValue({ status: 422 });
+        render(<GoodsReceiptCreate />);
+
+        await openReview(user);
+        await user.click(screen.getByRole('button', { name: 'Catat penerimaan' }));
+
+        const rejection = await screen.findByRole('alert');
+        expect(rejection).toHaveTextContent('Penerimaan ditolak');
+        expect(rejection).toHaveFocus();
+        expect(screen.getByRole('combobox', { name: 'Pemasok' })).toBeEnabled();
+        expect(useCreate.getState()).toMatchObject({
+            attempt: null,
+            result: null,
+            outcome: 'rejected'
+        });
+    });
     it('maps server field errors, focuses the affected line and keeps comma drafts', async () => {
         const user = userEvent.setup();
         goodsReceiptApi.createGoodsReceipt.mockRejectedValue({ status: 400, validationErrors: [{ field: 'items[0].purchasePrice', message: 'Rejected' }] });
         render(<GoodsReceiptCreate />);
         await openReview(user);
-        await user.click(screen.getByRole('button', { name: 'Simpan penerimaan' }));
+        await user.click(screen.getByRole('button', { name: 'Catat penerimaan' }));
         const price = screen.getByRole('textbox', { name: /Harga beli baris 1/ });
         await waitFor(() => expect(price).toHaveFocus());
         expect(price).toHaveValue('25000,1250');
         expect(price).toHaveAttribute('aria-invalid', 'true');
         expect(screen.getByRole('textbox', { name: 'Jumlah baris 1' })).toHaveValue('0,5000');
     });
-    it('freezes uncertain submissions, retains the key across reload, and replays exactly once explicitly', async () => {
+    it('freezes uncertain submissions and resolves the original key through a read-only lookup after reload', async () => {
         const user = userEvent.setup();
         const pending = deferred();
         goodsReceiptApi.createGoodsReceipt.mockReturnValueOnce(pending.promise);
         const view = render(<GoodsReceiptCreate />);
         await openReview(user);
-        await user.click(screen.getByRole('button', { name: 'Simpan penerimaan' }));
+        await user.click(screen.getByRole('button', { name: 'Catat penerimaan' }));
         const original = goodsReceiptApi.createGoodsReceipt.mock.calls[0];
         const stored = sessionStorage.getItem('bloom-receipt-create-v1');
         expect(JSON.parse(stored).state.outcome).toBe('uncertain');
@@ -151,22 +332,36 @@ describe('FE-26 atomic posting and recovery', () => {
         await useCreate.persist.rehydrate();
         render(<GoodsReceiptCreate />);
         expect(screen.getByRole('textbox', { name: 'Jumlah baris 1' })).toBeDisabled();
-        await user.click(screen.getByRole('button', { name: 'Coba kembali permintaan yang sama' }));
-        await user.click(screen.getByRole('button', { name: 'Simpan penerimaan' }));
+        expect(screen.getByText('Permintaan yang sama disimpan')).toBeInTheDocument();
+        expect(screen.getByText(/Payload dan kunci idempotensi tetap terkunci/)).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Periksa status pengiriman' }));
         await waitFor(() => expect(useCreate.getState().result).toEqual(receipt));
-        expect(goodsReceiptApi.createGoodsReceipt.mock.calls[1]).toEqual(original);
+        expect(goodsReceiptApi.createGoodsReceipt).toHaveBeenCalledTimes(1);
+        expect(goodsReceiptApi.getGoodsReceiptSubmission).toHaveBeenCalledWith(original[1], { useLoader: false });
     });
-    it('keeps a replay rejection or idempotency conflict frozen and never issues a new key', async () => {
-        goodsReceiptApi.createGoodsReceipt.mockRejectedValueOnce({ status: 500 }).mockRejectedValueOnce({ status: 400 });
+    it('keeps missing lookup results unresolved and never reposts or issues a new key', async () => {
+        goodsReceiptApi.createGoodsReceipt.mockRejectedValue({ status: 500 });
+        goodsReceiptApi.getGoodsReceiptSubmission.mockRejectedValue({
+            status: 404,
+            domainCode: 'goods_receipt_submission_not_found'
+        });
         await useCreate.getState().submit();
         const attempt = useCreate.getState().attempt;
         await useCreate.getState().submit();
-        expect(useCreate.getState()).toMatchObject({ attempt, outcome: 'uncertain' });
-        goodsReceiptApi.createGoodsReceipt.mockRejectedValue({ status: 409, domainCode: 'goods_receipt_idempotency_conflict' });
+        expect(useCreate.getState()).toMatchObject({
+            attempt,
+            outcome: 'submissionMissing'
+        });
         await useCreate.getState().submit();
         useCreate.getState().updateDraft(newReceiptDraft());
         useCreate.getState().reset();
-        expect(useCreate.getState()).toMatchObject({ attempt, draft: draft(), outcome: 'keyConflict' });
+        expect(useCreate.getState()).toMatchObject({
+            attempt,
+            draft: draft(),
+            outcome: 'submissionMissing'
+        });
+        expect(goodsReceiptApi.createGoodsReceipt).toHaveBeenCalledTimes(1);
+        expect(goodsReceiptApi.getGoodsReceiptSubmission).toHaveBeenCalledTimes(2);
     });
     it('treats incomplete success as uncertain and guards simultaneous calls', async () => {
         goodsReceiptApi.createGoodsReceipt.mockResolvedValue({ data: { data: { code: 'GR-1' } } });
@@ -177,6 +372,29 @@ describe('FE-26 atomic posting and recovery', () => {
 });
 
 describe('FE-26 selection, line editing and responsive structure', () => {
+    it('renders Indonesian date/time fields, localized line facts, and an advisory estimate', async () => {
+        const user = userEvent.setup();
+        render(<GoodsReceiptCreate />);
+
+        expect(screen.getByRole('textbox', { name: 'Tanggal diterima' }))
+            .toHaveValue('09-09-2026');
+        expect(screen.getByText('Format DD-MM-YYYY, contoh 24-09-2026.'))
+            .toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: 'Waktu 24 jam' }))
+            .toHaveValue('09:15');
+        expect(screen.getByText('Format HH:mm, contoh 21:35.')).toBeInTheDocument();
+        expect(screen.getByText('Rp 12.500,0625')).toBeInTheDocument();
+        expect(screen.getByText(/Total resmi hanya berasal dari hasil server/))
+            .toBeInTheDocument();
+
+        const dialog = await openReview(user);
+        expect(dialog).toHaveTextContent('9 Sep 2026, 09.15 WIB (UTC+07)');
+        expect(dialog).toHaveTextContent('Gudang (WAREHOUSE)');
+        expect(dialog).toHaveTextContent('Perkiraan dari input');
+        expect(dialog).toHaveTextContent('Rp 12.500,0625');
+        expect(dialog).toHaveTextContent('Tanpa pembayaran awal.');
+    });
+
     it('selects stable supplier identity, adds repeated items with separate prices/locations, and moves focus on add/remove', async () => {
         const user = userEvent.setup();
         seed(newReceiptDraft());
@@ -202,7 +420,11 @@ describe('FE-26 selection, line editing and responsive structure', () => {
         expect(screen.getByRole('textbox', { name: 'Jumlah baris 1' })).toHaveValue('0,50');
         expect(screen.getByRole('textbox', { name: /Harga beli baris 1/ })).toHaveValue('12,5000');
         const layout = screen.getByRole('textbox', { name: /Harga beli baris 1/ }).closest('.grid');
-        expect(layout).toHaveClass('grid-cols-1', 'lg:grid-cols-3');
+        expect(layout).toHaveClass(
+            'grid-cols-1',
+            'sm:grid-cols-2',
+            'xl:grid-cols-[minmax(180px,1.2fr)_minmax(190px,.8fr)_minmax(160px,.7fr)_minmax(190px,.8fr)_auto]'
+        );
         await user.click(screen.getByRole('button', { name: 'Hapus baris 1' }));
         expect(screen.getByRole('textbox', { name: 'Jumlah baris 1' })).toHaveFocus();
         expect(screen.getByRole('textbox', { name: /Harga beli baris 1/ })).toHaveValue('');
@@ -234,6 +456,23 @@ describe('FE-26 selection, line editing and responsive structure', () => {
         await user.click(screen.getByRole('button', { name: 'Tinjau penerimaan' }));
         expect(screen.getByRole('textbox', { name: 'Jumlah baris 1' })).toHaveFocus();
         expect(screen.getByText(/Maksimal 4 angka desimal; nilai tidak dibulatkan/)).toBeInTheDocument();
+        expect(goodsReceiptApi.createGoodsReceipt).not.toHaveBeenCalled();
+    });
+    it('rejects invalid Indonesian date and 24-hour time before creating a request', async () => {
+        const user = userEvent.setup();
+        const input = draft();
+        input.receivedDate = '31-02-2026';
+        input.receivedTime = '25:61';
+        seed(input);
+        render(<GoodsReceiptCreate />);
+
+        await user.click(screen.getByRole('button', { name: 'Tinjau penerimaan' }));
+
+        expect(screen.getByRole('textbox', { name: 'Tanggal diterima' })).toHaveFocus();
+        expect(screen.getByText('Isi tanggal valid dengan format DD-MM-YYYY.'))
+            .toBeInTheDocument();
+        expect(screen.getByText('Isi waktu 24 jam dengan format HH:mm.'))
+            .toBeInTheDocument();
         expect(goodsReceiptApi.createGoodsReceipt).not.toHaveBeenCalled();
     });
 });

@@ -108,6 +108,11 @@ function App() {
 
     return (
         <div className={ `bloom ${isCashierMode ? 'bloom--cashier' : ''} flex w-full min-h-screen` }>
+            { !hideLayout && !isCashierMode && (
+                <a className="bloom-skip-link" href="#bloom-main-content">
+                    Lewati ke konten utama
+                </a>
+            ) }
             <Loader />
 
             { !hideLayout && !isCashierMode && (
@@ -121,7 +126,11 @@ function App() {
                     />
                 ) }
 
-                <div className={ `bloom__content-main ${ contentMainSpacing } flex-grow` }>
+                <div
+                    id="bloom-main-content"
+                    className={ `bloom__content-main ${ contentMainSpacing } flex-grow` }
+                    tabIndex={ -1 }
+                >
                     <Outlet />
                 </div>
             </div>

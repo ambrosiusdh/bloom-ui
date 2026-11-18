@@ -17,19 +17,44 @@ import { act, render, screen, waitFor, within } from '@/test/render.jsx';
 vi.mock('@api/supplier-payment.js', () => ({ default: { createSupplierPayment: vi.fn() }, SUPPLIER_PAYMENT_TIMEOUT_MS: 15000 }));
 vi.mock('@api/goods-receipt.js', () => ({ default: { getGoodsReceiptDetails: vi.fn() } }));
 vi.mock('@api/cash-session.js', () => ({ default: { getCurrentSession: vi.fn() } }));
-const receipt = { code: 'GR-28', supplierName: 'Pemasok Satu', status: 'POSTED', paymentStatus: 'UNPAID',
-    totalAmount: '100', paidAmount: '0', outstandingAmount: '100' };
+const receipt = {
+    code: 'GR-28',
+    supplierName: 'Pemasok Satu',
+    status: 'POSTED',
+    paymentStatus: 'UNPAID',
+    totalAmount: '100',
+    paidAmount: '0',
+    outstandingAmount: '100'
+};
 const response = data => ({ data: { data } });
+const cashSessionResponse = id => response({
+    id,
+    status: 'OPEN'
+});
 const intent = () => {
     const { code, ownerAccountId, draft } = paymentStore.getState();
     return {
         code,
         ownerAccountId,
-        request: paymentRequest(draft, '2026-09-10T02:00:00Z')
+        request: paymentRequest(draft, '2026-09-10T02:00:00Z'),
+        expectedCashSessionId: draft.paymentMethod === 'CASH'
+            ? cashStore.getState().currentSession?.id
+            : null
     };
 };
-const success = async (code, request, key) => response({ id: 28, receiptCode: code, idempotencyKey: key,
-    amount: request.amount, paymentMethod: request.paymentMethod, cashSessionId: request.paymentMethod === 'CASH' ? 15 : null, voided: false });
+const success = async (code, request, key) => response({
+    id: 28,
+    receiptCode: code,
+    idempotencyKey: key,
+    amount: request.amount,
+    paymentMethod: request.paymentMethod,
+    paidAt: request.paidAt,
+    reference: request.reference,
+    note: request.note,
+    actor: 'cashier-a',
+    cashSessionId: request.paymentMethod === 'CASH' ? 15 : null,
+    voided: false
+});
 function Workflow() {
     const data = receiptStore(state => state.goodsReceiptDetails);
     return <><GoodsReceiptInfoCard receipt={ data } /><SupplierPayment receipt={ data } /></>;
@@ -64,7 +89,7 @@ describe('FE-28 receipt payment', () => {
     });
 
     it.each(['Transfer bank', 'QRIS', 'Tunai (CASH)'])('confirms a partial %s payment and renders only refreshed server values', async method => {
-        cashApi.getCurrentSession.mockResolvedValue(response({ id: 15, status: 'OPEN' }));
+        cashApi.getCurrentSession.mockResolvedValue(cashSessionResponse(15));
         const user = userEvent.setup(); render(<Workflow />);
         if (method !== 'Transfer bank') await choose(user, method);
         await user.type(screen.getByLabelText('Nominal pembayaran'), '20,125');
@@ -72,8 +97,10 @@ describe('FE-28 receipt payment', () => {
         await confirm(user);
         const saved = await screen.findByText(/Pembayaran tercatat/);
         await waitFor(() => expect(saved.closest('[role="status"]')).toHaveFocus());
-        expect(screen.getByText('Belum dibayar').nextSibling).toHaveTextContent('Rp 65');
+        expect(screen.getByText('Sisa utang').nextSibling).toHaveTextContent('Rp 65');
         expect(screen.getByLabelText('Status pembayaran: Dibayar sebagian')).toBeInTheDocument();
+        expect(screen.getByLabelText('Catatan pembayaran dari server')).toHaveTextContent('Pelaku: cashier-a');
+        expect(screen.getByLabelText('Nilai penerimaan terbaru dari server')).toHaveTextContent('PARTIALLY_PAID');
         expect(supplierPaymentApi.createSupplierPayment).toHaveBeenCalledWith('GR-28', {
             amount: '20.125', paymentMethod: ({ 'Transfer bank': 'BANK_TRANSFER', QRIS: 'QRIS', 'Tunai (CASH)': 'CASH' })[method],
             reference: 'REF-28', note: null, paidAt: expect.any(String)
@@ -102,6 +129,23 @@ describe('FE-28 receipt payment', () => {
         await confirm(user);
         expect(await screen.findByLabelText('Status pembayaran: Lunas')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /berikutnya/ })).not.toBeInTheDocument();
+    });
+
+    it('reviews every frozen fact and states the non-cash drawer meaning before submission', async () => {
+        const user = userEvent.setup();
+        render(<Workflow />);
+        await user.type(screen.getByLabelText('Nominal pembayaran'), '25');
+        await user.click(screen.getByRole('button', { name: 'Tinjau pembayaran' }));
+
+        const dialog = screen.getByRole('dialog');
+        expect(dialog).toHaveTextContent('Pemasok Satu · GR-28');
+        expect(dialog).toHaveTextContent('Rp 25 · Transfer bank');
+        expect(dialog).toHaveTextContent('Sisa tagihan terakhir: Rp 100');
+        expect(dialog).toHaveTextContent('Referensi: Tidak ada');
+        expect(dialog).toHaveTextContent('Catatan: Tidak ada');
+        expect(dialog).toHaveTextContent('Waktu pembayaran:');
+        expect(dialog).toHaveTextContent('tidak memakai sesi kas dan tidak mengubah uang laci');
+        expect(within(dialog).getByRole('button', { name: 'Kembali' })).toHaveFocus();
     });
 
     it('requires verified CASH session, allows non-cash after read failure, and focuses invalid amount', async () => {
@@ -141,16 +185,18 @@ describe('FE-28 receipt payment', () => {
         supplierPaymentApi.createSupplierPayment.mockRejectedValue({ status: 409, domainCode });
         const user = userEvent.setup(); render(<Workflow />);
         if (domainCode === 'cash_session_conflict') {
-            cashApi.getCurrentSession.mockResolvedValue(response({ id: 15, status: 'OPEN' }));
+            cashApi.getCurrentSession.mockResolvedValue(cashSessionResponse(15));
             await choose(user, 'Tunai (CASH)');
             await waitFor(() => expect(screen.getByRole('button', { name: 'Tinjau pembayaran' })).toBeEnabled());
-            cashApi.getCurrentSession.mockResolvedValue(response(null));
+            cashApi.getCurrentSession
+                .mockResolvedValueOnce(cashSessionResponse(15))
+                .mockResolvedValue(response(null));
         }
         await user.type(screen.getByLabelText('Nominal pembayaran'), '101'); await confirm(user);
         expect(await screen.findByText(message)).toBeInTheDocument();
         await waitFor(() => expect(screen.getByLabelText('Nominal pembayaran')).toBeEnabled());
         expect(screen.getByLabelText('Nominal pembayaran')).toHaveValue('101');
-        expect(screen.getByText('Belum dibayar').nextSibling).toHaveTextContent('Rp 65');
+        expect(screen.getByText('Sisa utang').nextSibling).toHaveTextContent('Rp 65');
         expect(paymentStore.getState().attempt).toBeNull();
         if (domainCode === 'cash_session_conflict') {
             expect(cashStore.getState().drawerActionsEnabled).toBe(false);
@@ -180,11 +226,21 @@ describe('FE-28 receipt payment', () => {
         expect(screen.queryByRole('button', { name: 'Tinjau pembayaran' })).not.toBeInTheDocument();
     });
 
-    it('persists before POST, retains ambiguous rejection and locks other receipts until voided replay resolves', async () => {
+    it('persists before POST and never retargets ambiguous CASH recovery to a later session', async () => {
         const store = () => paymentStore.getState();
         store().select(receipt.code);
-        store().edit({ amount: '25', paymentMethod: 'CASH', reference: '', note: '' });
-        cashStore.setState({ currentStatus: 'ready', drawerActionsEnabled: true });
+        store().edit({
+            amount: '25',
+            paymentMethod: 'CASH',
+            reference: '',
+            note: ''
+        });
+        cashStore.setState({
+            currentStatus: 'ready',
+            currentSession: { id: 15, status: 'OPEN' },
+            drawerActionsEnabled: true
+        });
+        cashApi.getCurrentSession.mockResolvedValue(cashSessionResponse(15));
         supplierPaymentApi.createSupplierPayment.mockImplementationOnce(() => {
             expect(JSON.parse(sessionStorage.getItem('bloom-supplier-payment-v1')).state.attempt).toEqual(store().attempt);
             return Promise.reject(new Error('timeout'));
@@ -195,19 +251,56 @@ describe('FE-28 receipt payment', () => {
         paymentStore.setState(paymentStore.getInitialState());
         sessionStorage.setItem('bloom-supplier-payment-v1', durable);
         await paymentStore.persist.rehydrate();
-        cashStore.setState({ drawerActionsEnabled: false });
+        cashApi.getCurrentSession.mockResolvedValue(cashSessionResponse(16));
         store().select('OTHER');
         expect(store().code).toBe(receipt.code);
-        supplierPaymentApi.createSupplierPayment.mockRejectedValueOnce({ status: 409, domainCode: 'cash_session_conflict' });
         await store().submit();
         expect(store().attempt).toEqual(attempt);
+        expect(store().outcome).toBe('cashRecoveryBlocked');
+        expect(supplierPaymentApi.createSupplierPayment).toHaveBeenCalledTimes(1);
+
+        cashApi.getCurrentSession.mockResolvedValue(cashSessionResponse(15));
         supplierPaymentApi.createSupplierPayment.mockImplementationOnce(async (...args) => {
-            const data = await success(...args); data.data.data.voided = true; return data;
+            const data = await success(...args);
+            data.data.data.voided = true;
+            return data;
         });
         await store().submit();
         render(<Workflow />);
         expect(await screen.findByText(/sudah dibatalkan/)).toBeInTheDocument();
         expect(supplierPaymentApi.createSupplierPayment.mock.calls.every(args => JSON.stringify(args) === JSON.stringify(supplierPaymentApi.createSupplierPayment.mock.calls[0]))).toBe(true);
+    });
+
+    it('quarantines a legacy CASH recovery without an original session identity', async () => {
+        paymentStore.setState({
+            code: receipt.code,
+            ownerAccountId: '101',
+            draft: {
+                amount: '25',
+                paymentMethod: 'CASH',
+                reference: '',
+                note: ''
+            },
+            attempt: {
+                code: receipt.code,
+                ownerAccountId: '101',
+                key: 'legacy-cash-key',
+                request: paymentRequest({
+                    amount: '25',
+                    paymentMethod: 'CASH',
+                    reference: '',
+                    note: ''
+                }, '2026-09-10T02:00:00Z')
+            },
+            outcome: 'uncertain'
+        });
+        cashApi.getCurrentSession.mockResolvedValue(cashSessionResponse(15));
+
+        await paymentStore.getState().submit();
+
+        expect(paymentStore.getState().outcome).toBe('cashRecoveryBlocked');
+        expect(paymentStore.getState().attempt.key).toBe('legacy-cash-key');
+        expect(supplierPaymentApi.createSupplierPayment).not.toHaveBeenCalled();
     });
 
     it.each(['keyConflict', 'malformed', 'storage'])('does not offer a fresh payment after %s recovery failure', async failure => {

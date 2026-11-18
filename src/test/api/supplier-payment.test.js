@@ -5,6 +5,41 @@ vi.mock('@api/index.js', () => ({ default: requestApi }));
 import { getLegacyDomainErrorCode } from '@api/error-contract.js';
 import supplierPaymentApi from '@api/supplier-payment.js';
 
+it('reads paged payment history through the slash-safe receipt query parameter', async () => {
+    const response = {
+        data: {
+            data: {
+                content: [],
+                totalPages: 0
+            }
+        }
+    };
+    const options = { useLoader: false };
+    const signal = new AbortController().signal;
+
+    requestApi.mockResolvedValueOnce(response);
+
+    await expect(supplierPaymentApi.getSupplierPaymentHistory(
+        'GR/IX-2026/0002',
+        {
+            page: 1,
+            size: 10
+        },
+        { signal },
+        options
+    )).resolves.toBe(response);
+    expect(requestApi).toHaveBeenLastCalledWith({
+        url: '/api/goods-receipts/payments',
+        method: 'GET',
+        signal,
+        params: {
+            page: 1,
+            size: 10,
+            code: 'GR/IX-2026/0002'
+        }
+    }, options);
+});
+
 it('encodes one receipt and posts only the supplied payment intent and stable key', async () => {
     const request = { amount: '0.0001', paymentMethod: 'QRIS', paidAt: '2026-09-10T02:00:00Z' };
     const response = { data: { data: { id: 28, receiptCode: 'GR/28' } } };

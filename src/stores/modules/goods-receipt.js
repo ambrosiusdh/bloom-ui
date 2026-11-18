@@ -15,7 +15,7 @@ const createGoodsReceiptState = () => ({
     goodsReceiptDetailError: null
 });
 
-const createGoodsReceiptAction = set => ({
+const createGoodsReceiptAction = (set, get) => ({
     getGoodsReceiptList: async (params, config, options) => {
         const requestId = ++latestGoodsReceiptListRequestId;
         set({
@@ -89,6 +89,27 @@ const createGoodsReceiptAction = set => ({
         });
     },
 
+    cancelGoodsReceipt: async (code, reason) => {
+        const { data: response } = await api.cancelGoodsReceipt(code, reason);
+        const receipt = response?.data;
+
+        if (receipt?.code !== code || receipt.status !== 'CANCELLED'
+            || receipt.canCancel !== false || !receipt.cancellationReason?.trim()
+            || !receipt.cancelledBy?.trim() || !Number.isFinite(Date.parse(receipt.cancelledAt))) {
+            throw new Error('Receipt cancellation result could not be confirmed');
+        }
+
+        if (get().goodsReceiptDetails?.code === code) {
+            latestGoodsReceiptDetailRequestId += 1;
+            set({
+                goodsReceiptDetails: receipt,
+                goodsReceiptDetailStatus: 'ready',
+                goodsReceiptDetailError: null
+            });
+        }
+
+        return receipt;
+    }
 
 })
 

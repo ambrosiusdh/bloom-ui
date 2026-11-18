@@ -1,4 +1,5 @@
 export const API_DOMAIN_ERROR_CODE = Object.freeze({
+    ITEM_SKU_ALREADY_EXISTS: 'item_sku_already_exists',
     ITEM_CATEGORY_ALREADY_EXISTS: 'item_category_already_exists',
     PRINTER_NOT_FOUND: 'printer_not_found',
     SALE_NOT_FOUND: 'sale_not_found',
@@ -8,6 +9,13 @@ export const API_DOMAIN_ERROR_CODE = Object.freeze({
     CASH_SESSION_CONFLICT: 'cash_session_conflict',
     CHECKOUT_IDEMPOTENCY_CONFLICT: 'checkout_idempotency_conflict',
     GOODS_RECEIPT_IDEMPOTENCY_CONFLICT: 'goods_receipt_idempotency_conflict',
+    GOODS_RECEIPT_HAS_PAYMENTS: 'goods_receipt_has_payments',
+    GOODS_RECEIPT_INSUFFICIENT_STOCK: 'goods_receipt_insufficient_stock',
+    GOODS_RECEIPT_NOT_FOUND: 'goods_receipt_not_found',
+    GOODS_RECEIPT_CODE_INVALID: 'goods_receipt_code_invalid',
+    GOODS_RECEIPT_CODE_ALREADY_EXISTS: 'goods_receipt_code_already_exists',
+    GOODS_RECEIPT_SUBMISSION_NOT_FOUND: 'goods_receipt_submission_not_found',
+    SUPPLIER_NOT_FOUND: 'supplier_not_found',
     EXPENSE_IDEMPOTENCY_CONFLICT: 'expense_idempotency_conflict',
     STOCK_TRANSFER_IDEMPOTENCY_CONFLICT: 'stock_transfer_idempotency_conflict',
     SUPPLIER_PAYMENT_CONFLICT: 'supplier_payment_conflict',
@@ -37,6 +45,26 @@ const LEGACY_DOMAIN_ERRORS = Object.freeze({
 });
 
 export const getLegacyDomainErrorCode = (status, data) => {
+    if ((status === 400 && data?.code === API_DOMAIN_ERROR_CODE.GOODS_RECEIPT_CODE_INVALID)
+        || (status === 409 && data?.code === API_DOMAIN_ERROR_CODE.GOODS_RECEIPT_CODE_ALREADY_EXISTS)
+        || (status === 404 && data?.code === API_DOMAIN_ERROR_CODE.GOODS_RECEIPT_SUBMISSION_NOT_FOUND)) {
+        return data.code;
+    }
+
+    if (status === 404 && (data?.code === API_DOMAIN_ERROR_CODE.GOODS_RECEIPT_NOT_FOUND
+        || data?.code === API_DOMAIN_ERROR_CODE.SUPPLIER_NOT_FOUND)) {
+        return data.code;
+    }
+
+    if (status === 409 && (data?.code === API_DOMAIN_ERROR_CODE.GOODS_RECEIPT_HAS_PAYMENTS
+        || data?.code === API_DOMAIN_ERROR_CODE.GOODS_RECEIPT_INSUFFICIENT_STOCK)) {
+        return data.code;
+    }
+
+    if (status === 409 && data?.code === API_DOMAIN_ERROR_CODE.ITEM_SKU_ALREADY_EXISTS) {
+        return API_DOMAIN_ERROR_CODE.ITEM_SKU_ALREADY_EXISTS;
+    }
+
     if (typeof data?.code === 'string' && STRUCTURED_DOMAIN_CODES.has(data.code)) {
         return data.code;
     }

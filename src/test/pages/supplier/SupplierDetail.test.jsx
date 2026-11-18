@@ -2,6 +2,7 @@ import {
     Route,
     Routes
 } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
 import {
     beforeEach,
     describe,
@@ -12,6 +13,7 @@ import {
 
 import supplierApi from '@api/supplier.js';
 import SupplierDetail from '@pages/supplier/SupplierDetail.jsx';
+import useAuthStore from '@stores/modules/auth.js';
 import useSupplierStore from '@stores/modules/supplier.js';
 import {
     fireEvent,
@@ -62,6 +64,13 @@ const renderDetail = () => render(
 describe('SupplierDetail', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        useAuthStore.setState({
+            authStatus: 'authenticated',
+            currentUser: {
+                accountId: '101',
+                username: 'admin'
+            }
+        });
         useSupplierStore.setState({
             supplierDetails: null,
             detailStatus: 'idle',
@@ -77,10 +86,14 @@ describe('SupplierDetail', () => {
         supplierApi.getSupplierDetails.mockResolvedValue({ data: { data: supplier } });
         renderDetail();
 
-        expect(await screen.findByRole('heading', { name: 'Nusantara Tekstil' })).toBeInTheDocument();
-        expect(screen.getByText('Kode pemasok: SUP-001')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Detail pemasok' })).toBeInTheDocument();
+        expect(screen.getByText('Nusantara Tekstil')).toBeInTheDocument();
+        expect(screen.getAllByText('SUP-001').length).toBeGreaterThan(0);
         expect(screen.getByText('08123456789')).toBeInTheDocument();
         expect(screen.getByLabelText('Status pemasok: Tidak aktif')).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveTextContent('Pemasok tidak aktif');
+        expect(screen.getByText('Dibuat oleh & pada')).toBeInTheDocument();
+        expect(screen.getByText('Diperbarui oleh & pada')).toBeInTheDocument();
         expect(screen.getByText('admin')).toBeInTheDocument();
         expect(screen.getByText('manager')).toBeInTheDocument();
         expect(supplierApi.getSupplierDetails).toHaveBeenCalledWith(
@@ -97,7 +110,7 @@ describe('SupplierDetail', () => {
         expect(screen.getByText('Total penerimaan dibukukan').nextSibling).toHaveTextContent('Rp 150.000');
         expect(screen.getByText('Sudah dibayar').nextSibling).toHaveTextContent('Rp 50.000');
         expect(screen.getByText('Sisa utang').nextSibling).toHaveTextContent('Rp 100.000');
-        expect(screen.getByRole('link', { name: 'Lihat penerimaan pemasok' })).toHaveAttribute(
+        expect(screen.getByRole('link', { name: 'Buka utang pemasok' })).toHaveAttribute(
             'href', '/payables?key=supplierName&q=Nusantara+Tekstil'
         );
     });
@@ -115,7 +128,7 @@ describe('SupplierDetail', () => {
 
         supplierApi.getSupplierDetails.mockResolvedValueOnce({ data: { data: supplier } });
         fireEvent.click(screen.getByRole('button', { name: 'Coba lagi' }));
-        expect(await screen.findByRole('heading', { name: 'Nusantara Tekstil' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Detail pemasok' })).toBeInTheDocument();
 
         view.unmount();
     });
@@ -127,8 +140,8 @@ describe('SupplierDetail', () => {
             .mockResolvedValueOnce({ data: { data: { ...balance, outstandingAmount: '0.0000' } } });
         renderDetail();
 
-        expect(await screen.findByRole('heading', { name: 'Nusantara Tekstil' })).toBeInTheDocument();
-        expect(await screen.findByRole('alert')).toHaveTextContent('Saldo gagal dimuat.');
+        expect(await screen.findByRole('heading', { name: 'Detail pemasok' })).toBeInTheDocument();
+        expect(await screen.findByText('Saldo gagal dimuat.')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Coba lagi' }));
 
         expect(await screen.findByText('Sisa utang')).toBeInTheDocument();
@@ -138,6 +151,7 @@ describe('SupplierDetail', () => {
     });
 
     it('confirms deactivation accessibly, blocks duplicates, and preserves stable identity', async () => {
+        const user = userEvent.setup();
         const activeSupplier = { ...supplier, active: true };
         let resolveDeactivation;
         supplierApi.getSupplierDetails.mockResolvedValue({ data: { data: activeSupplier } });
@@ -151,7 +165,9 @@ describe('SupplierDetail', () => {
         expect(screen.getByRole('dialog', { name: 'Nonaktifkan Nusantara Tekstil?' })).toBeInTheDocument();
         const cancel = screen.getByRole('button', { name: 'Batal' });
         await waitFor(() => expect(cancel).toHaveFocus());
-        fireEvent.click(cancel);
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('dialog', { name: 'Nonaktifkan Nusantara Tekstil?' }))
+            .not.toBeInTheDocument();
         await waitFor(() => expect(trigger).toHaveFocus());
 
         fireEvent.click(trigger);
@@ -165,9 +181,66 @@ describe('SupplierDetail', () => {
 
         resolveDeactivation({ data: { data: { ...activeSupplier, active: false } } });
 
-        expect(await screen.findByText(/berhasil dinonaktifkan tanpa menghapus riwayatnya/i)).toBeInTheDocument();
-        expect(screen.getByText('Kode pemasok: SUP-001')).toBeInTheDocument();
+        const success = await screen.findByText(/berhasil dinonaktifkan tanpa menghapus riwayatnya/i);
+        expect(success).toBeInTheDocument();
+        expect(success.closest('[role="status"]')).toHaveFocus();
+        expect(screen.getAllByText('SUP-001').length).toBeGreaterThan(0);
         expect(screen.getByLabelText('Status pemasok: Tidak aktif')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Nonaktifkan pemasok' })).not.toBeInTheDocument();
+    });
+
+    it('reactivates the same supplier with cancel-first focus and duplicate submission protection', async () => {
+        let resolveActivation;
+        supplierApi.getSupplierDetails.mockResolvedValue({ data: { data: supplier } });
+        supplierApi.setSupplierActive.mockReturnValue(new Promise(resolve => {
+            resolveActivation = resolve;
+        }));
+        renderDetail();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Aktifkan pemasok' }));
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Batal' })).toHaveFocus());
+        const confirm = screen.getByRole('button', { name: 'Aktifkan' });
+        fireEvent.click(confirm);
+        fireEvent.click(confirm);
+
+        expect(confirm).toBeDisabled();
+        expect(supplierApi.setSupplierActive).toHaveBeenCalledTimes(1);
+        expect(supplierApi.setSupplierActive).toHaveBeenCalledWith('SUP-001', true, undefined);
+
+        resolveActivation({
+            data: {
+                data: {
+                    ...supplier,
+                    active: true
+                }
+            }
+        });
+
+        expect(await screen.findByLabelText('Status pemasok: Aktif')).toBeInTheDocument();
+        expect(screen.getByText(/berhasil diaktifkan dan dapat dipilih/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Aktifkan pemasok' })).not.toBeInTheDocument();
+        expect(screen.getByText('Kode pemasok').nextSibling).toHaveTextContent('SUP-001');
+    });
+
+    it('preserves inactive identity and displays an Indonesian authorization rejection', async () => {
+        supplierApi.getSupplierDetails.mockResolvedValue({ data: { data: supplier } });
+        supplierApi.setSupplierActive.mockRejectedValue({ category: 'authorization' });
+        renderDetail();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Aktifkan pemasok' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Aktifkan' }));
+
+        expect(await screen.findByText('Anda tidak memiliki izin untuk mengubah status pemasok.'))
+            .toBeInTheDocument();
+        expect(screen.getByLabelText('Status pemasok: Tidak aktif')).toBeInTheDocument();
+    });
+
+    it('requires an authenticated user before exposing reactivation', async () => {
+        useAuthStore.setState({ authStatus: 'unauthenticated' });
+        supplierApi.getSupplierDetails.mockResolvedValue({ data: { data: supplier } });
+        renderDetail();
+
+        await screen.findByRole('heading', { name: 'Detail pemasok' });
+        expect(screen.queryByRole('button', { name: 'Aktifkan pemasok' })).not.toBeInTheDocument();
     });
 });

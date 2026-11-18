@@ -79,8 +79,8 @@ const normalizeDescription = value => String(value ?? '').trim();
 
 const hasValidResult = (result, attempt) => {
     const request = attempt.request;
-    const requestLine = request.lines?.[0];
-    const resultLine = result?.lines?.[0];
+    const requestLines = request.lines || [];
+    const resultLines = result?.lines || [];
 
     return result?.id != null
         && typeof result.code === 'string'
@@ -90,10 +90,13 @@ const hasValidResult = (result, attempt) => {
         && result.destinationLocation === request.destinationLocation
         && normalizeDescription(result.description) === normalizeDescription(request.description)
         && Array.isArray(result.lines)
-        && result.lines.length === 1
-        && resultLine?.itemSku === requestLine?.itemSku
-        && resultLine?.unitOfMeasure === requestLine?.unitOfMeasure
-        && normalizeDecimal(resultLine?.quantity) === normalizeDecimal(requestLine?.quantity);
+        && requestLines.length > 0
+        && resultLines.length === requestLines.length
+        && new Set(resultLines.map(line => line.itemSku)).size === resultLines.length
+        && requestLines.every(requestLine => resultLines.some(resultLine =>
+            resultLine?.itemSku === requestLine.itemSku
+            && resultLine.unitOfMeasure === requestLine.unitOfMeasure
+            && normalizeDecimal(resultLine.quantity) === normalizeDecimal(requestLine.quantity)));
 };
 
 const persistAttemptBeforePosting = (ownerAccountId, attempt) => {

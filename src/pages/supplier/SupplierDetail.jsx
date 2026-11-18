@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Alert, Button, Chip, CircularProgress, Divider, Paper } from '@mui/material';
-import { ArrowLeft, CircleOff, Pencil } from 'lucide-react';
+import { Alert, Button, Chip, CircularProgress, Paper } from '@mui/material';
+import { ArrowLeft, CircleCheck, CircleOff, Pencil } from 'lucide-react';
 
 import BloomConfirmationModal from '@components/_ui/BloomConfirmationModal.jsx';
 import { formatRupiah } from '@components/cash-session/cash-session-money.js';
 import { GENERIC_ERR_MESSAGE } from '@constants/general.js';
-import { useBreadcrumbStore, useSupplierStore } from '@stores/index.js';
+import { useAuthStore, useBreadcrumbStore, useSupplierStore } from '@stores/index.js';
 import { formatDate } from '@utils/date-utils.js';
 import { getSupplierDetailReturnTo, isValidSupplierCode } from '@utils/supplier-utils.js';
 
@@ -19,6 +19,7 @@ export default function SupplierDetail() {
     const navigate = useNavigate();
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const supplier = useSupplierStore(state => state.supplierDetails);
+    const isAuthenticated = useAuthStore(state => state.authStatus === 'authenticated');
     const status = useSupplierStore(state => state.detailStatus);
     const error = useSupplierStore(state => state.detailError);
     const getSupplierDetails = useSupplierStore(state => state.getSupplierDetails);
@@ -31,16 +32,19 @@ export default function SupplierDetail() {
     const clearSupplierOutstandingBalance = useSupplierStore(state => state.clearSupplierOutstandingBalance);
     const [retryVersion, setRetryVersion] = useState(0);
     const [balanceRetryVersion, setBalanceRetryVersion] = useState(0);
-    const [showDeactivation, setShowDeactivation] = useState(false);
-    const [isDeactivating, setIsDeactivating] = useState(false);
-    const [deactivationError, setDeactivationError] = useState('');
+    const [showActivationDialog, setShowActivationDialog] = useState(false);
+    const [isSavingActivation, setIsSavingActivation] = useState(false);
+    const [activationError, setActivationError] = useState('');
     const [successMessage, setSuccessMessage] = useState(location.state?.message || '');
-    const deactivationInProgressRef = useRef(false);
-    const deactivationTriggerRef = useRef(null);
+    const activationInProgressRef = useRef(false);
+    const activationTriggerRef = useRef(null);
     const isMountedRef = useRef(true);
     const successAlertRef = useRef(null);
     const isValidCode = isValidSupplierCode(code);
     const returnTo = getSupplierDetailReturnTo(location.state?.from);
+    const isReactivating = supplier?.active === false;
+    const activationVerb = isReactivating ? 'Aktifkan' : 'Nonaktifkan';
+    const pendingLabel = isReactivating ? 'Mengaktifkan' : 'Menonaktifkan';
 
     useEffect(() => {
         setBreadcrumbs([
@@ -89,7 +93,7 @@ export default function SupplierDetail() {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
-            deactivationInProgressRef.current = false;
+            activationInProgressRef.current = false;
         };
     }, []);
 
@@ -101,40 +105,49 @@ export default function SupplierDetail() {
         });
     }, [location.pathname, location.search, location.state?.message, navigate, returnTo]);
 
-    const openDeactivation = event => {
-        deactivationTriggerRef.current = event.currentTarget;
-        setDeactivationError('');
-        setShowDeactivation(true);
+    const openActivationDialog = event => {
+        activationTriggerRef.current = event.currentTarget;
+        setActivationError('');
+        setShowActivationDialog(true);
     };
 
-    const closeDeactivation = () => {
-        if (deactivationInProgressRef.current) return;
-        setShowDeactivation(false);
-        setDeactivationError('');
-        setTimeout(() => deactivationTriggerRef.current?.focus(), 0);
+    const closeActivationDialog = () => {
+        if (activationInProgressRef.current) return;
+        setShowActivationDialog(false);
+        setActivationError('');
+        setTimeout(() => activationTriggerRef.current?.focus(), 0);
     };
 
-    const deactivateSupplier = async () => {
-        if (deactivationInProgressRef.current || !supplier?.active) return;
-        deactivationInProgressRef.current = true;
-        setIsDeactivating(true);
-        setDeactivationError('');
+    const saveActivation = async () => {
+        if (activationInProgressRef.current || supplier?.code !== code
+            || (isReactivating && !isAuthenticated)) return;
+        activationInProgressRef.current = true;
+        setIsSavingActivation(true);
+        setActivationError('');
 
         try {
-            const updatedSupplier = await setSupplierActive(supplier.code, false);
+            const updatedSupplier = await setSupplierActive(supplier.code, isReactivating);
             if (!isMountedRef.current) return;
-            setShowDeactivation(false);
+            setShowActivationDialog(false);
             setSuccessMessage(
-                `Pemasok ${ updatedSupplier.name } berhasil dinonaktifkan tanpa menghapus riwayatnya.`
+                updatedSupplier.active
+                    ? `Pemasok ${ updatedSupplier.name } berhasil diaktifkan dan dapat dipilih untuk penerimaan baru.`
+                    : `Pemasok ${ updatedSupplier.name } berhasil dinonaktifkan tanpa menghapus riwayatnya.`
             );
-        } catch (deactivationFailure) {
+        } catch (failure) {
             if (!isMountedRef.current) return;
-            setDeactivationError(deactivationFailure?.category === 'not_found'
-                ? 'Pemasok ini tidak lagi tersedia. Tutup dialog lalu muat ulang data.'
-                : deactivationFailure?.message || 'Pemasok gagal dinonaktifkan. Silakan coba lagi.');
+
+            const errorMessages = {
+                not_found: 'Pemasok ini tidak lagi tersedia. Tutup dialog lalu muat ulang data.',
+                authorization: 'Anda tidak memiliki izin untuk mengubah status pemasok.',
+                authentication: 'Sesi Anda telah berakhir. Silakan masuk kembali.',
+                conflict: 'Status pemasok telah berubah. Tutup dialog lalu muat ulang detail pemasok.'
+            };
+            setActivationError(errorMessages[failure?.category]
+                || 'Status pemasok belum dapat dipastikan. Periksa koneksi dan muat ulang detail pemasok sebelum mencoba lagi.');
         } finally {
-            deactivationInProgressRef.current = false;
-            if (isMountedRef.current) setIsDeactivating(false);
+            activationInProgressRef.current = false;
+            if (isMountedRef.current) setIsSavingActivation(false);
         }
     };
 
@@ -178,25 +191,32 @@ export default function SupplierDetail() {
 
     return (
         <div className="space-y-5 pb-8">
-            { showDeactivation && (
+            { showActivationDialog && (
                 <BloomConfirmationModal
-                    title={ `Nonaktifkan ${ supplier.name }?` }
-                    confirmButtonText={ isDeactivating ? 'Menonaktifkan...' : 'Nonaktifkan' }
-                    confirmButtonColor="error"
-                    onCancel={ closeDeactivation }
-                    onConfirm={ deactivateSupplier }
-                    isPending={ isDeactivating }
+                    title={ `${ activationVerb } ${ supplier.name }?` }
+                    confirmButtonText={ isSavingActivation ? `${ pendingLabel }...` : activationVerb }
+                    confirmButtonColor={ isReactivating ? 'primary' : 'error' }
+                    onCancel={ closeActivationDialog }
+                    onConfirm={ saveActivation }
+                    isPending={ isSavingActivation }
                     focusCancel
                 >
-                    <p>
-                        Pemasok tidak lagi dapat dipilih untuk transaksi baru. Identitas,
-                        catatan, dan seluruh riwayat yang memakai kode <strong>{ supplier.code }</strong> tetap tersimpan.
-                    </p>
-                    { deactivationError && <Alert severity="error" className="mt-3">{ deactivationError }</Alert> }
-                    { isDeactivating && (
+                    { isReactivating ? (
+                        <p>
+                            Pemasok dengan kode <strong>{ supplier.code }</strong> akan muncul di daftar aktif
+                            dan dapat dipilih untuk penerimaan baru.
+                        </p>
+                    ) : (
+                        <p>
+                            Pemasok tidak lagi dapat dipilih untuk transaksi baru. Identitas,
+                            catatan, dan seluruh riwayat yang memakai kode <strong>{ supplier.code }</strong> tetap tersimpan.
+                        </p>
+                    ) }
+                    { activationError && <Alert severity="error" className="mt-3">{ activationError }</Alert> }
+                    { isSavingActivation && (
                         <div role="status" className="mt-3 flex items-center gap-2">
                             <CircularProgress size={ 18 } aria-hidden="true" />
-                            Menonaktifkan pemasok...
+                            { pendingLabel } pemasok...
                         </div>
                     ) }
                 </BloomConfirmationModal>
@@ -218,15 +238,16 @@ export default function SupplierDetail() {
 
             <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                    <h2 className="text-2xl font-bold break-words">{ supplier.name }</h2>
-                    <p className="text-gray-600 break-all">Kode pemasok: { supplier.code }</p>
+                    <h2 className="text-2xl font-bold">Detail pemasok</h2>
+                    <p className="text-gray-600 break-all">{ supplier.code }</p>
                 </div>
-                <Chip
-                    color={ supplier.active ? 'success' : 'default' }
-                    label={ statusLabel }
-                    aria-label={ `Status pemasok: ${ statusLabel }` }
-                />
             </header>
+
+            { !supplier.active && (
+                <Alert severity="info">
+                    Pemasok tidak aktif dan tidak dapat dipilih untuk transaksi baru. Identitas serta riwayatnya tetap tersimpan.
+                </Alert>
+            ) }
 
             <div className="flex flex-wrap gap-2">
                 <Button
@@ -238,94 +259,119 @@ export default function SupplierDetail() {
                 >
                     Ubah pemasok
                 </Button>
-                { supplier.active && (
+                { (supplier.active || (isReactivating && isAuthenticated)) && (
                     <Button
                         type="button"
-                        color="error"
+                        color={ isReactivating ? 'primary' : 'error' }
                         variant="outlined"
-                        startIcon={ <CircleOff aria-hidden="true" /> }
-                        onClick={ openDeactivation }
+                        startIcon={ isReactivating
+                            ? <CircleCheck aria-hidden="true" />
+                            : <CircleOff aria-hidden="true" /> }
+                        onClick={ openActivationDialog }
                     >
-                        Nonaktifkan pemasok
+                        { activationVerb } pemasok
                     </Button>
                 ) }
             </div>
 
-            <Paper component="section" className="p-4 md:p-5" aria-labelledby="supplier-payable-title">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                        <h3 id="supplier-payable-title" className="text-lg font-bold">Ringkasan utang</h3>
-                        <p className="text-sm text-gray-600">Nilai resmi yang dihitung oleh server.</p>
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(18rem,2fr)]">
+                <Paper component="section" className="p-4 md:p-5" aria-labelledby="supplier-identity-title">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <h3 id="supplier-identity-title" className="text-lg font-bold">Identitas dan kontak</h3>
+                            <p className="text-sm text-gray-600">Kode adalah identitas tetap pemasok.</p>
+                        </div>
+                        <Chip
+                            color={ supplier.active ? 'success' : 'default' }
+                            label={ statusLabel }
+                            aria-label={ `Status pemasok: ${ statusLabel }` }
+                        />
                     </div>
+
+                    <dl className="mt-5 grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <dt className="text-sm text-gray-600">Nama pemasok</dt>
+                            <dd className="break-words font-medium">{ supplier.name }</dd>
+                        </div>
+                        <div>
+                            <dt className="text-sm text-gray-600">Kode pemasok</dt>
+                            <dd className="break-all font-medium">{ supplier.code }</dd>
+                        </div>
+                        <div>
+                            <dt className="text-sm text-gray-600">Nomor kontak</dt>
+                            <dd className="break-words">{ valueOrDash(supplier.contactNumber) }</dd>
+                        </div>
+                        <div>
+                            <dt className="text-sm text-gray-600">Alamat</dt>
+                            <dd className="whitespace-pre-wrap break-words">{ valueOrDash(supplier.address) }</dd>
+                        </div>
+                        <div>
+                            <dt className="text-sm text-gray-600">Dibuat oleh &amp; pada</dt>
+                            <dd className="break-words">{ valueOrDash(supplier.createdBy) }</dd>
+                            <dd className="text-sm text-gray-600">{ formatDate(supplier.createdAt) || '-' }</dd>
+                        </div>
+                        <div>
+                            <dt className="text-sm text-gray-600">Diperbarui oleh &amp; pada</dt>
+                            <dd className="break-words">{ valueOrDash(supplier.updatedBy) }</dd>
+                            <dd className="text-sm text-gray-600">{ formatDate(supplier.updatedAt) || '-' }</dd>
+                        </div>
+                    </dl>
+                </Paper>
+
+                <Paper component="section" className="p-4 md:p-5" aria-labelledby="supplier-payable-title">
+                    <h3 id="supplier-payable-title" className="text-lg font-bold">Saldo utang resmi</h3>
+                    <p className="text-sm text-gray-600">
+                        Nilai berasal langsung dari ringkasan server, bukan penjumlahan browser.
+                    </p>
+
+                    { balanceStatus === 'idle' || balanceStatus === 'loading'
+                        || (balanceStatus === 'ready' && !isCurrentBalance) ? (
+                        <div role="status" aria-live="polite" className="flex items-center gap-2 py-6">
+                            <CircularProgress size={ 20 } aria-hidden="true" />
+                            Memuat ringkasan utang pemasok...
+                        </div>
+                    ) : balanceStatus === 'error' || !isCurrentBalance ? (
+                        <Alert
+                            severity="error"
+                            className="mt-4"
+                            action={ (
+                                <Button
+                                    color="inherit"
+                                    onClick={ () => setBalanceRetryVersion(value => value + 1) }
+                                >
+                                    Coba lagi
+                                </Button>
+                            ) }
+                        >
+                            { balanceError?.message || 'Ringkasan utang pemasok gagal dimuat.' }
+                        </Alert>
+                    ) : (
+                        <dl className="mt-5 grid gap-4" aria-label="Ringkasan utang pemasok dari server">
+                            <div>
+                                <dt className="text-sm text-gray-600">Sisa utang</dt>
+                                <dd className="text-2xl font-bold tabular-nums">{ money(balance.outstandingAmount) }</dd>
+                            </div>
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                                <div>
+                                    <dt className="text-sm text-gray-600">Total penerimaan dibukukan</dt>
+                                    <dd className="font-bold tabular-nums">{ money(balance.totalPostedAmount) }</dd>
+                                </div>
+                                <div>
+                                    <dt className="text-sm text-gray-600">Sudah dibayar</dt>
+                                    <dd className="font-bold tabular-nums">{ money(balance.paidAmount) }</dd>
+                                </div>
+                            </div>
+                        </dl>
+                    ) }
+
                     <Button
                         component={ Link }
                         to={ `/payables?${ payablesSearch }` }
                         variant="outlined"
+                        className="mt-5"
                     >
-                        Lihat penerimaan pemasok
+                        Buka utang pemasok
                     </Button>
-                </div>
-
-                <Divider className="my-4" />
-
-                { balanceStatus === 'idle' || balanceStatus === 'loading'
-                    || (balanceStatus === 'ready' && !isCurrentBalance) ? (
-                    <div role="status" aria-live="polite" className="flex items-center gap-2 py-4">
-                        <CircularProgress size={ 20 } aria-hidden="true" />
-                        Memuat ringkasan utang pemasok...
-                    </div>
-                ) : balanceStatus === 'error' || !isCurrentBalance ? (
-                    <Alert
-                        severity="error"
-                        action={ (
-                            <Button
-                                color="inherit"
-                                onClick={ () => setBalanceRetryVersion(value => value + 1) }
-                            >
-                                Coba lagi
-                            </Button>
-                        ) }
-                    >
-                        { balanceError?.message || 'Ringkasan utang pemasok gagal dimuat.' }
-                    </Alert>
-                ) : (
-                    <dl
-                        className="grid gap-4 sm:grid-cols-3"
-                        aria-label="Ringkasan utang pemasok dari server"
-                    >
-                        <div>
-                            <dt className="text-sm text-gray-600">Total penerimaan dibukukan</dt>
-                            <dd className="font-bold tabular-nums">{ money(balance.totalPostedAmount) }</dd>
-                        </div>
-                        <div>
-                            <dt className="text-sm text-gray-600">Sudah dibayar</dt>
-                            <dd className="font-bold tabular-nums">{ money(balance.paidAmount) }</dd>
-                        </div>
-                        <div>
-                            <dt className="text-sm text-gray-600">Sisa utang</dt>
-                            <dd className="font-bold tabular-nums">{ money(balance.outstandingAmount) }</dd>
-                        </div>
-                    </dl>
-                ) }
-            </Paper>
-
-            <div className="grid gap-4 lg:grid-cols-2">
-                <Paper component="section" className="p-4 md:p-5" aria-labelledby="supplier-contact-title">
-                    <h3 id="supplier-contact-title" className="text-lg font-bold mb-4">Informasi kontak</h3>
-                    <dl className="grid gap-4">
-                        <div><dt className="text-sm text-gray-600">Nomor kontak</dt><dd className="break-words">{ valueOrDash(supplier.contactNumber) }</dd></div>
-                        <div><dt className="text-sm text-gray-600">Alamat</dt><dd className="whitespace-pre-wrap break-words">{ valueOrDash(supplier.address) }</dd></div>
-                    </dl>
-                </Paper>
-
-                <Paper component="section" className="p-4 md:p-5" aria-labelledby="supplier-audit-title">
-                    <h3 id="supplier-audit-title" className="text-lg font-bold mb-4">Catatan data</h3>
-                    <dl className="grid gap-4 sm:grid-cols-2">
-                        <div><dt className="text-sm text-gray-600">Dibuat</dt><dd>{ formatDate(supplier.createdAt) || '-' }</dd></div>
-                        <div><dt className="text-sm text-gray-600">Dibuat oleh</dt><dd>{ valueOrDash(supplier.createdBy) }</dd></div>
-                        <div><dt className="text-sm text-gray-600">Diperbarui</dt><dd>{ formatDate(supplier.updatedAt) || '-' }</dd></div>
-                        <div><dt className="text-sm text-gray-600">Diperbarui oleh</dt><dd>{ valueOrDash(supplier.updatedBy) }</dd></div>
-                    </dl>
                 </Paper>
             </div>
         </div>

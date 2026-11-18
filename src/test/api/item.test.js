@@ -58,4 +58,23 @@ describe('item API', () => {
             data: payload.data
         }), undefined);
     });
+
+    it('requests a bulk barcode PDF with the selected SKU sequence', async () => {
+        const skus = [
+            'KAIN-00001',
+            'KAIN-00001',
+            'BENANG-00002'
+        ];
+
+        await itemApi.downloadBulkBarcodes(skus, { useLoader: false });
+
+        expect(apiRequest).toHaveBeenCalledWith({
+            url: '/api/items/barcode/bulk',
+            method: 'POST',
+            data: {
+                skus
+            },
+            responseType: 'blob'
+        }, { useLoader: false });
+    });
 });

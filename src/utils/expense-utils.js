@@ -13,6 +13,10 @@ export const EXPENSE_CATEGORIES = {
 };
 
 export const canVoidExpense = record => record?.canVoid === true && record.voidBlockReason === null && record.voided === false;
+export const expenseStatusLabel = record => record?.voided ? 'Dibatalkan' : 'Aktif';
+export const expenseClassificationLabel = record => record?.operationalExpense
+    ? 'Operasional'
+    : 'Nonoperasional';
 export const expenseVoidEligibility = record => {
     if (canVoidExpense(record)) {
         return 'Dapat dibatalkan menurut server.';
@@ -40,6 +44,32 @@ const canonicalExpenseAmount = value => {
     return `${ whole.replace(/^0+(?=\d)/, '') }.${ fraction.replace(/0+$/, '') }`;
 };
 
+const hasKnownExpenseEligibility = record => {
+    if (record?.voided) {
+        return record.canVoid === false && record.voidBlockReason === 'ALREADY_VOIDED';
+    }
+
+    return record?.canVoid === true && record.voidBlockReason === null
+        || record?.canVoid === false && record.voidBlockReason === 'CASH_SESSION_CLOSED';
+};
+
+export const validCreatedExpenseRecord = (record, request) => {
+    const amount = canonicalExpenseAmount(record?.amount);
+
+    return !!record?.id
+        && record.cashSessionId === request.expectedCashSessionId
+        && amount !== null
+        && amount === canonicalExpenseAmount(request.amount)
+        && record.category === request.category
+        && (record.description ?? null) === (request.description ?? null)
+        && record.operationalExpense === (request.category !== 'OWNER_WITHDRAWAL')
+        && typeof record.voided === 'boolean'
+        && hasKnownExpenseEligibility(record)
+        && !!record.createdAt
+        && !!record.createdBy
+        && (!record.voided || (!!record.voidedReason && !!record.voidedAt && !!record.voidedBy));
+};
+
 export const validExpenseVoidRecord = (record, original) => {
     const amount = canonicalExpenseAmount(record?.amount);
 
@@ -56,6 +86,7 @@ export const validExpenseVoidRecord = (record, original) => {
         && !!record.createdBy
         && record.createdBy === original.createdBy
         && typeof record.voided === 'boolean'
+        && hasKnownExpenseEligibility(record)
         && (!record.voided || (!!record.voidedReason && !!record.voidedAt && !!record.voidedBy))
         && (!original.voided || (record.voided
             && record.voidedReason === original.voidedReason

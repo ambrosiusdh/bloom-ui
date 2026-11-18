@@ -72,6 +72,10 @@ describe('back-office navigation', () => {
         expect(within(navigation).getByRole('heading', { name: 'Pembelian' })).toBeInTheDocument();
         expect(within(navigation).getByRole('heading', { name: 'Penjualan' })).toBeInTheDocument();
         expect(within(navigation).getByRole('heading', { name: 'Kas' })).toBeInTheDocument();
+        expect(document.querySelector('.bloom__sidebar-mark img')).toHaveAttribute(
+            'src',
+            '/bloom-mark.png'
+        );
 
         expect(within(navigation).getAllByRole('link').map(link => link.getAttribute('href'))).toEqual([
             '/dashboard',
@@ -132,10 +136,17 @@ describe('back-office navigation', () => {
         expect(screen.getByRole('button', { name: 'Tampilan aplikasi: Terang' }))
             .toBeInTheDocument();
         expect(within(breadcrumbs).getByText('Persediaan')).toBeInTheDocument();
-        expect(within(breadcrumbs).getByRole('link', { name: 'Pergerakan stok' }))
-            .toHaveAttribute('href', '/stock-movements');
+        expect(within(breadcrumbs).getByRole('link', { name: 'Riwayat transfer stok' }))
+            .toHaveAttribute('href', '/stock-transfers');
         expect(within(breadcrumbs).getByText('Buat transfer stok')).toBeInTheDocument();
         expect(within(breadcrumbs).queryByText('Cashier')).not.toBeInTheDocument();
+    });
+
+    it.each(['/stock-transfers', '/stock-transfers/ST%2F2026%2F42'])('keeps transfer history and detail under stock navigation: %s', route => {
+        render(<NavigationShell />, { route });
+
+        expect(screen.getByRole('link', { name: 'Pergerakan stok' })).toHaveAttribute('aria-current', 'page');
+        expect(screen.getByRole('navigation', { name: 'Lokasi halaman' })).toHaveTextContent('Riwayat transfer stok');
     });
 
     it('links item-category create and edit breadcrumbs back to the category list', () => {

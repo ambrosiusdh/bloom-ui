@@ -92,6 +92,12 @@ const ItemAuditLogModal = (props) => {
             case 'GOODS_RECEIPT':
                 return { color: 'success', label: 'Penerimaan Barang' };
 
+            case 'GOODS_RECEIPT_CANCELLATION':
+                return {
+                    color: 'error',
+                    label: 'Pembatalan Penerimaan Barang'
+                };
+
             case 'SALE':
                 return { color: 'primary', label: 'Penjualan' };
 
@@ -118,6 +124,7 @@ const ItemAuditLogModal = (props) => {
     const getReferenceLink = (source, referenceNo) => {
         switch (source) {
             case 'GOODS_RECEIPT':
+            case 'GOODS_RECEIPT_CANCELLATION':
                 return `/goods-receipts/${ encodeURIComponent(referenceNo) }`;
             case 'SALE':
                 return `/sales/${ encodeURIComponent(referenceNo) }`;

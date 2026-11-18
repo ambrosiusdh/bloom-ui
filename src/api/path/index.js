@@ -11,6 +11,7 @@ const ITEM = {
     detail: sku => `/api/items/${sku}`,
     deactivate: sku => `/api/items/${sku}`,
     auditLog: sku => `/api/items/${sku}/audit-log`,
+    bulkBarcode: '/api/items/barcode/bulk',
 }
 
 const ITEM_CATEGORY = {
@@ -34,6 +35,8 @@ const GOODS_RECEIPT = {
     list: '/api/goods-receipts',
     create: '/api/goods-receipts',
     detail: '/api/goods-receipts/details',
+    submission: '/api/goods-receipts/submission',
+    cancel: '/api/goods-receipts/cancel'
 }
 
 const STOCK_ADJUSTMENT = {
@@ -49,7 +52,9 @@ const STOCK_MOVEMENT = {
 }
 
 const STOCK_TRANSFER = {
-    create: '/api/stock-transfers'
+    create: '/api/stock-transfers',
+    list: '/api/stock-transfers',
+    details: '/api/stock-transfers/details'
 }
 
 const CASH_SESSION = {
@@ -83,7 +88,8 @@ const EXPENSE = {
 }
 
 const SUPPLIER_PAYMENT = {
-    create: '/api/goods-receipts/payments'
+    create: '/api/goods-receipts/payments',
+    history: '/api/goods-receipts/payments'
 }
 
 export {

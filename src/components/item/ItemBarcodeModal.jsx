@@ -1,9 +1,6 @@
 import {
     useRef
 } from 'react'
-
-import Barcode from 'react-barcode'
-
 import {
     Button,
     Dialog,
@@ -12,11 +9,12 @@ import {
     DialogTitle,
     IconButton
 } from '@mui/material'
-
 import {
     PrinterIcon,
     XIcon
 } from 'lucide-react'
+import PropTypes from 'prop-types';
+import Barcode from 'react-barcode'
 
 
 const ItemBarcodeModal = ({
@@ -45,11 +43,18 @@ const ItemBarcodeModal = ({
             onClose={ onClose }
             maxWidth="xs"
             fullWidth
+            aria-labelledby="item-barcode-title"
+            aria-describedby="item-barcode-description"
         >
             <DialogTitle className="flex justify-between items-center">
-                <span className="font-bold">Cetak Barcode</span>
-                <IconButton onClick={ onClose } size="small">
-                    <XIcon className="w-5 h-5" />
+                <span>
+                    <span id="item-barcode-title" className="block font-bold">Cetak barcode</span>
+                    <span id="item-barcode-description" className="mt-1 block text-sm font-normal text-gray-600">
+                        { itemData.name } · { itemData.sku }
+                    </span>
+                </span>
+                <IconButton onClick={ onClose } size="small" aria-label="Tutup pratinjau barcode">
+                    <XIcon className="w-5 h-5" aria-hidden="true" />
                 </IconButton>
             </DialogTitle>
 
@@ -61,9 +66,11 @@ const ItemBarcodeModal = ({
             </DialogContent>
 
             <DialogActions className="p-4 pt-0">
+                <Button onClick={ onClose } variant="outlined">
+                    Batal
+                </Button>
                 <Button
                     variant="contained"
-                    fullWidth
                     startIcon={ <PrinterIcon className="w-5 h-5" /> }
                     onClick={ handlePrint }
                 >
@@ -73,5 +80,10 @@ const ItemBarcodeModal = ({
         </Dialog>
     )
 }
+
+ItemBarcodeModal.propTypes = {
+    itemData: PropTypes.object,
+    onClose: PropTypes.func.isRequired
+};
 
 export default ItemBarcodeModal

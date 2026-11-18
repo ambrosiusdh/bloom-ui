@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import goodsReceiptApi from '@api/goods-receipt.js';
+import supplierPaymentApi from '@api/supplier-payment.js';
 import GoodsReceiptDetail from '@pages/goods-receipt/GoodsReceiptDetail.jsx';
 import useAuthStore from '@stores/modules/auth.js';
 import useGoodsReceiptStore from '@stores/modules/goods-receipt.js';
@@ -12,6 +13,14 @@ import { render, screen } from '@/test/render.jsx';
 vi.mock('@api/goods-receipt.js', () => ({ default: {
     getGoodsReceiptList: vi.fn(), getGoodsReceiptDetails: vi.fn(), createGoodsReceipt: vi.fn()
 } }));
+
+vi.mock('@api/supplier-payment.js', () => ({
+    SUPPLIER_PAYMENT_TIMEOUT_MS: 15000,
+    default: {
+        createSupplierPayment: vi.fn(),
+        getSupplierPaymentHistory: vi.fn()
+    }
+}));
 
 const receipt = {
     code: 'GR/IX-2026/0025', supplierId: 7, supplierCode: 'SUP-007', supplierName: 'Bloom Textile',
@@ -28,7 +37,19 @@ const renderDetail = (reference = receipt.code) => render(
     { route: `/goods-receipts/${ encodeURIComponent(reference) }` }
 );
 
-describe('GoodsReceiptDetail FE-25 read workflow', () => {
+const renderPayableDetail = () => render(
+    <Routes><Route path="/goods-receipts/:code" element={ <GoodsReceiptDetail /> } /></Routes>,
+    {
+        initialEntries: [{
+            pathname: `/goods-receipts/${ encodeURIComponent(receipt.code) }`,
+            state: {
+                from: '/payables?key=supplierName&q=Bloom&page=2'
+            }
+        }]
+    }
+);
+
+describe('GoodsReceiptDetail UXI-18 read workflow', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         useSupplierPaymentStore.setState(useSupplierPaymentStore.getInitialState());
@@ -42,6 +63,15 @@ describe('GoodsReceiptDetail FE-25 read workflow', () => {
         useGoodsReceiptStore.setState({
             goodsReceiptDetails: null, goodsReceiptDetailStatus: 'idle', goodsReceiptDetailError: null
         });
+        supplierPaymentApi.getSupplierPaymentHistory.mockResolvedValue({
+            data: {
+                data: {
+                    content: [],
+                    totalElements: 0,
+                    totalPages: 0
+                }
+            }
+        });
     });
 
     it('renders supplier identity, persisted decimal/UOM/location, and server financial values', async () => {
@@ -49,19 +79,53 @@ describe('GoodsReceiptDetail FE-25 read workflow', () => {
         renderDetail();
 
         expect(await screen.findByText('Kain datang lengkap')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Detail penerimaan', level: 1 }))
+            .toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Informasi penerimaan', level: 2 }))
+            .toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Nilai penerimaan', level: 2 }))
+            .toBeInTheDocument();
         expect(screen.getByLabelText('Status penerimaan: Dibukukan')).toBeInTheDocument();
         expect(screen.getByLabelText('Status pembayaran: Dibayar sebagian')).toBeInTheDocument();
         expect(screen.getByText('ID pemasok').nextSibling).toHaveTextContent('7');
         expect(screen.getByText('Kode pemasok').nextSibling).toHaveTextContent('SUP-007');
         expect(screen.getByText('Total').nextSibling).toHaveTextContent('Rp 12.500');
         expect(screen.getByText('Sudah dibayar').nextSibling).toHaveTextContent('Rp 2.500');
-        expect(screen.getByText('Belum dibayar').nextSibling).toHaveTextContent('Rp 10.000');
+        expect(screen.getByText('Sisa utang').nextSibling).toHaveTextContent('Rp 10.000');
         expect(screen.getAllByText('1,25 meter').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Gudang').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('WAREHOUSE').length).toBeGreaterThan(0);
+
+        const itemsHeading = screen.getByRole('heading', {
+            name: 'Barang yang diterima',
+            level: 2
+        });
+        const paymentHeading = screen.getByRole('heading', {
+            name: 'Pembayaran pemasok',
+            level: 2
+        });
+        const paymentHistoryHeading = await screen.findByRole('heading', {
+            name: 'Riwayat pembayaran',
+            level: 2
+        });
+
+        expect(itemsHeading.compareDocumentPosition(paymentHistoryHeading)
+            & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(paymentHistoryHeading.compareDocumentPosition(paymentHeading)
+            & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(goodsReceiptApi.getGoodsReceiptDetails).toHaveBeenCalledWith(
             receipt.code, { signal: expect.any(AbortSignal) }, { useLoader: false }
         );
         expect(goodsReceiptApi.getGoodsReceiptList).not.toHaveBeenCalled();
+        expect(supplierPaymentApi.getSupplierPaymentHistory).toHaveBeenCalledWith(
+            receipt.code,
+            {
+                page: 1,
+                size: 10
+            },
+            { signal: expect.any(AbortSignal) },
+            { useLoader: false }
+        );
     });
 
     it('announces loading and retries a failed detail request', async () => {
@@ -76,6 +140,23 @@ describe('GoodsReceiptDetail FE-25 read workflow', () => {
         await user.click(screen.getByRole('button', { name: 'Coba lagi' }));
         expect(await screen.findByText('Kain datang lengkap')).toBeInTheDocument();
         expect(goodsReceiptApi.getGoodsReceiptDetails).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps payable context in the receipt-first heading and return action', async () => {
+        goodsReceiptApi.getGoodsReceiptDetails.mockResolvedValue({
+            data: {
+                data: receipt
+            }
+        });
+
+        renderPayableDetail();
+
+        expect(await screen.findByRole('heading', {
+            name: 'Detail utang penerimaan',
+            level: 1
+        })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Kembali ke daftar' }))
+            .toHaveAttribute('href', '/payables?key=supplierName&q=Bloom&page=2');
     });
 
     it('rejects an obviously invalid reference without calling the backend', async () => {
@@ -93,7 +174,7 @@ describe('GoodsReceiptDetail FE-25 read workflow', () => {
             .mockResolvedValue({ data: { data: { ...receipt, paidAmount: '12500', outstandingAmount: '0', paymentStatus: 'PAID' } } });
         renderDetail();
         expect(await screen.findByLabelText('Status pembayaran: Lunas')).toBeInTheDocument();
-        expect(screen.getByText('Belum dibayar').nextSibling).toHaveTextContent('Rp 0');
+        expect(screen.getByText('Sisa utang').nextSibling).toHaveTextContent('Rp 0');
         expect(goodsReceiptApi.getGoodsReceiptDetails).toHaveBeenCalledTimes(2);
     });
 });

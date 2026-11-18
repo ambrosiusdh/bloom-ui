@@ -9,11 +9,22 @@ export default function StockAdjustmentInfoCard({ adjustment }) {
     }
 
     return (
-        <Card className="shadow-md">
+        <Card
+            component="section"
+            className="shadow-md"
+            aria-labelledby="stock-adjustment-info-heading"
+        >
             <CardContent>
-                <Typography variant="h6" className="font-bold text-primary-main">
+                <Typography
+                    id="stock-adjustment-info-heading"
+                    variant="h6"
+                    className="font-bold text-primary-main"
+                >
                     Informasi penyesuaian stok
                 </Typography>
+                <p className="mt-1 text-sm text-slate-600">
+                    Alasan dan identitas transaksi ini merupakan fakta audit yang tersimpan.
+                </p>
                 <dl className="mt-4 grid gap-4 sm:grid-cols-2">
                     <div>
                         <dt className="text-sm text-slate-600">Nomor referensi</dt>

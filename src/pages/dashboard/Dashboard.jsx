@@ -7,7 +7,9 @@ import { useDashboardStore } from '@stores/index.js';
 
 const formatDashboardTimestamp = (value, timeZone) => {
     const date = new Date(value);
-    if (!value || Number.isNaN(date.getTime())) return 'waktu tidak tersedia';
+    if (!value || Number.isNaN(date.getTime())) {
+        return 'waktu tidak tersedia';
+    }
 
     try {
         return new Intl.DateTimeFormat('id-ID', {
@@ -23,6 +25,17 @@ const formatDashboardTimestamp = (value, timeZone) => {
     }
 };
 
+const formatBusinessDate = value => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) {
+        return 'tanggal bisnis tidak tersedia';
+    }
+
+    return new Intl.DateTimeFormat('id-ID', {
+        dateStyle: 'long',
+        timeZone: 'UTC'
+    }).format(new Date(`${ value }T00:00:00Z`));
+};
+
 export default function Dashboard() {
     const [refreshMessage, setRefreshMessage] = useState('');
     const [isStale, setIsStale] = useState(false);
@@ -36,7 +49,9 @@ export default function Dashboard() {
     const hasDashboardData = dashboardData !== null;
 
     const fetchDashboardData = useCallback(async ({ isRefresh = false } = {}) => {
-        if (requestInFlightRef.current) return;
+        if (requestInFlightRef.current) {
+            return;
+        }
 
         requestInFlightRef.current = true;
         setRefreshMessage('');
@@ -100,10 +115,12 @@ export default function Dashboard() {
                         component="h1"
                         className="mb-1 font-bold text-gray-900"
                     >
-                        Dashboard
+                        Ringkasan toko hari ini
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
-                        Ringkasan operasional Release 1 dari data yang dihitung server.
+                        { dashboardData
+                            ? `Kondisi operasional untuk ${ formatBusinessDate(dashboardData.businessDate) }.`
+                            : 'Kondisi operasional terbaru dari server.' }
                     </Typography>
                 </div>
                 <div className="dashboard__actions flex flex-wrap items-center gap-3 sm:justify-end">
@@ -114,7 +131,7 @@ export default function Dashboard() {
                         aria-live="polite"
                     >
                         { lastUpdatedText
-                            ? `Data per: ${ lastUpdatedText }`
+                            ? `Terakhir diperbarui: ${ lastUpdatedText } · Zona ${ dashboardData.storeZoneId }`
                             : 'Belum pernah diperbarui' }
                     </Typography>
                     <Button
@@ -138,7 +155,7 @@ export default function Dashboard() {
 
             { isLoading && !hasDashboardData && (
                 <Alert severity="info" role="status" aria-live="polite">
-                    Memuat data dashboard...
+                    Memuat ringkasan operasional...
                 </Alert>
             ) }
 
@@ -180,7 +197,8 @@ export default function Dashboard() {
             { hasDashboardData && isStale && (
                 <Alert severity="warning" role="status" aria-live="polite">
                     Data dashboard sudah kedaluwarsa menurut batas waktu dari server. Perbarui data
-                    sebelum mengambil keputusan operasional.
+                    sebelum mengambil keputusan operasional. Waktu mengikuti zona { ' ' }
+                    { dashboardData.storeZoneId }.
                 </Alert>
             ) }
 

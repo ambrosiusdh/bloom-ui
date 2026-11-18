@@ -17,7 +17,9 @@ describe('stock adjustment API', () => {
         const params = {
             page: 2,
             size: 25,
-            stockAdjustmentCode: 'ADJ/IX-2026'
+            stockAdjustmentCode: 'ADJ/IX-2026',
+            startDate: '2026-08-31T17:00:00.000Z',
+            endDate: '2026-09-30T16:59:59.999Z'
         };
 
         await stockAdjustmentApi.getStockAdjustmentList(

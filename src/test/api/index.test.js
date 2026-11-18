@@ -32,6 +32,24 @@ const createHttpError = (status, data = {}) => ({
 
 describe('normalizeApiError', () => {
     it.each([
+        [409, 'goods_receipt_has_payments'],
+        [409, 'goods_receipt_insufficient_stock'],
+        [404, 'goods_receipt_not_found'],
+        [404, 'supplier_not_found'],
+        [400, 'goods_receipt_code_invalid'],
+        [409, 'goods_receipt_code_already_exists'],
+        [404, 'goods_receipt_submission_not_found']
+    ])('preserves the lifecycle rejection code %s %s', (status, code) => {
+        expect(normalizeApiError(createHttpError(status, {
+            code,
+            message: 'internal detail'
+        }))).toMatchObject({
+            status,
+            domainCode: code
+        });
+    });
+
+    it.each([
         [
             'authentication failures',
             createHttpError(401, { error: 'Unauthorized' }),
@@ -107,6 +125,43 @@ describe('normalizeApiError', () => {
             domainCode: API_DOMAIN_ERROR_CODE.ITEM_CATEGORY_ALREADY_EXISTS,
             status: 400
         });
+    });
+
+    it('maps the agreed duplicate-SKU response without exposing backend details', () => {
+        const normalized = normalizeApiError(createHttpError(409, {
+            success: false,
+            code: 'item_sku_already_exists',
+            errorType: 'ItemSkuAlreadyExistsException',
+            message: 'Item SKU already exists: QA1106-K7-A',
+            field: 'sku',
+            rejectedValue: 'QA1106-K7-A'
+        }));
+
+        expect(normalized).toMatchObject({
+            category: API_ERROR_CATEGORY.CONFLICT,
+            domainCode: API_DOMAIN_ERROR_CODE.ITEM_SKU_ALREADY_EXISTS,
+            status: 409,
+            validationErrors: []
+        });
+        expect(normalized.message).not.toContain('QA1106-K7-A');
+        expect(normalized.response).toBeUndefined();
+    });
+
+    it.each([
+        [409, { code: 'unknown_conflict' }],
+        [409, {
+            errorType: 'ItemSkuAlreadyExistsException',
+            message: 'Item SKU already exists: QA1106-K7-A'
+        }],
+        [500, { code: 'item_sku_already_exists' }],
+        [500, {
+            code: 500,
+            success: false,
+            errorType: 'InternalServerError',
+            message: 'An unexpected error occurred'
+        }]
+    ])('does not infer duplicate SKU from unrelated or malformed errors (%s)', (status, data) => {
+        expect(normalizeApiError(createHttpError(status, data)).domainCode).toBeNull();
     });
 
     it.each([
