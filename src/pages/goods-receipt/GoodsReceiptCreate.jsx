@@ -9,13 +9,18 @@ import {
     formatReceiptDraftDateTime,
     getReceiptInputEstimate,
     getReceiptLineInputEstimate,
+    getReceiptOutstandingInputEstimate,
+    receiptRequest,
     RECEIPT_OFFSETS,
+    stripReceiptCode,
     validateReceipt
 } from '@components/goods-receipt/receipt-create.js';
+import ReceiptInitialPayment, { ReceiptInitialPaymentSummary } from '@components/goods-receipt/ReceiptInitialPayment.jsx';
 import ReceiptLineEditor from '@components/goods-receipt/ReceiptLineEditor.jsx';
 import ReceiptLookup from '@components/goods-receipt/ReceiptLookup.jsx';
-import { useBreadcrumbStore } from '@stores/index.js';
-import useGoodsReceiptCreateStore from '@stores/modules/goods-receipt-create.js';
+import { useAuthStore, useBreadcrumbStore } from '@stores/index.js';
+import useCashSessionStore from '@stores/modules/cash-session.js';
+import useGoodsReceiptCreateStore, { canUseReceiptCreate } from '@stores/modules/goods-receipt-create.js';
 import { GOODS_RECEIPT_LOCATION_LABELS } from '@utils/goods-receipt-utils.js';
 import { formatUnitOfMeasure } from '@utils/quantity-utils.js';
 
@@ -25,11 +30,14 @@ const MESSAGES = {
     conflict: 'Data berubah saat diproses. Masukan tetap tersimpan. Pilih ulang barang/pemasok untuk memuat data terbaru, lalu tinjau kembali.',
     authentication: 'Sesi berakhir. Masuk kembali untuk melanjutkan masukan yang tersimpan.',
     authorization: 'Anda tidak memiliki izin membuat penerimaan. Masukan tetap tersimpan.',
-    uncertain: 'Hasil penyimpanan belum dapat dipastikan. Masukan dikunci. Coba kembali permintaan yang sama agar tidak membuat penerimaan ganda.',
+    uncertain: 'Hasil pengiriman belum dapat dipastikan. Masukan dikunci. Periksa status pengiriman sebelum melanjutkan.',
+    submissionMissing: 'Hasil belum tercatat pada pemeriksaan ini. Pengiriman awal mungkin masih berjalan. Periksa status lagi atau minta pemeriksaan petugas.',
+    sessionConflict: 'Pembayaran tunai belum dapat dikirim. Periksa sesi kas lalu tinjau kembali.',
     keyConflict: 'Identitas permintaan sudah dipakai untuk data berbeda. Masukan dikunci. Periksa riwayat dan minta bantuan sebelum membuat penerimaan lain.'
 };
 
 export default function GoodsReceiptCreate() {
+    const state = useGoodsReceiptCreateStore();
     const {
         draft,
         attempt,
@@ -39,10 +47,18 @@ export default function GoodsReceiptCreate() {
         errors,
         updateDraft,
         submit,
+        resolveSubmission,
         reset
-    } = useGoodsReceiptCreateStore();
+    } = state;
+    const accountId = useAuthStore(auth => auth.authStatus === 'authenticated'
+        ? auth.currentUser?.accountId : null);
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const [reviewing, setReviewing] = useState(false);
+    const [reviewRequest, setReviewRequest] = useState(null);
+    const [reviewCashSessionId, setReviewCashSessionId] = useState(null);
+    const [reviewOwner, setReviewOwner] = useState(null);
+    const [checkingReview, setCheckingReview] = useState(false);
+    const checkingReviewRef = useRef(false);
     const [localErrors, setLocalErrors] = useState({});
     const refs = useRef({});
     const noticeRef = useRef(null);
@@ -51,8 +67,9 @@ export default function GoodsReceiptCreate() {
         ...errors,
         ...localErrors
     };
-    const locked = pending || !!attempt || !!result;
+    const locked = pending || checkingReview || !!attempt || !!result;
     const inputEstimate = getReceiptInputEstimate(draft.items);
+    const outstandingEstimate = getReceiptOutstandingInputEstimate(draft);
     const noticeSeverity = result
         ? 'success'
         : ['rejected', 'conflict', 'authentication', 'authorization', 'keyConflict'].includes(outcome)
@@ -62,6 +79,10 @@ export default function GoodsReceiptCreate() {
     useEffect(() => {
         setBreadcrumbs(['Penerimaan Barang', 'Buat Penerimaan']);
     }, [setBreadcrumbs]);
+
+    useEffect(() => {
+        setReviewing(false);
+    }, [accountId]);
 
     useEffect(() => {
         if (!reviewing && (result || MESSAGES[outcome])) {
@@ -87,9 +108,9 @@ export default function GoodsReceiptCreate() {
             [name]: value
         });
     };
-    const review = event => {
+    const review = async event => {
         event.preventDefault();
-        if (locked) return;
+        if (locked || checkingReviewRef.current || !canUseReceiptCreate(state)) return;
 
         const validation = validateReceipt(draft);
         setLocalErrors(validation);
@@ -99,25 +120,65 @@ export default function GoodsReceiptCreate() {
             return;
         }
 
-        setReviewing(true);
+        checkingReviewRef.current = true;
+        setCheckingReview(true);
+
+        try {
+            const request = receiptRequest(draft);
+            let sessionId = null;
+            if (request.initialPayment?.paymentMethod === 'CASH') {
+                const session = await useCashSessionStore.getState().getCurrentSession({ timeout: 15000 });
+                if (session?.status !== 'OPEN') throw new Error('Open cash session required');
+
+                sessionId = session.id;
+            }
+            if (useAuthStore.getState().currentUser?.accountId !== accountId) return;
+
+            setReviewRequest(request);
+            setReviewCashSessionId(sessionId);
+            setReviewOwner(accountId);
+            setReviewing(true);
+        } catch {
+            setLocalErrors({
+                'initialPayment.paymentMethod': 'Sesi kas belum dapat digunakan. Periksa sesi yang terbuka lalu tinjau kembali.'
+            });
+            refs.current['initialPayment.paymentMethod']?.focus();
+        } finally {
+            checkingReviewRef.current = false;
+            setCheckingReview(false);
+        }
     };
     const confirm = async () => {
-        if (useGoodsReceiptCreateStore.getState().pending) return;
+        if (useGoodsReceiptCreateStore.getState().pending || accountId !== reviewOwner) return;
 
-        await submit();
+        await submit(reviewRequest, reviewCashSessionId);
         setReviewing(false);
     };
 
     const input = (name, label, helperText) => ({
         name,
         label,
-        value: draft[name],
+        value: draft[name] ?? '',
         disabled: locked || reviewing,
         inputRef: ref(name),
         error: !!mergedErrors[name],
         helperText: mergedErrors[name] || helperText,
         onChange: event => change(name, event.target.value)
     });
+
+    if (!accountId) return <p role="status">Memverifikasi akun sebelum membuka penerimaan...</p>;
+    if (!canUseReceiptCreate(state, accountId)) {
+        return (
+            <Alert severity="warning">
+                Draf atau hasil pengiriman tersimpan untuk akun asal. Masuk dengan akun tersebut untuk melanjutkan.
+                { !state.ownerAccountId && ' Pengiriman lama belum memiliki identitas akun tetap. Minta petugas memeriksa riwayat sebelum membuat penerimaan lain.' }
+                <Button component={ Link } to="/goods-receipts">Buka riwayat penerimaan</Button>
+                { !attempt && !pending && (
+                    <Button onClick={ reset }>Mulai draf untuk akun ini</Button>
+                ) }
+            </Alert>
+        );
+    }
 
     return (
         <div className="min-w-0 max-w-6xl space-y-4">
@@ -148,6 +209,11 @@ export default function GoodsReceiptCreate() {
             { result ? (
                 <>
                     <GoodsReceiptInfoCard receipt={ result } />
+                    { result.initialPayment && (
+                        <Paper className="p-4 md:p-6">
+                            <ReceiptInitialPaymentSummary payment={ result.initialPayment } />
+                        </Paper>
+                    ) }
                     <GoodsReceiptItemsTable goodsReceiptItems={ result.items } />
                     <div className="flex flex-wrap gap-2">
                         <Button
@@ -155,6 +221,24 @@ export default function GoodsReceiptCreate() {
                             to={ `/goods-receipts/${ encodeURIComponent(result.code) }` }
                         >
                             Buka detail penerimaan
+                        </Button>
+                        <Button
+                            component={ Link }
+                            to={ `/goods-receipts?${ new URLSearchParams({
+                                key: 'exactCode',
+                                q: result.code
+                            }) }` }
+                        >
+                            Cari kode persis di riwayat
+                        </Button>
+                        <Button
+                            component={ Link }
+                            to={ `/payables?${ new URLSearchParams({
+                                key: 'exactCode',
+                                q: result.code
+                            }) }` }
+                        >
+                            Buka utang penerimaan
                         </Button>
                         <Button variant="contained" onClick={ reset }>
                             Buat penerimaan berikutnya
@@ -167,7 +251,7 @@ export default function GoodsReceiptCreate() {
                     onSubmit={ review }
                     noValidate
                     className="min-w-0 space-y-6 overflow-hidden p-4 md:p-6"
-                    aria-busy={ pending }
+                    aria-busy={ pending || checkingReview }
                 >
                     <section className="min-w-0 space-y-4" aria-labelledby="receipt-information-title">
                         <div>
@@ -175,9 +259,18 @@ export default function GoodsReceiptCreate() {
                                 Informasi penerimaan
                             </h2>
                             <p className="text-sm text-gray-600">
-                                Penerimaan menambah stok dan mencatat tagihan. Pembayaran dilakukan terpisah.
+                                Penerimaan menambah stok dan mencatat tagihan. Pembayaran awal dapat dicatat bersama.
                             </p>
                         </div>
+
+                        <TextField
+                            { ...input(
+                                'code',
+                                'Kode penerimaan (opsional)',
+                                'Kosongkan untuk kode otomatis. Maksimal 100 karakter. Huruf besar/kecil dibedakan; spasi tepi dihapus server.'
+                            ) }
+                            fullWidth
+                        />
 
                         <ReceiptLookup
                             kind="supplier"
@@ -312,6 +405,14 @@ export default function GoodsReceiptCreate() {
                         </div>
                     </section>
 
+                    <ReceiptInitialPayment
+                        payment={ draft.initialPayment || null }
+                        disabled={ locked || reviewing }
+                        onChange={ payment => change('initialPayment', payment) }
+                        errors={ mergedErrors }
+                        fieldRef={ name => ref(`initialPayment.${ name }`) }
+                    />
+
                     { attempt && !pending && (
                         <section
                             className="min-w-0 space-y-3 rounded border border-amber-300 bg-amber-50 p-4"
@@ -341,8 +442,9 @@ export default function GoodsReceiptCreate() {
                                 </div>
                             </dl>
                             <p className="text-sm text-gray-600">
-                                Payload dan kunci idempotensi tetap terkunci; pemulihan tidak membuat permintaan baru.
+                                Payload dan kunci idempotensi tetap terkunci. Pemeriksaan status hanya membaca hasil pengiriman.
                             </p>
+                            <ReceiptInitialPaymentSummary payment={ attempt.request.initialPayment } />
                         </section>
                     ) }
 
@@ -357,27 +459,29 @@ export default function GoodsReceiptCreate() {
                         >
                             Tinjau penerimaan
                         </Button>
-                        { (outcome === 'uncertain'
-                                || (attempt && outcome === 'storageUnavailable')) && (
+                        { attempt && outcome !== 'keyConflict' && (
                             <Button
                                 type="button"
                                 variant="contained"
                                 disabled={ pending }
-                                onClick={ () => setReviewing(true) }
+                                onClick={ resolveSubmission }
                             >
-                                Pulihkan permintaan yang sama
+                                Periksa status pengiriman
                             </Button>
                         ) }
                     </div>
+                    { checkingReview && <p role="status">Memeriksa kesiapan pembayaran awal...</p> }
                     { pending && (
                         <p role="status">
-                            Satu permintaan sedang dicatat. Semua masukan dikunci sampai server memberi hasil.
+                            { outcome === 'checking'
+                                ? 'Memeriksa hasil pengiriman yang tersimpan...'
+                                : 'Satu permintaan sedang dicatat. Semua masukan dikunci sampai server memberi hasil.' }
                         </p>
                     ) }
                 </Paper>
             ) }
 
-            { reviewing && (
+            { reviewing && reviewRequest && (
                 <Dialog
                     open
                     fullWidth
@@ -394,6 +498,12 @@ export default function GoodsReceiptCreate() {
                         </p>
 
                         <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                            <div>
+                                <dt className="text-gray-600">Kode penerimaan</dt>
+                                <dd className="break-all font-medium">
+                                    { reviewRequest.code ? stripReceiptCode(reviewRequest.code) : 'Dibuat otomatis oleh server' }
+                                </dd>
+                            </div>
                             <div>
                                 <dt className="text-gray-600">Pemasok</dt>
                                 <dd className="break-words font-medium">
@@ -438,14 +548,21 @@ export default function GoodsReceiptCreate() {
                             <span>Perkiraan dari input</span>
                             <strong className="tabular-nums">{ formatRupiah(inputEstimate) }</strong>
                         </div>
+                        <ReceiptInitialPaymentSummary
+                            payment={ reviewRequest.initialPayment }
+                            cashSessionId={ reviewCashSessionId }
+                        />
+                        <div className="rounded bg-gray-100 p-3">
+                            <span>Perkiraan sisa setelah pembayaran</span>
+                            <strong className="ml-2 tabular-nums">
+                                { outstandingEstimate === null ? '-' : formatRupiah(outstandingEstimate) }
+                            </strong>
+                        </div>
                         <Alert severity="info">
-                            Stok, total, jumlah dibayar, sisa utang, dan status pembayaran berasal dari hasil yang disimpan server. Langkah ini tidak mencatat pembayaran awal.
+                            Perkiraan memakai input untuk membantu pemeriksaan. Total, sisa utang, dan status resmi
+                            berasal dari server. Penerimaan serta pembayaran awal disimpan bersama.
+                            Jika pembayaran ditolak, penerimaan dan perubahan stok juga dibatalkan.
                         </Alert>
-                        { attempt && (
-                            <p className="text-sm text-gray-600">
-                                Pengiriman ulang memakai payload dan kunci yang sama untuk mencegah penerimaan ganda.
-                            </p>
-                        ) }
                         { pending && (
                             <p role="status">
                                 Mencatat satu permintaan penerimaan. Jangan tutup atau kirim ulang sampai hasil tersedia.

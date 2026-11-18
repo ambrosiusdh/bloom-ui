@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Roadmap
 
-Last updated: 2026-09-26
+Last updated: 2026-11-19
 
 ## 1. How to use this roadmap
 
@@ -410,13 +410,13 @@ stock-history, barcode, and edit access; no aggregate inventory value or new end
 - **Dependencies:** FE-12.
 - **Backend gate:** Atomic transfer endpoint supports decimal quantity, source/destination, item policy, reference/result movements, validation, and stock conflicts.
 - **User-visible change:** Users can move stock between STORE and WAREHOUSE with one confirmed operation.
-- **Exact scope:** Transfer form, confirmation, request lifecycle, result, affected-read refresh, and focused tests.
-- **Out of scope:** Adjustment, multi-item transfer, frontend two-step decrement/increment, transfer reporting.
+- **Exact scope:** Transfer form, confirmation, request lifecycle, result, affected-read refresh, and focused tests; the authorized 2026-11-09 QA extension adds multiple lines and persisted history/detail with movement navigation.
+- **Out of scope:** Adjustment, frontend two-step decrement/increment, approval workflows, transfer reporting.
 - **Recommended model:** `gpt-5.6-sol`, high reasoning.
 - **Expected output:** One atomic backend request; identical locations and invalid quantity are prevented/explained, while backend remains authoritative for availability.
 - **Validation:** Tests for direction swap, same-location rejection, precision, pending/conflict/success; keyboard/focus; tests/build/lint.
 - **Block condition:** Transfer requires separate decrement/increment calls or lacks a stable result/reference.
-- **Split trigger:** Multi-item or approval behavior is requested; defer it beyond this single-item Release 1 PR.
+- **Split trigger:** Approval behavior is requested. The multi-item follow-up remains one stock-transfer domain change.
 
 **Copy-ready implementation prompt**
 
@@ -430,6 +430,12 @@ same-key idempotent POST returns the stored result. A different account is quara
 attempt/result, malformed or owner-mismatched responses remain uncertain, key conflicts fail closed,
 and unavailable storage prevents the POST. Focused transfer/API tests, the 398-test frontend suite,
 targeted lint, and the production build pass. No transfer endpoint or stock rule changed.
+
+**QA extension (2026-11-09): IMPLEMENTED.** The explicitly requested follow-up extends FE-14
+to multiple distinct lines and persisted history/detail, superseding the original single-item scope.
+Backend source and the backend agent confirmed the existing atomic keyed POST, collection read,
+query-parameter detail read, additive movement facts, and indexed business errors. Same-location
+prevention is preserved. See [implementation and verification](stock-transfer-qa-extension.md).
 
 ### FE-15 — Current/open cash session
 
@@ -639,6 +645,13 @@ targeted lint, and the production build pass. No transfer endpoint or stock rule
 
 > Implement FE-24 after verifying supplier create/update/deactivate controller/DTO/validation/service semantics. Build only supplier maintenance with existing JavaScript components and stores. Cover field validation, uniqueness/conflict, pending, duplicate submit, success, preserved input, and accessible deactivation confirmation while retaining stable identifiers/history. Add focused tests. Do not implement receipts, debt, payments, hard delete, or a shared form-system rewrite.
 
+**Supplier reactivation extension (2026-11-18), IMPLEMENTED.** Supplier detail reuses the existing
+activation command for inactive suppliers under the backend authenticated-session policy.
+Cancel-first confirmation, duplicate locking, Indonesian failures, immutable code, and saved status
+are verified. Browser QA `QA1118-RC-SUP` moved from inactive search to active search and was selected
+for a new receipt. Review this supplier-maintenance slice separately from receipt cancellation.
+See [extension contract and QA results](supplier-reactivation-receipt-cancellation.md).
+
 ### FE-25 — Goods-receipt list and detail
 
 - **Domain:** Goods-receipt read workflow.
@@ -661,6 +674,15 @@ targeted lint, and the production build pass. No transfer endpoint or stock rule
 
 > Complete only FE-25's remaining calendar-filter timezone work; preserve the implemented goods-receipt list/detail behavior. First read `AGENTS.md`, the frontend contract, this roadmap, and the FE-25 implementation notes; inspect Git status. In the backend repository, inspect `GoodsReceiptController`, `FilterGoodsReceiptRequest`, `GoodsReceiptSpecification`, date serialization/configuration, and the Release 1 domain contract. Do not assume the dashboard-specific zone property governs goods-receipt filters. Obtain an explicit endpoint-applicable rule—prefer calendar-date parameters interpreted by the backend in the configured store zone, or a documented canonical IANA store zone and exact inclusive/exclusive Instant-boundary semantics. If that backend rule is still absent, make only the narrow backend contract/DTO/service/test change required and stop before frontend guessing. Once explicit, replace the frontend's device-local `new Date(...)` conversion with the agreed rule, preserving canonical URL dates and one list request. Test start-only, end-only, same-day, month/year/leap boundaries, a browser timezone different from the store, invalid URL dates, stale requests, retry, paging, and existing empty/accessibility/responsive behavior. Run focused and full tests, production build, and targeted lint. Do not change receipt creation/payment, add timezone dependencies without necessity, aggregate financial values, or redesign the list/detail screens.
 
+**Unpaid receipt cancellation extension (2026-11-18), IMPLEMENTED.** This extends the detail workflow
+with backend-owned `canCancel`, slash-safe query transport, required reason, stock/payable review,
+pending locking, retained rejection input, explicit unknown-outcome refresh, saved cancellation audit,
+and reversal-ledger navigation. Payment and cancellation actions disappear for cancelled receipts.
+Backend V23 is required. Browser QA verified a fractional receipt across both locations, payable
+removal, two reversal movements, reload, payable entry, and atomic visible rejection when STORE stock
+was insufficient. Review as a receipt-correction slice. See
+[extension contract, references, and verification limits](supplier-reactivation-receipt-cancellation.md).
+
 ### FE-26 — Goods-receipt creation
 
 - **Domain:** Goods receipt posting.
@@ -681,6 +703,8 @@ targeted lint, and the production build pass. No transfer endpoint or stock rule
 **Implementation note (2026-09-09):** Creation gate verified against the current controller, nested request/response DTOs, quantity/money validators, transactional goods-receipt/stock-movement/payment services, mapper and exception handling. Implemented receipt-only posting, explicit received time/offset, separate repeated item lines, safe same-key replay, preserved draft/recovery, and server financial/status display. FE-25's calendar-filter timezone approval remains separate and blocked. See [interaction/request and validation plan](fe-26-receipt-creation.md). Review quantity/line mechanics and atomic posting/recovery as two logical slices because the complete change exceeds the roadmap's usual diff cap; no split exception or merge approval is implied.
 
 **Status audit (2026-09-12):** The implementation, focused verification, review corrections, and FE-26 merge are present in current history. FE-25's read-filter timezone gate does not make FE-26 creation incomplete because creation captures an explicit date/time offset.
+
+**Receipt-creation extension (2026-11-19): IMPLEMENTED in source.** Optional custom codes and initial CASH/BANK_TRANSFER/QRIS payments use the agreed atomic backend operation. Automatic generation and no payment remain defaults. Review freezes payment time and shows method, amount, advisory outstanding, and cash-session effects. Success renders the authoritative receipt plus stable payment identity. Ambiguous submissions retain the original account-owned body/key and resolve through read-only GET lookup; absence never unlocks or triggers a second POST. Exact-code history/payable links and encoded detail/payment/movement links support `/+%?#`. Automated and isolated browser checks are complete. Integration against the updated running backend remains pending authorized rollout; existing services/database were preserved. See [implementation, test references, and rollout boundary](receipt-initial-payment-custom-code.md). This supersedes the earlier receipt-only and same-key POST recovery behavior for the current creation screen.
 
 **Copy-ready implementation prompt**
 

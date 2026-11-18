@@ -12,12 +12,43 @@ describe('goods receipt read API', () => {
         apiRequest.mockResolvedValue({});
     });
 
+    it('cancels using an exact slash-containing query reference and reason without an idempotency key', async () => {
+        await goodsReceiptApi.cancelGoodsReceipt('GR/XI-2026/0042', 'Penerimaan duplikat');
+
+        expect(apiRequest).toHaveBeenCalledWith({
+            url: '/api/goods-receipts/cancel',
+            method: 'POST',
+            params: { code: 'GR/XI-2026/0042' },
+            data: { reason: 'Penerimaan duplikat' },
+            timeout: 15000,
+            skipAuthRedirect: true
+        }, undefined);
+    });
+
+    it('resolves submission by GET using the retained key with no receipt body', async () => {
+        await goodsReceiptApi.getGoodsReceiptSubmission('original-key');
+
+        expect(apiRequest).toHaveBeenCalledWith({
+            url: '/api/goods-receipts/submission',
+            method: 'GET',
+            headers: { 'Idempotency-Key': 'original-key' },
+            timeout: 15000,
+            skipAuthRedirect: true
+        }, undefined);
+    });
+
     it('posts receipt intent with the supplied stable idempotency key', async () => {
         const payload = { supplierCode: 'SUP-7', receivedDate: '2026-09-09T02:00:00Z',
             items: [{ itemSku: 'KAIN-1', quantity: '0.5000', purchasePrice: '10000.125', stockLocation: 'STORE' }] };
         await goodsReceiptApi.createGoodsReceipt(payload, 'receipt-replay', { useLoader: false });
-        expect(apiRequest).toHaveBeenCalledWith({ url: '/api/goods-receipts', method: 'POST',
-            data: payload, headers: { 'Idempotency-Key': 'receipt-replay' } }, { useLoader: false });
+        expect(apiRequest).toHaveBeenCalledWith({
+            url: '/api/goods-receipts',
+            method: 'POST',
+            data: payload,
+            headers: { 'Idempotency-Key': 'receipt-replay' },
+            timeout: 15000,
+            skipAuthRedirect: true
+        }, { useLoader: false });
     });
 
     it('forwards only the supplied list filters, paging, and cancellation signal', async () => {

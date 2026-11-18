@@ -37,11 +37,13 @@ import {
 const PAGE_SIZE_OPTIONS = [5, 10, 25, 50];
 const FILTER_KEYS = {
     code: 'Nomor penerimaan',
+    exactCode: 'Kode penerimaan persis',
     supplierCode: 'Kode pemasok',
     supplierName: 'Nama pemasok'
 };
 const FILTER_PLACEHOLDERS = {
     code: 'Contoh: GR/IX-2026/0003',
+    exactCode: 'Contoh: Vendor/2026/001',
     supplierCode: 'Contoh: SUP-BANGUN-01',
     supplierName: 'Contoh: CV Bangun Jaya'
 };

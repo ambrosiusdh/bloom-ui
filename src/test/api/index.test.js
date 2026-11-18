@@ -32,6 +32,24 @@ const createHttpError = (status, data = {}) => ({
 
 describe('normalizeApiError', () => {
     it.each([
+        [409, 'goods_receipt_has_payments'],
+        [409, 'goods_receipt_insufficient_stock'],
+        [404, 'goods_receipt_not_found'],
+        [404, 'supplier_not_found'],
+        [400, 'goods_receipt_code_invalid'],
+        [409, 'goods_receipt_code_already_exists'],
+        [404, 'goods_receipt_submission_not_found']
+    ])('preserves the lifecycle rejection code %s %s', (status, code) => {
+        expect(normalizeApiError(createHttpError(status, {
+            code,
+            message: 'internal detail'
+        }))).toMatchObject({
+            status,
+            domainCode: code
+        });
+    });
+
+    it.each([
         [
             'authentication failures',
             createHttpError(401, { error: 'Unauthorized' }),

@@ -47,6 +47,32 @@ describe('StockMovementList', () => {
         vi.clearAllMocks();
     });
 
+    it('opens receipt reversal movements by reference and links back to the encoded receipt', async () => {
+        stockMovementApi.getStockMovementList.mockResolvedValue(response({
+            content: [{
+                ...movement,
+                sourceType: 'GOODS_RECEIPT_CANCELLATION',
+                movementType: 'OUT',
+                referenceNo: 'GR/XI-2026/0042'
+            }]
+        }));
+        render(<StockMovementList />, {
+            route: '/stock-movements?sourceType=GOODS_RECEIPT_CANCELLATION&reference=GR%2FXI-2026%2F0042'
+        });
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Lihat detail pergerakan Kain katun' }));
+        expect(screen.getByRole('link', { name: 'Buka penerimaan terkait' }))
+            .toHaveAttribute('href', '/goods-receipts/GR%2FXI-2026%2F0042');
+        expect(stockMovementApi.getStockMovementList).toHaveBeenCalledWith(expect.objectContaining({
+            params: {
+                page: 1,
+                size: 10,
+                sourceType: 'GOODS_RECEIPT_CANCELLATION',
+                reference: 'GR/XI-2026/0042'
+            }
+        }));
+    });
+
     it('renders grouped ledger facts and opens an in-context detail without another request', async () => {
         stockMovementApi.getStockMovementList.mockResolvedValue(response({ content: [movement] }));
         render(<StockMovementList />, { route: '/stock-movements?itemSku=KAIN-00001' });
@@ -145,11 +171,29 @@ describe('StockMovementList', () => {
         }));
         render(<StockMovementList />);
 
+        expect(screen.getByRole('link', { name: 'Riwayat transfer stok' })).toHaveAttribute('href', '/stock-transfers');
         fireEvent.click(await screen.findByRole('button', { name: 'Lihat detail pergerakan Kain katun' }));
 
         expect(screen.getByRole('dialog', { name: 'Detail pergerakan stok' }))
             .toHaveTextContent('Detail sumber belum tersedia untuk jenis pergerakan ini.');
         expect(screen.queryByRole('link', { name: /terkait/i })).not.toBeInTheDocument();
+        expect(stockMovementApi.getStockMovementList).toHaveBeenCalledTimes(1);
+    });
+
+    it('links transfer movements to their persisted parent using an encoded reference', async () => {
+        stockMovementApi.getStockMovementList.mockResolvedValue(response({
+            content: [{
+                ...movement,
+                sourceType: 'TRANSFER',
+                referenceNo: 'TRF/2026/42'
+            }]
+        }));
+        render(<StockMovementList />);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Lihat detail pergerakan Kain katun' }));
+        expect(screen.getByRole('link', { name: 'Buka transfer terkait' }))
+            .toHaveAttribute('href', '/stock-transfers/TRF%2F2026%2F42');
+        expect(screen.queryByText('Detail sumber belum tersedia untuk jenis pergerakan ini.')).not.toBeInTheDocument();
         expect(stockMovementApi.getStockMovementList).toHaveBeenCalledTimes(1);
     });
 });

@@ -16,10 +16,16 @@ import {
     validateReceiptDecimal
 } from '@components/goods-receipt/receipt-create.js';
 import GoodsReceiptCreate from '@pages/goods-receipt/GoodsReceiptCreate.jsx';
+import useAuthStore from '@stores/modules/auth.js';
 import useCreate from '@stores/modules/goods-receipt-create.js';
 import { act, fireEvent, render, screen, waitFor, within } from '@/test/render.jsx';
 
-vi.mock('@api/goods-receipt.js', () => ({ default: { createGoodsReceipt: vi.fn() } }));
+vi.mock('@api/goods-receipt.js', () => ({
+    default: {
+        createGoodsReceipt: vi.fn(),
+        getGoodsReceiptSubmission: vi.fn()
+    }
+}));
 vi.mock('@api/item.js', () => ({ default: { getItemList: vi.fn() } }));
 vi.mock('@api/supplier.js', () => ({ default: { getSupplierList: vi.fn() } }));
 
@@ -93,6 +99,7 @@ const deferred = () => {
     };
 };
 const seed = value => useCreate.setState({
+    ownerAccountId: '101',
     draft: value,
     attempt: null,
     result: null,
@@ -107,11 +114,19 @@ const openReview = async user => {
 
 beforeEach(() => {
     vi.clearAllMocks();
+    useAuthStore.setState({
+        authStatus: 'authenticated',
+        currentUser: {
+            accountId: '101',
+            username: 'admin'
+        }
+    });
     sessionStorage.clear();
     seed(draft());
     itemApi.getItemList.mockResolvedValue(response([item]));
     supplierApi.getSupplierList.mockResolvedValue(response([supplier]));
     goodsReceiptApi.createGoodsReceipt.mockResolvedValue({ data: { data: receipt } });
+    goodsReceiptApi.getGoodsReceiptSubmission.mockResolvedValue({ data: { data: receipt } });
 });
 
 describe('FE-26 input and exact request boundary', () => {
@@ -300,7 +315,7 @@ describe('FE-26 atomic posting and recovery', () => {
         expect(price).toHaveAttribute('aria-invalid', 'true');
         expect(screen.getByRole('textbox', { name: 'Jumlah baris 1' })).toHaveValue('0,5000');
     });
-    it('freezes uncertain submissions, retains the key across reload, and replays exactly once explicitly', async () => {
+    it('freezes uncertain submissions and resolves the original key through a read-only lookup after reload', async () => {
         const user = userEvent.setup();
         const pending = deferred();
         goodsReceiptApi.createGoodsReceipt.mockReturnValueOnce(pending.promise);
@@ -319,22 +334,34 @@ describe('FE-26 atomic posting and recovery', () => {
         expect(screen.getByRole('textbox', { name: 'Jumlah baris 1' })).toBeDisabled();
         expect(screen.getByText('Permintaan yang sama disimpan')).toBeInTheDocument();
         expect(screen.getByText(/Payload dan kunci idempotensi tetap terkunci/)).toBeInTheDocument();
-        await user.click(screen.getByRole('button', { name: 'Pulihkan permintaan yang sama' }));
-        await user.click(screen.getByRole('button', { name: 'Catat penerimaan' }));
+        await user.click(screen.getByRole('button', { name: 'Periksa status pengiriman' }));
         await waitFor(() => expect(useCreate.getState().result).toEqual(receipt));
-        expect(goodsReceiptApi.createGoodsReceipt.mock.calls[1]).toEqual(original);
+        expect(goodsReceiptApi.createGoodsReceipt).toHaveBeenCalledTimes(1);
+        expect(goodsReceiptApi.getGoodsReceiptSubmission).toHaveBeenCalledWith(original[1], { useLoader: false });
     });
-    it('keeps a replay rejection or idempotency conflict frozen and never issues a new key', async () => {
-        goodsReceiptApi.createGoodsReceipt.mockRejectedValueOnce({ status: 500 }).mockRejectedValueOnce({ status: 400 });
+    it('keeps missing lookup results unresolved and never reposts or issues a new key', async () => {
+        goodsReceiptApi.createGoodsReceipt.mockRejectedValue({ status: 500 });
+        goodsReceiptApi.getGoodsReceiptSubmission.mockRejectedValue({
+            status: 404,
+            domainCode: 'goods_receipt_submission_not_found'
+        });
         await useCreate.getState().submit();
         const attempt = useCreate.getState().attempt;
         await useCreate.getState().submit();
-        expect(useCreate.getState()).toMatchObject({ attempt, outcome: 'uncertain' });
-        goodsReceiptApi.createGoodsReceipt.mockRejectedValue({ status: 409, domainCode: 'goods_receipt_idempotency_conflict' });
+        expect(useCreate.getState()).toMatchObject({
+            attempt,
+            outcome: 'submissionMissing'
+        });
         await useCreate.getState().submit();
         useCreate.getState().updateDraft(newReceiptDraft());
         useCreate.getState().reset();
-        expect(useCreate.getState()).toMatchObject({ attempt, draft: draft(), outcome: 'keyConflict' });
+        expect(useCreate.getState()).toMatchObject({
+            attempt,
+            draft: draft(),
+            outcome: 'submissionMissing'
+        });
+        expect(goodsReceiptApi.createGoodsReceipt).toHaveBeenCalledTimes(1);
+        expect(goodsReceiptApi.getGoodsReceiptSubmission).toHaveBeenCalledTimes(2);
     });
     it('treats incomplete success as uncertain and guards simultaneous calls', async () => {
         goodsReceiptApi.createGoodsReceipt.mockResolvedValue({ data: { data: { code: 'GR-1' } } });
@@ -365,7 +392,7 @@ describe('FE-26 selection, line editing and responsive structure', () => {
         expect(dialog).toHaveTextContent('Gudang (WAREHOUSE)');
         expect(dialog).toHaveTextContent('Perkiraan dari input');
         expect(dialog).toHaveTextContent('Rp 12.500,0625');
-        expect(dialog).toHaveTextContent('tidak mencatat pembayaran awal');
+        expect(dialog).toHaveTextContent('Tanpa pembayaran awal.');
     });
 
     it('selects stable supplier identity, adds repeated items with separate prices/locations, and moves focus on add/remove', async () => {

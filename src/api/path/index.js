@@ -35,6 +35,8 @@ const GOODS_RECEIPT = {
     list: '/api/goods-receipts',
     create: '/api/goods-receipts',
     detail: '/api/goods-receipts/details',
+    submission: '/api/goods-receipts/submission',
+    cancel: '/api/goods-receipts/cancel'
 }
 
 const STOCK_ADJUSTMENT = {
@@ -50,7 +52,9 @@ const STOCK_MOVEMENT = {
 }
 
 const STOCK_TRANSFER = {
-    create: '/api/stock-transfers'
+    create: '/api/stock-transfers',
+    list: '/api/stock-transfers',
+    details: '/api/stock-transfers/details'
 }
 
 const CASH_SESSION = {

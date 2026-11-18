@@ -59,6 +59,9 @@ const PaymentMethod = ({ payment }) => (
                 || '-' }
         </strong>
         <span className="block break-all text-sm text-gray-600">
+            { valueOrFallback(payment.paymentReference, 'Identitas pembayaran belum tersedia') }
+        </span>
+        <span className="block break-all text-sm text-gray-600">
             { valueOrFallback(payment.reference, 'Tanpa referensi') }
         </span>
         { payment.note && (

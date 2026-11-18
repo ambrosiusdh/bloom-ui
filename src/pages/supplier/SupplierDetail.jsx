@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Alert, Button, Chip, CircularProgress, Paper } from '@mui/material';
-import { ArrowLeft, CircleOff, Pencil } from 'lucide-react';
+import { ArrowLeft, CircleCheck, CircleOff, Pencil } from 'lucide-react';
 
 import BloomConfirmationModal from '@components/_ui/BloomConfirmationModal.jsx';
 import { formatRupiah } from '@components/cash-session/cash-session-money.js';
 import { GENERIC_ERR_MESSAGE } from '@constants/general.js';
-import { useBreadcrumbStore, useSupplierStore } from '@stores/index.js';
+import { useAuthStore, useBreadcrumbStore, useSupplierStore } from '@stores/index.js';
 import { formatDate } from '@utils/date-utils.js';
 import { getSupplierDetailReturnTo, isValidSupplierCode } from '@utils/supplier-utils.js';
 
@@ -19,6 +19,7 @@ export default function SupplierDetail() {
     const navigate = useNavigate();
     const setBreadcrumbs = useBreadcrumbStore(state => state.setBreadcrumbs);
     const supplier = useSupplierStore(state => state.supplierDetails);
+    const isAuthenticated = useAuthStore(state => state.authStatus === 'authenticated');
     const status = useSupplierStore(state => state.detailStatus);
     const error = useSupplierStore(state => state.detailError);
     const getSupplierDetails = useSupplierStore(state => state.getSupplierDetails);
@@ -31,16 +32,19 @@ export default function SupplierDetail() {
     const clearSupplierOutstandingBalance = useSupplierStore(state => state.clearSupplierOutstandingBalance);
     const [retryVersion, setRetryVersion] = useState(0);
     const [balanceRetryVersion, setBalanceRetryVersion] = useState(0);
-    const [showDeactivation, setShowDeactivation] = useState(false);
-    const [isDeactivating, setIsDeactivating] = useState(false);
-    const [deactivationError, setDeactivationError] = useState('');
+    const [showActivationDialog, setShowActivationDialog] = useState(false);
+    const [isSavingActivation, setIsSavingActivation] = useState(false);
+    const [activationError, setActivationError] = useState('');
     const [successMessage, setSuccessMessage] = useState(location.state?.message || '');
-    const deactivationInProgressRef = useRef(false);
-    const deactivationTriggerRef = useRef(null);
+    const activationInProgressRef = useRef(false);
+    const activationTriggerRef = useRef(null);
     const isMountedRef = useRef(true);
     const successAlertRef = useRef(null);
     const isValidCode = isValidSupplierCode(code);
     const returnTo = getSupplierDetailReturnTo(location.state?.from);
+    const isReactivating = supplier?.active === false;
+    const activationVerb = isReactivating ? 'Aktifkan' : 'Nonaktifkan';
+    const pendingLabel = isReactivating ? 'Mengaktifkan' : 'Menonaktifkan';
 
     useEffect(() => {
         setBreadcrumbs([
@@ -89,7 +93,7 @@ export default function SupplierDetail() {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
-            deactivationInProgressRef.current = false;
+            activationInProgressRef.current = false;
         };
     }, []);
 
@@ -101,40 +105,49 @@ export default function SupplierDetail() {
         });
     }, [location.pathname, location.search, location.state?.message, navigate, returnTo]);
 
-    const openDeactivation = event => {
-        deactivationTriggerRef.current = event.currentTarget;
-        setDeactivationError('');
-        setShowDeactivation(true);
+    const openActivationDialog = event => {
+        activationTriggerRef.current = event.currentTarget;
+        setActivationError('');
+        setShowActivationDialog(true);
     };
 
-    const closeDeactivation = () => {
-        if (deactivationInProgressRef.current) return;
-        setShowDeactivation(false);
-        setDeactivationError('');
-        setTimeout(() => deactivationTriggerRef.current?.focus(), 0);
+    const closeActivationDialog = () => {
+        if (activationInProgressRef.current) return;
+        setShowActivationDialog(false);
+        setActivationError('');
+        setTimeout(() => activationTriggerRef.current?.focus(), 0);
     };
 
-    const deactivateSupplier = async () => {
-        if (deactivationInProgressRef.current || !supplier?.active) return;
-        deactivationInProgressRef.current = true;
-        setIsDeactivating(true);
-        setDeactivationError('');
+    const saveActivation = async () => {
+        if (activationInProgressRef.current || supplier?.code !== code
+            || (isReactivating && !isAuthenticated)) return;
+        activationInProgressRef.current = true;
+        setIsSavingActivation(true);
+        setActivationError('');
 
         try {
-            const updatedSupplier = await setSupplierActive(supplier.code, false);
+            const updatedSupplier = await setSupplierActive(supplier.code, isReactivating);
             if (!isMountedRef.current) return;
-            setShowDeactivation(false);
+            setShowActivationDialog(false);
             setSuccessMessage(
-                `Pemasok ${ updatedSupplier.name } berhasil dinonaktifkan tanpa menghapus riwayatnya.`
+                updatedSupplier.active
+                    ? `Pemasok ${ updatedSupplier.name } berhasil diaktifkan dan dapat dipilih untuk penerimaan baru.`
+                    : `Pemasok ${ updatedSupplier.name } berhasil dinonaktifkan tanpa menghapus riwayatnya.`
             );
-        } catch (deactivationFailure) {
+        } catch (failure) {
             if (!isMountedRef.current) return;
-            setDeactivationError(deactivationFailure?.category === 'not_found'
-                ? 'Pemasok ini tidak lagi tersedia. Tutup dialog lalu muat ulang data.'
-                : deactivationFailure?.message || 'Pemasok gagal dinonaktifkan. Silakan coba lagi.');
+
+            const errorMessages = {
+                not_found: 'Pemasok ini tidak lagi tersedia. Tutup dialog lalu muat ulang data.',
+                authorization: 'Anda tidak memiliki izin untuk mengubah status pemasok.',
+                authentication: 'Sesi Anda telah berakhir. Silakan masuk kembali.',
+                conflict: 'Status pemasok telah berubah. Tutup dialog lalu muat ulang detail pemasok.'
+            };
+            setActivationError(errorMessages[failure?.category]
+                || 'Status pemasok belum dapat dipastikan. Periksa koneksi dan muat ulang detail pemasok sebelum mencoba lagi.');
         } finally {
-            deactivationInProgressRef.current = false;
-            if (isMountedRef.current) setIsDeactivating(false);
+            activationInProgressRef.current = false;
+            if (isMountedRef.current) setIsSavingActivation(false);
         }
     };
 
@@ -178,25 +191,32 @@ export default function SupplierDetail() {
 
     return (
         <div className="space-y-5 pb-8">
-            { showDeactivation && (
+            { showActivationDialog && (
                 <BloomConfirmationModal
-                    title={ `Nonaktifkan ${ supplier.name }?` }
-                    confirmButtonText={ isDeactivating ? 'Menonaktifkan...' : 'Nonaktifkan' }
-                    confirmButtonColor="error"
-                    onCancel={ closeDeactivation }
-                    onConfirm={ deactivateSupplier }
-                    isPending={ isDeactivating }
+                    title={ `${ activationVerb } ${ supplier.name }?` }
+                    confirmButtonText={ isSavingActivation ? `${ pendingLabel }...` : activationVerb }
+                    confirmButtonColor={ isReactivating ? 'primary' : 'error' }
+                    onCancel={ closeActivationDialog }
+                    onConfirm={ saveActivation }
+                    isPending={ isSavingActivation }
                     focusCancel
                 >
-                    <p>
-                        Pemasok tidak lagi dapat dipilih untuk transaksi baru. Identitas,
-                        catatan, dan seluruh riwayat yang memakai kode <strong>{ supplier.code }</strong> tetap tersimpan.
-                    </p>
-                    { deactivationError && <Alert severity="error" className="mt-3">{ deactivationError }</Alert> }
-                    { isDeactivating && (
+                    { isReactivating ? (
+                        <p>
+                            Pemasok dengan kode <strong>{ supplier.code }</strong> akan muncul di daftar aktif
+                            dan dapat dipilih untuk penerimaan baru.
+                        </p>
+                    ) : (
+                        <p>
+                            Pemasok tidak lagi dapat dipilih untuk transaksi baru. Identitas,
+                            catatan, dan seluruh riwayat yang memakai kode <strong>{ supplier.code }</strong> tetap tersimpan.
+                        </p>
+                    ) }
+                    { activationError && <Alert severity="error" className="mt-3">{ activationError }</Alert> }
+                    { isSavingActivation && (
                         <div role="status" className="mt-3 flex items-center gap-2">
                             <CircularProgress size={ 18 } aria-hidden="true" />
-                            Menonaktifkan pemasok...
+                            { pendingLabel } pemasok...
                         </div>
                     ) }
                 </BloomConfirmationModal>
@@ -239,15 +259,17 @@ export default function SupplierDetail() {
                 >
                     Ubah pemasok
                 </Button>
-                { supplier.active && (
+                { (supplier.active || (isReactivating && isAuthenticated)) && (
                     <Button
                         type="button"
-                        color="error"
+                        color={ isReactivating ? 'primary' : 'error' }
                         variant="outlined"
-                        startIcon={ <CircleOff aria-hidden="true" /> }
-                        onClick={ openDeactivation }
+                        startIcon={ isReactivating
+                            ? <CircleCheck aria-hidden="true" />
+                            : <CircleOff aria-hidden="true" /> }
+                        onClick={ openActivationDialog }
                     >
-                        Nonaktifkan pemasok
+                        { activationVerb } pemasok
                     </Button>
                 ) }
             </div>

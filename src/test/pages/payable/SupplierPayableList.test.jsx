@@ -62,6 +62,25 @@ const deferred = () => {
 };
 
 describe('SupplierPayableList FE-27 read workflow', () => {
+    it('uses the backend exact-code filter for a custom-code payable drill-down', async () => {
+        const code = 'Vendor/2026/+%?#';
+        goodsReceiptApi.getGoodsReceiptList.mockResolvedValue(response([{
+            ...receipts[0],
+            code
+        }]));
+        render(<SupplierPayableList />, {
+            route: '/payables?key=exactCode&q=Vendor%2F2026%2F%2B%25%3F%23'
+        });
+
+        expect(await screen.findByRole('link', { name: `Buka detail utang ${ code }` }))
+            .toHaveAttribute('href', '/goods-receipts/Vendor%2F2026%2F%2B%25%3F%23');
+        expect(goodsReceiptApi.getGoodsReceiptList).toHaveBeenCalledWith({
+            page: 1,
+            size: 10,
+            exactCode: code
+        }, expect.any(Object), { useLoader: false });
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
         useGoodsReceiptStore.setState({

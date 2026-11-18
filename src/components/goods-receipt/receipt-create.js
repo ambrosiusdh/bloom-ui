@@ -1,5 +1,6 @@
 import { isValidDateInput } from '@utils/date-utils.js';
 import { normalizeQuantity } from '@utils/quantity-utils.js';
+import { paymentRequest, validatePayment } from '@utils/supplier-payment-utils.js';
 
 export const RECEIPT_OFFSETS = {
     '+07:00': 'WIB (UTC+07)',
@@ -8,11 +9,13 @@ export const RECEIPT_OFFSETS = {
 };
 
 export const newReceiptDraft = () => ({
+    code: '',
     supplier: null,
     receivedDate: '',
     receivedTime: '',
     offset: '',
     description: '',
+    initialPayment: null,
     items: []
 });
 
@@ -55,16 +58,44 @@ const toScaledDecimal = value => {
 };
 
 const toScaledCanonicalDecimal = value => {
-    const [whole, fraction = ''] = String(value).split('.');
+    const [whole, fraction = ''] = String(value).trim().split('.');
 
     return (BigInt(whole) * 10000n) + BigInt(fraction.padEnd(4, '0'));
 };
 
 const fromScaledDecimal = value => {
-    const whole = value / 10000n;
-    const fraction = String(value % 10000n).padStart(4, '0').replace(/0+$/, '');
+    const sign = value < 0n ? '-' : '';
+    const absolute = value < 0n ? -value : value;
+    const whole = absolute / 10000n;
+    const fraction = String(absolute % 10000n).padStart(4, '0').replace(/0+$/, '');
 
-    return fraction ? `${ whole }.${ fraction }` : String(whole);
+    return `${ sign }${ whole }${ fraction ? `.${ fraction }` : '' }`;
+};
+
+// Matches Java String.strip(); the backend returns the canonical saved identity.
+export const stripReceiptCode = value => String(value || '').replace(
+    // eslint-disable-next-line no-control-regex -- Java strip includes ASCII control whitespace.
+    /^[\u0009-\u000d\u001c-\u0020\u1680\u2000-\u2006\u2008-\u200a\u2028\u2029\u205f\u3000]+|[\u0009-\u000d\u001c-\u0020\u1680\u2000-\u2006\u2008-\u200a\u2028\u2029\u205f\u3000]+$/gu,
+    ''
+);
+
+export const validateReceiptCode = value => {
+    if (!value) return '';
+    if (value.length > 100) return 'Kode penerimaan maksimal 100 karakter, termasuk spasi tepi.';
+
+    const code = stripReceiptCode(value);
+    return !code || /[\p{Z}\p{Cc}]/u.test(code)
+        ? 'Gunakan kode tanpa spasi di dalam atau karakter kontrol, atau kosongkan untuk kode otomatis.'
+        : '';
+};
+
+export const getReceiptOutstandingInputEstimate = draft => {
+    const total = getReceiptInputEstimate(draft.items);
+    if (total === null || !draft.initialPayment) return total;
+    if (validatePayment(draft.initialPayment)) return null;
+
+    return fromScaledDecimal(toScaledCanonicalDecimal(total)
+        - toScaledCanonicalDecimal(draft.initialPayment.amount));
 };
 
 // Mirrors backend line rounding only as a non-authoritative input aid.
@@ -110,6 +141,16 @@ export const formatReceiptDraftDateTime = draft => {
 
 export const validateReceipt = draft => {
     const errors = {};
+    errors.code = validateReceiptCode(draft.code);
+    if (draft.initialPayment) {
+        errors['initialPayment.amount'] = validatePayment(draft.initialPayment);
+        if ((draft.initialPayment.reference?.length || 0) > 255) {
+            errors['initialPayment.reference'] = 'Referensi maksimal 255 karakter.';
+        }
+        if ((draft.initialPayment.note?.length || 0) > 255) {
+            errors['initialPayment.note'] = 'Catatan maksimal 255 karakter.';
+        }
+    }
     if (!draft.supplier?.active || !draft.supplier?.code) {
         errors.supplier = 'Pilih pemasok aktif dari hasil pencarian.';
     }
@@ -149,15 +190,19 @@ export const validateReceipt = draft => {
     );
 };
 
-export const receiptRequest = draft => {
+export const receiptRequest = (draft, paidAt = new Date().toISOString()) => {
     const isoDate = receiptDateToIso(draft.receivedDate);
 
     return {
+        ...(draft.code ? { code: draft.code } : {}),
         supplierCode: draft.supplier.code,
         receivedDate: new Date(
             `${ isoDate }T${ draft.receivedTime }:00${ draft.offset }`
         ).toISOString(),
         description: draft.description.trim(),
+        ...(draft.initialPayment ? {
+            initialPayment: paymentRequest(draft.initialPayment, paidAt)
+        } : {}),
         items: draft.items.map(line => ({
             itemSku: line.item.sku,
             quantity: normalizeQuantity(line.quantity),
@@ -167,15 +212,52 @@ export const receiptRequest = draft => {
     };
 };
 
+const receiptLineKey = line => JSON.stringify([
+    line.itemSku || line.item?.sku,
+    normalizeQuantity(String(line.quantity)),
+    normalizeQuantity(String(line.purchasePrice)),
+    line.stockLocation
+]);
+
+export const isReceiptSubmissionResult = (result, request) => {
+    if (!result?.code || !['POSTED', 'CANCELLED'].includes(result.status)
+        || !['UNPAID', 'PARTIALLY_PAID', 'PAID'].includes(result.paymentStatus)
+        || result.supplierCode !== request.supplierCode
+        || !Array.isArray(result.items) || result.items.length !== request.items.length
+        || ['totalAmount', 'paidAmount', 'outstandingAmount'].some(field => result[field] == null)
+        || (request.code && result.code !== stripReceiptCode(request.code))) {
+        return false;
+    }
+
+    const requestedLines = request.items.map(receiptLineKey).sort();
+    const savedLines = result.items.map(receiptLineKey).sort();
+    if (requestedLines.some((line, index) => line !== savedLines[index])) return false;
+
+    const payment = result.initialPayment;
+    const expected = request.initialPayment;
+    if (!expected) return payment == null;
+
+    return Boolean(payment?.id && payment.paymentReference
+        && payment.receiptCode === result.code
+        && payment.paymentMethod === expected.paymentMethod
+        && normalizeQuantity(String(payment.amount)) === normalizeQuantity(expected.amount)
+        && Date.parse(payment.paidAt) === Date.parse(expected.paidAt)
+        && (expected.paymentMethod !== 'CASH' || payment.cashSessionId));
+};
+
 export const migrateReceiptDraft = draft => {
     if (!draft || Object.hasOwn(draft, 'receivedDate')) {
-        return draft || newReceiptDraft();
+        return {
+            ...newReceiptDraft(),
+            ...draft
+        };
     }
 
     const [legacyDate = '', legacyTime = ''] = String(draft.receivedTime || '').split('T');
     const [year = '', month = '', day = ''] = legacyDate.split('-');
 
     return {
+        ...newReceiptDraft(),
         ...draft,
         receivedDate: year && month && day ? `${ day }-${ month }-${ year }` : '',
         receivedTime: legacyTime

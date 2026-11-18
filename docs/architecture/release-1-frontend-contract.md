@@ -1,6 +1,6 @@
 # Bloom Release 1 Frontend Contract
 
-Last updated: 2026-10-03
+Last updated: 2026-11-19
 
 ## 1. Purpose
 
@@ -115,6 +115,17 @@ Bloom UI is currently a JavaScript React application:
   on key conflict. The result replaces the form with backend-confirmed transfer facts and an existing
   stock-movement route, while wide and narrow layouts preserve reading order without frontend stock
   calculations or new endpoints.
+- Stock-transfer QA extension is implemented (2026-11-09): one or more distinct item lines share
+  opposite source/destination locations and an optional note. Every line has exact quantity,
+  UOM/fraction policy, advisory source stock, indexed validation, and frozen confirmation.
+  Definitive batch rejection retains editing strings and returned field errors; pending locks
+  duplicates, while unknown outcomes retain the exact account-owned payload/key and permit only
+  an explicitly requested same-key replay. All returned lines must match before success is shown.
+  Persisted `/stock-transfers` history and `/stock-transfers/:code` detail use the verified backend
+  reads, immutable line snapshots, audit facts, and associated OUT/IN movements. Transfer movement
+  references now navigate to their parent. Historical single-item records remain readable, including
+  an explicit missing-movement state on older responses. See the
+  [contract, QA evidence, and running-server limitation](../plans/stock-transfer-qa-extension.md).
 - UXI-16 approved supplier list/detail UX is implemented: the URL-backed read model retains the
   backend-supported name/code/contact/address search, active/inactive filtering, explicit range/page
   controls, and stale-response protection. Wide columns become labelled grouped records before the
@@ -129,6 +140,10 @@ Bloom UI is currently a JavaScript React application:
   Deactivation remains a separate duplicate-locked, history-preserving lifecycle action with
   cancel-first focus, Escape restoration, retryable failure, and a focused backend-confirmed inactive
   result. The complete form stays single-column through the approved narrow-desktop boundary.
+- Supplier reactivation QA extension is implemented (2026-11-18). Authenticated users can confirm
+  `Aktifkan pemasok` on inactive supplier detail through the existing activation endpoint.
+  The saved supplier response updates status and invalidates list reads while preserving immutable
+  code/contact/history. Dedicated browser QA verified inactive-to-active search and receipt selection.
 - UXI-18 approved goods-receipt history/detail UX is implemented: receipt code, exact supplier code,
   supplier name, received-date range, page, and page size remain URL-backed and map only to supported
   backend filters. The shared themed range picker removes manual date entry without changing those
@@ -139,14 +154,25 @@ Bloom UI is currently a JavaScript React application:
   then exact received item/UOM/location/price/subtotal lines before the separately owned supplier-
   payment action. History paging uses the same numbered control with icon-only previous/next actions
   as the item and item-category lists.
+- Unpaid receipt cancellation QA extension is implemented (2026-11-18). Detail reached from receipts
+  or payables exposes `Batalkan penerimaan` only when the backend returns `canCancel: true`.
+  The reasoned confirmation explains original-location stock reversal and payable removal. Pending
+  requests lock duplicates. Confirmed rejections retain the reason with Indonesian constraint copy.
+  Unknown outcomes require a fresh detail read before cancellation or payment actions resume.
+  Success renders saved audit facts, original lines/totals, zero server outstanding, and a filtered
+  reversal ledger link. Cancelled receipts expose no payment or cancellation action. The query
+  endpoint supports slash-containing references. Backend Flyway V23 must precede this frontend.
+  See the [contract and dedicated QA results](../plans/supplier-reactivation-receipt-cancellation.md).
 - UXI-19 approved goods-receipt creation/recovery UX is implemented: explicit Indonesian
   `DD-MM-YYYY`, 24-hour time, and WIB/WITA/WIT inputs map to the existing receipt Instant contract;
   compact two-column-to-single-column lines preserve repeated SKU/location entries and exact decimal
   strings. The browser presents only a clearly advisory input estimate. Cancel-first review, one
   locked pending request, definitive rejection, and tab-durable ambiguous recovery retain the exact
   payload and idempotency key. Success renders only backend-confirmed receipt, item, total, paid,
-  outstanding, and payment-status facts; no initial payment or client-authoritative financial state
-  is introduced.
+  outstanding, and payment-status facts. The November receipt-creation extension adds optional
+  custom codes and atomic initial payments, with automatic codes and no payment as defaults.
+  Ambiguous submissions now resolve only through the original-key read-only submission lookup;
+  a missing result stays locked. See the [extension contract and verification](../plans/receipt-initial-payment-custom-code.md).
 - UXI-20 approved payable-discovery/receipt-debt-detail UX is implemented: `/payables` retains only
   the approved receipt-reference and supplier-name discovery choices plus URL-backed server paging,
   explicit range/page controls, filtered-empty recovery, and stale-response protection. Wide rows
@@ -220,7 +246,7 @@ Bloom UI is currently a JavaScript React application:
 
 Release 1 work must preserve this baseline unless a narrowly scoped PR proves that a dependency change is necessary for its immediate domain. TypeScript migration, TanStack Query adoption, global store replacement, router restructuring, and a global design-system rewrite are not Release 1 prerequisites.
 
-- FE-26 goods-receipt creation is implemented: stable supplier code/item SKU, decimal-string UOM-aware quantities and purchase prices, explicit per-line location and received time/UTC offset, one confirmed idempotent atomic POST, tab-persisted draft/recovery, and server-confirmed receipt/payment results. Optional initial payment is omitted. Shared `BloomQuantityField` mechanics are used by receipt entry and the FE-18 cashier wrapper; workflow validation and FE-13 direction/zero rules remain local.
+- FE-26 goods-receipt creation is implemented: stable supplier code/item SKU, decimal-string UOM-aware quantities and purchase prices, explicit per-line location and received time/UTC offset, one confirmed idempotent atomic POST, account-owned tab-persisted draft/recovery, and server-confirmed receipt/payment results. An optional custom code and optional CASH/BANK_TRANSFER/QRIS initial payment are included in that same atomic request. Automatic generation and no payment remain defaults. Unknown outcomes use GET submission lookup with the original key and never repost; 404 remains unresolved. Ownerless legacy attempts remain quarantined. Shared `BloomQuantityField` mechanics are used by receipt entry and the FE-18 cashier wrapper; workflow validation and FE-13 direction/zero rules remain local. Source and isolated browser verification are complete; live verification of the updated backend awaits an authorized rollout. See [extension evidence](../plans/receipt-initial-payment-custom-code.md).
 - FE-27 supplier payable views are implemented: `/payables` pages the backend goods-receipt read model and renders its receipt/payment statuses and financial values directly; supplier detail reads exactly one backend aggregate for that supplier. The workflow links supplier and receipt detail without per-row enrichment or browser-side debt aggregation. It intentionally omits a payment-status filter because the backend does not expose one, and omits calendar date filtering so it does not expand FE-25's unresolved store-timezone boundary.
 - FE-28 single-receipt supplier payment is implemented: receipt detail accepts partial/full CASH, BANK_TRANSFER, or QRIS payments with confirmation, durable same-request/key recovery, duplicate prevention, conflict handling, and focused success. Only CASH requires the verified current session. Recovery is owned by the exact backend `accountId`; username-only or ownerless legacy state remains quarantined. Receipt amounts/status are refreshed from the backend after posting; failed refreshes cannot trigger another payment. See [transaction plan and gate evidence](../plans/fe-28-supplier-payment.md).
 - FE-29 expense history and creation are implemented: `/expenses` renders paged backend audit records across all sessions; `/expenses/new` accepts decimal amount, one of six backend categories, and the supported description field labelled “Alasan / catatan”. New posting requires a verified open session, confirmation, and a fresh session check. The confirmed `expectedCashSessionId`, exact request/key, and immutable backend `accountId` owner are persisted; retries never retarget another session. Legacy username-only, ownerless, or pre-session attempts remain locked for manual reconciliation. No edit/delete/void or drawer calculation is included; see the [contract evidence and history/create review split](../plans/fe-29-expenses.md).
@@ -428,6 +454,8 @@ Movement history must be based on a backend read model and support the context r
 ### 6.6 Suppliers, goods receipts, and debt
 
 - Supplier management uses a stable supplier identifier, not a free-text name as the relationship key.
+- Supplier activation changes use the authenticated-session backend policy and preserve the reserved,
+  read-only supplier code.
 - A goods receipt captures supplier, destination location per contract, and received item quantities/prices.
 - The backend returns receipt total, paid/outstanding values, and payment status.
 - Supplier debt views render backend-calculated receipt-level outstanding amounts.
@@ -436,6 +464,10 @@ Movement history must be based on a backend read model and support the context r
 - Payment methods are `CASH`, `BANK_TRANSFER`, and `QRIS`; only CASH affects drawer cash.
 - No supplier credit balance, prepayment, or automatic multi-receipt allocation is represented in the UI.
 - Posted receipt/payment corrections follow backend reversal rules; the frontend must not delete financial history.
+- Receipt cancellation eligibility comes from `canCancel`, which requires POSTED with no payment
+  records, including voided payments. The command checks stock at each original location atomically.
+  The UI sends only the exact receipt code and required reason and displays returned financial/audit
+  facts. Network, timeout, 5xx, and incomplete responses remain unknown until detail is refreshed.
 
 ### 6.7 Unexpected expenses
 
@@ -626,7 +658,7 @@ The following gates are tracked here; completed entries document the contract th
 - Sale checkout is available at `POST /api/sales` with decimal STORE lines, `CASH`/`QRIS`, and required `Idempotency-Key`; the backend enforces an open session, owns prices/totals/change, replays an identical request, and conflicts on a changed same-key payload. `GET /api/sales/checkout-status` uses the same key and returns `COMPLETED` with the sale or `UNKNOWN` without mutating sale state.
 - Store-laptop verification of the observed E81W scanner's physical input, focus, feedback, and rapid-scan behavior remains unresolved.
 - Printer endpoint success/error semantics in the target environment.
-- Goods-receipt creation is available at `POST /api/goods-receipts` with required `Idempotency-Key`, stable `supplierCode`, `receivedDate` Instant, and decimal item/price/location lines. The service computes totals and posts receipt/movements atomically, replays identical requests, and conflicts on changed same-key payloads. `initialPayment` is optional; FE-26 omits it and renders returned total/paid/outstanding/status. The form requires an explicitly selected UTC offset rather than assuming a fixed store timezone.
+- Goods-receipt creation is available at `POST /api/goods-receipts` with required `Idempotency-Key`, stable `supplierCode`, `receivedDate` Instant, decimal item/price/location lines, optional `code`, and optional `initialPayment`. The service computes totals and posts receipt, movements, and initial payment atomically. The response expands the saved initial payment with stable `paymentReference`; subsequent detail uses payment history. CASH requires an open session and valid payment time; noncash does not affect the drawer. Custom codes preserve case, strip Java outer whitespace, reject internal whitespace/control characters, and stay reserved after cancellation. History and payables support `exactCode`; encoded query values and frontend route segments preserve `/+%?#`. Unknown outcomes use only `GET /api/goods-receipts/submission` with the original key; a 404 does not prove rollback and cannot unlock or repost the attempt. The form requires an explicitly selected UTC offset rather than assuming a fixed store timezone. These extension endpoints/fields must be deployed before frontend rollout; current-runtime integration remains unverified under the instruction to preserve running services and database.
 - Goods-receipt read fields and date semantics are implemented. `receivedDateFrom` and `receivedDateTo` are calendar dates; the backend uses the canonical system-wide `bloom.store-zone-id` IANA zone (default `Asia/Jakarta`) and queries `[from at start-of-day, day-after-to at start-of-day)`. The browser sends dates unchanged and performs no device-timezone conversion.
 - Single-receipt payment is available at `POST /api/goods-receipts/payments?code={receiptCode}` with required `Idempotency-Key`. It serializes identical replay, rejects changed payloads/overpayment, and links only CASH to the globally open session. Its response is the payment record; the existing receipt detail GET supplies updated paid/outstanding/status. CASH paidAt cannot predate session opening. Recovery ownership uses the authenticated `accountId`; CASH recovery also retains and revalidates its original session ID in browser recovery metadata so a later open session cannot retarget the request. Legacy username-only, ownerless, or CASH attempts without an original session identity remain quarantined. Reversal UI remains outside FE-28.
 - Expense list/create contracts are verified: authenticated `GET /api/expenses` reads all sessions with one-based paging and fixed newest-first ordering, without filters; `POST /api/expenses` requires positive `expectedCashSessionId`, positive decimal `amount`, fixed `category`, optional `description` (required for OTHER), and `Idempotency-Key`. The service atomically records the expense and movement against that specified open session, replays identical requests before session eligibility checks, and conflicts on changed same-key content or session. FE-29 uses exact-request/key POST recovery with its original session ID and authenticated `accountId`. Old uncertain recovery without either identity or confirmed session ID remains quarantined. Detail/void UI remains outside FE-29.

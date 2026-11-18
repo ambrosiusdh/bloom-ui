@@ -66,7 +66,7 @@ const GoodsReceiptItemsTable = ({ goodsReceiptItems }) => {
                 )) : <div className="py-6 text-center text-gray-500">Tidak ada barang pada penerimaan ini.</div> }
             </div>
             <TableContainer component={ Paper } elevation={ 0 } className="!overflow-x-hidden">
-                <Table className="hidden xl:table xl:table-fixed" aria-label="Baris barang penerimaan">
+                <Table className="!hidden xl:!table xl:table-fixed" aria-label="Baris barang penerimaan">
                     <TableHead className="bg-gray-100">
                         <TableRow>
                             <TableCell className="font-semibold">Barang</TableCell>

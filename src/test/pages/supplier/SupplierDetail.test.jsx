@@ -13,6 +13,7 @@ import {
 
 import supplierApi from '@api/supplier.js';
 import SupplierDetail from '@pages/supplier/SupplierDetail.jsx';
+import useAuthStore from '@stores/modules/auth.js';
 import useSupplierStore from '@stores/modules/supplier.js';
 import {
     fireEvent,
@@ -63,6 +64,13 @@ const renderDetail = () => render(
 describe('SupplierDetail', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        useAuthStore.setState({
+            authStatus: 'authenticated',
+            currentUser: {
+                accountId: '101',
+                username: 'admin'
+            }
+        });
         useSupplierStore.setState({
             supplierDetails: null,
             detailStatus: 'idle',
@@ -179,5 +187,60 @@ describe('SupplierDetail', () => {
         expect(screen.getAllByText('SUP-001').length).toBeGreaterThan(0);
         expect(screen.getByLabelText('Status pemasok: Tidak aktif')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Nonaktifkan pemasok' })).not.toBeInTheDocument();
+    });
+
+    it('reactivates the same supplier with cancel-first focus and duplicate submission protection', async () => {
+        let resolveActivation;
+        supplierApi.getSupplierDetails.mockResolvedValue({ data: { data: supplier } });
+        supplierApi.setSupplierActive.mockReturnValue(new Promise(resolve => {
+            resolveActivation = resolve;
+        }));
+        renderDetail();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Aktifkan pemasok' }));
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Batal' })).toHaveFocus());
+        const confirm = screen.getByRole('button', { name: 'Aktifkan' });
+        fireEvent.click(confirm);
+        fireEvent.click(confirm);
+
+        expect(confirm).toBeDisabled();
+        expect(supplierApi.setSupplierActive).toHaveBeenCalledTimes(1);
+        expect(supplierApi.setSupplierActive).toHaveBeenCalledWith('SUP-001', true, undefined);
+
+        resolveActivation({
+            data: {
+                data: {
+                    ...supplier,
+                    active: true
+                }
+            }
+        });
+
+        expect(await screen.findByLabelText('Status pemasok: Aktif')).toBeInTheDocument();
+        expect(screen.getByText(/berhasil diaktifkan dan dapat dipilih/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Aktifkan pemasok' })).not.toBeInTheDocument();
+        expect(screen.getByText('Kode pemasok').nextSibling).toHaveTextContent('SUP-001');
+    });
+
+    it('preserves inactive identity and displays an Indonesian authorization rejection', async () => {
+        supplierApi.getSupplierDetails.mockResolvedValue({ data: { data: supplier } });
+        supplierApi.setSupplierActive.mockRejectedValue({ category: 'authorization' });
+        renderDetail();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Aktifkan pemasok' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Aktifkan' }));
+
+        expect(await screen.findByText('Anda tidak memiliki izin untuk mengubah status pemasok.'))
+            .toBeInTheDocument();
+        expect(screen.getByLabelText('Status pemasok: Tidak aktif')).toBeInTheDocument();
+    });
+
+    it('requires an authenticated user before exposing reactivation', async () => {
+        useAuthStore.setState({ authStatus: 'unauthenticated' });
+        supplierApi.getSupplierDetails.mockResolvedValue({ data: { data: supplier } });
+        renderDetail();
+
+        await screen.findByRole('heading', { name: 'Detail pemasok' });
+        expect(screen.queryByRole('button', { name: 'Aktifkan pemasok' })).not.toBeInTheDocument();
     });
 });

@@ -59,6 +59,25 @@ const deferred = () => {
 const LocationProbe = () => <output aria-label="Lokasi saat ini">{ useLocation().search }</output>;
 
 describe('GoodsReceiptList UXI-18 read workflow', () => {
+    it('keeps a special-character custom code exact when opening history from the result', async () => {
+        const code = 'Vendor/2026/+%?#';
+        goodsReceiptApi.getGoodsReceiptList.mockResolvedValue(response([{
+            ...receipt,
+            code
+        }]));
+        render(<GoodsReceiptList />, {
+            route: '/goods-receipts?key=exactCode&q=Vendor%2F2026%2F%2B%25%3F%23'
+        });
+
+        expect(await screen.findByRole('link', { name: `Buka detail ${ code }` }))
+            .toHaveAttribute('href', '/goods-receipts/Vendor%2F2026%2F%2B%25%3F%23');
+        expect(goodsReceiptApi.getGoodsReceiptList).toHaveBeenCalledWith({
+            page: 1,
+            size: 10,
+            exactCode: code
+        }, expect.any(Object), { useLoader: false });
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
         useGoodsReceiptStore.setState({

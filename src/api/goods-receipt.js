@@ -38,12 +38,33 @@ const createGoodsReceipt = async (payload, idempotencyKey, options) => {
         url: GOODS_RECEIPT.create,
         method: 'POST',
         data: payload,
-        headers: { 'Idempotency-Key': idempotencyKey }
+        headers: { 'Idempotency-Key': idempotencyKey },
+        timeout: 15000,
+        skipAuthRedirect: true
     }, options);
 }
+
+const getGoodsReceiptSubmission = (idempotencyKey, options) => api({
+    url: GOODS_RECEIPT.submission,
+    method: 'GET',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    timeout: 15000,
+    skipAuthRedirect: true
+}, options);
+
+const cancelGoodsReceipt = (code, reason, options) => api({
+    url: GOODS_RECEIPT.cancel,
+    method: 'POST',
+    params: { code },
+    data: { reason },
+    timeout: 15000,
+    skipAuthRedirect: true
+}, options);
 
 export default {
     getGoodsReceiptList,
     getGoodsReceiptDetails,
-    createGoodsReceipt
+    createGoodsReceipt,
+    getGoodsReceiptSubmission,
+    cancelGoodsReceipt
 }

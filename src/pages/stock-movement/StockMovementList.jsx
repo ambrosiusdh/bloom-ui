@@ -66,11 +66,19 @@ const SOURCE_TYPE_LABELS = {
 };
 
 const SOURCE_DETAIL_ROUTES = {
+    TRANSFER: {
+        path: '/stock-transfers',
+        label: 'Buka transfer terkait'
+    },
     SALE: {
         path: '/sales',
         label: 'Buka penjualan terkait'
     },
     GOODS_RECEIPT: {
+        path: '/goods-receipts',
+        label: 'Buka penerimaan terkait'
+    },
+    GOODS_RECEIPT_CANCELLATION: {
         path: '/goods-receipts',
         label: 'Buka penerimaan terkait'
     },
@@ -253,7 +261,9 @@ export default function StockMovementList() {
     const itemSku = getFilterValue(searchParams, 'itemSku');
     const movementType = getFilterValue(searchParams, 'movementType', MOVEMENT_TYPE_OPTIONS);
     const location = getFilterValue(searchParams, 'location', LOCATION_OPTIONS);
-    const hasFilters = Boolean(itemSku || movementType || location);
+    const reference = getFilterValue(searchParams, 'reference');
+    const sourceType = getFilterValue(searchParams, 'sourceType', SOURCE_TYPE_LABELS);
+    const hasFilters = Boolean(itemSku || movementType || location || reference || sourceType);
     const searchKey = searchParams.toString();
     const [skuInput, setSkuInput] = useState(itemSku);
     const totalElements = Number.isFinite(Number(paging.totalElements))
@@ -310,7 +320,9 @@ export default function StockMovementList() {
             size,
             ...(itemSku ? { itemSku } : {}),
             ...(movementType ? { movementType } : {}),
-            ...(location ? { location } : {})
+            ...(location ? { location } : {}),
+            ...(reference ? { reference } : {}),
+            ...(sourceType ? { sourceType } : {})
         };
 
         setLoading(true);
@@ -342,7 +354,7 @@ export default function StockMovementList() {
             });
 
         return () => controller.abort();
-    }, [itemSku, location, movementType, page, retryVersion, size]);
+    }, [itemSku, location, movementType, page, reference, retryVersion, size, sourceType]);
 
     const clearFilters = () => {
         setSkuInput('');
@@ -350,6 +362,8 @@ export default function StockMovementList() {
             itemSku: '',
             movementType: '',
             location: '',
+            reference: '',
+            sourceType: '',
             page: 1
         });
         skuInputRef.current?.focus();
@@ -381,6 +395,16 @@ export default function StockMovementList() {
                     Buat transfer stok
                 </Button>
             </div>
+
+            <Button component={ Link } to="/stock-transfers" className="mb-4">Riwayat transfer stok</Button>
+
+            { (reference || sourceType) && (
+                <Alert severity="info" className="mb-4">
+                    <span className="break-all">
+                        { [SOURCE_TYPE_LABELS[sourceType], reference].filter(Boolean).join(' · ') }
+                    </span>
+                </Alert>
+            ) }
 
             { error && (
                 <Alert
@@ -552,7 +576,7 @@ export default function StockMovementList() {
 
                                         <TableCell className={ `${ tableCellClass } !block !border-b-0 !p-0 lg:!table-cell lg:!border-b lg:!p-4` }>
                                             <span className="block text-xs font-medium text-gray-600 lg:hidden">Saldo</span>
-                                            <span className="mt-1 block whitespace-nowrap tabular-nums lg:mt-0">
+                                            <span className="mt-1 block break-words tabular-nums lg:mt-0">
                                                 { formatQuantity(movement.qtyBefore, unitOfMeasure) }
                                                 <span aria-hidden="true"> → </span>
                                                 <span className="sr-only"> menjadi </span>

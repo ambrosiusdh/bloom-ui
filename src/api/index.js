@@ -27,13 +27,19 @@ const ERROR_MESSAGES = {
 };
 
 const getValidationErrors = data => {
-    if (!Array.isArray(data?.message)) {
+    const details = data?.errorType === 'StockTransferValidationException'
+        ? data.errors : data?.message;
+
+    if (!Array.isArray(details)) {
         return [];
     }
 
-    return data.message
+    return details
         .filter(detail => typeof detail?.field === 'string' && typeof detail?.message === 'string')
-        .map(({ field, message }) => ({ field, message }));
+        .map(({ field, message }) => ({
+            field,
+            message
+        }));
 };
 
 const getCategory = (status, validationErrors, hasRequest, isValidationFailure, domainCode) => {

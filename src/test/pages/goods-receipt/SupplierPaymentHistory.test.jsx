@@ -54,6 +54,17 @@ const response = (
 });
 
 describe('SupplierPaymentHistory UXI-20 read workflow', () => {
+    it('renders the stable server payment identity alongside the external reference', async () => {
+        supplierPaymentApi.getSupplierPaymentHistory.mockResolvedValue(response([{
+            ...payments[0],
+            paymentReference: 'SUPPLIER-PAYMENT-3'
+        }]));
+        render(<SupplierPaymentHistory receiptCode={ receiptCode } />);
+
+        expect(await screen.findByText('SUPPLIER-PAYMENT-3')).toBeInTheDocument();
+        expect(screen.getByText('PAY-QRIS-3')).toBeInTheDocument();
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
     });
